@@ -1,0 +1,141 @@
+.patient-item-container {
+  background-color: white;
+  margin-bottom: 12px;
+  border-radius: 4px;
+  padding: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-left: 20px;
+  flex-direction: column;
+}
+
+.patient-details {
+  display: flex;
+  width: 100%;
+  gap: 30px;
+  justify-content: space-between;
+}
+
+@media (max-width: 768px) {
+  .patient-details {
+    display: flex;
+    flex-direction: row;
+    gap: 0px;
+    line-height: 0px;
+    font-size: large;
+  }
+  button {
+    font-size: medium;
+  }
+  .icon-drag-handle {
+    touch-action: none;
+  }
+}
+
+button {
+  width: 100%;
+  height: 30px;
+  cursor: pointer;
+}
+
+.next-button {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  height: 30px;
+  cursor: pointer;
+  border-radius: 4px;
+  margin: 4px;
+  width: fit-content;
+  flex-grow: 1;
+}
+
+.next-button:hover {
+  background-color: #218838;
+}
+
+.late-button {
+  background-color: #e65100;
+  color: white;
+  border: none;
+  height: 30px;
+  cursor: pointer;
+  border-radius: 4px;
+  margin: 4px;
+  width: fit-content;
+  flex-grow: 1;
+}
+
+.late-button:hover {
+  background-color: #bf360c;
+}
+
+.done {
+  background: #d4edda;
+  color: #155724;
+  margin-bottom: 10px;
+  border-radius: 5px;
+}
+
+.current {
+  background-color: #fff3cd;
+  color: #856404;
+  font-weight: bold;
+  border: 2px solid #856404;
+  margin-bottom: 10px;
+  border-radius: 5px;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.upcoming {
+  background: #cce5ff;
+  color: #004085;
+  margin-bottom: 10px;
+  border-radius: 5px;
+}
+
+.button-container {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.patient-list-item-icon-right {
+  display: flex;
+  align-items: center;
+  margin-right: 20px;
+}
+
+.icon-drag-handle {
+  cursor: grab;
+}
+
+.dropped-effect {
+  animation: dropEffect 0.5s ease-in-out;
+}
+
+@keyframes dropEffect {
+  0% {
+    transform: scale(1.05);
+    background-color: rgba(255, 223, 105, 0.8);
+  }
+  50% {
+    transform: scale(1);
+    background-color: rgba(255, 223, 105, 0.6);
+  }
+  100% {
+    background-color: white;
+  }
+}
+
+.late {
+  background: #ffebee;
+  color: #b71c1c;
+  margin-bottom: 10px;
+  border-radius: 5px;
+  border: 2px solid #d32f2f;
+  font-weight: bold;
+  transition: background-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+}

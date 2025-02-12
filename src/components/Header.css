@@ -1,0 +1,19 @@
+header {
+  background-color: rgba(255, 255, 255, 0.6);
+  padding-left: 16px;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(19, 46, 155, 0.15);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  backdrop-filter: blur(12px);
+}
+
+@media (max-width: 768px) {
+  header {
+    display: flex;
+    justify-content: center;
+  }
+}

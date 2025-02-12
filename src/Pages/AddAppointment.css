@@ -1,0 +1,79 @@
+.add-appointment-container {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: white;
+}
+
+.form-container {
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 30px;
+  padding-top: 50px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  max-width: 600px;
+  width: 100%;
+}
+
+.form-title {
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 24px;
+  color: #333;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.input-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+/* Stack elements vertically on small screens */
+@media (max-width: 768px) {
+  .input-row {
+    margin-top: -10px;
+    flex-direction: column;
+    gap: 15px;
+  }
+  .add-appointment-container {
+    padding: 0px;
+  }
+  .form-container {
+    padding: 20px;
+    border: none;
+    box-shadow: none;
+    width: 100%;
+  }
+}
+
+.input-row > * {
+  flex: 1;
+}
+
+.custom-button {
+  color: white;
+  background-color: #007bff;
+  border: none;
+  text-align: center;
+  border-radius: 4px;
+  font-size: 16px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.custom-button:hover {
+  background-color: #0066cc;
+}
