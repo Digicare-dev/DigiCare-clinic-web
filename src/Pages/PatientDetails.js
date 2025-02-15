@@ -1,96 +1,109 @@
-import React, { useEffect, useState } from "react";
-import "./PatientDetails.css";
+import React, { useState, useEffect } from "react";
+import {
+  TextField,
+  Button,
+  Typography,
+  Card,
+  CardContent,
+  Box,
+  Paper,
+} from "@mui/material";
 import { putData } from "../services/apiService";
+import styles from "./PatientDetails.module.css";
+
+const capitalizeFirstLetter = (string) => {
+  return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
+};
 
 export default function PatientDetails({ currentPatient, handleNextPatient }) {
   const [doctorsRemark, setDoctorsRemark] = useState("");
+  const [showNextPatientMessage, setShowNextPatientMessage] = useState(false);
 
-  const addDoctorsRemark = (id) => {
+  useEffect(() => {
+    if (currentPatient) {
+      setShowNextPatientMessage(false);
+    }
+  }, [currentPatient]);
+
+  const addDoctorsRemark = async () => {
     const payload = {
-      appointment_id: id,
+      appointment_id: currentPatient.appointment_id,
       remarks: doctorsRemark,
     };
-    putData("queueinfo/add-remarks/", payload);
+    await putData("queueinfo/add-remarks/", payload);
     setDoctorsRemark("");
-  };
-
-  const handleOnNext = (id) => {
-    addDoctorsRemark(id);
-    handleNextPatient(id);
+    setShowNextPatientMessage(true);
   };
 
   return (
-    <>
+    <Box className={styles.patientDetailsContainer}>
       {currentPatient != null && (
-        <div className="patient-details-container">
-          <div className="card">
-            {/* Patient Photo and Basic Info */}
-            <div className="patient-header">
-              <div className="avatar">
-                {currentPatient.gender === "male" ? "👨" : "👩"}
+        <Card className={styles.patientDetailsCard}>
+          <CardContent>
+            <Typography variant="h5" component="div" gutterBottom>
+              Patient Details
+            </Typography>
+            <div className={styles.flexContainer}>
+              <Paper className={styles.flexItem}>
+                <Typography variant="body1">
+                  <strong>Name:</strong>{" "}
+                  {capitalizeFirstLetter(currentPatient.first_name)}{" "}
+                  {capitalizeFirstLetter(currentPatient.last_name)}
+                </Typography>
+              </Paper>
+              <Paper className={styles.flexItem}>
+                <Typography variant="body1">
+                  <strong>Guardian:</strong>{" "}
+                  {capitalizeFirstLetter(currentPatient.guardian)}
+                </Typography>
+              </Paper>
+              <Paper className={styles.flexItem}>
+                <Typography variant="body1">
+                  <strong>Age:</strong> {currentPatient.age}
+                </Typography>
+              </Paper>
+              <Paper className={styles.flexItemFullWidth}>
+                <Typography variant="body1">
+                  <strong>Disease Description:</strong>{" "}
+                  {currentPatient.diseaseDescription}
+                </Typography>
+              </Paper>
+              <div className={styles.flexItemFullWidth}>
+                <TextField
+                  label="Doctor's Remark"
+                  value={doctorsRemark}
+                  onChange={(e) => setDoctorsRemark(e.target.value)}
+                  fullWidth
+                  multiline
+                  rows={4}
+                  variant="outlined"
+                />
+              </div>
+              <div className={styles.flexItemFullWidth}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={addDoctorsRemark}
+                  fullWidth
+                  className={styles.nextButton}
+                >
+                  Add Remarks
+                </Button>
               </div>
             </div>
-            <div className="patient-info">
-              <h2 className="patient-name">
-                {currentPatient.first_name} {currentPatient.last_name}
-              </h2>
-              <p>Token Number - {currentPatient.token}</p>
-              <p>{currentPatient.gender}</p>
-            </div>
-
-            {/* Disease */}
-            {/* <div className="section">
-          <span className="label">Disease - </span>
-          <span className="value">{currentPatient.disease}</span>
-        </div> */}
-
-            {/* Doctor's Remark */}
-            <div className="section">
-              <span className="label">Doctor's Remark - </span>
-              <textarea
-                className="remark-input"
-                value={doctorsRemark}
-                onChange={(e) => setDoctorsRemark(e.target.value)}
-                placeholder="Add remarks here..."
-              ></textarea>
-            </div>
-
-            {/* Next Patient Button */}
-            <button
-              className="button"
-              onClick={() => handleOnNext(currentPatient.appointment_id)}
-            >
-              Next Patient
-            </button>
-          </div>
-        </div>
+            {showNextPatientMessage && (
+              <Typography
+                variant="body1"
+                color="textSecondary"
+                align="center"
+                style={{ marginTop: "20px" }}
+              >
+                The next patient will enter shortly.
+              </Typography>
+            )}
+          </CardContent>
+        </Card>
       )}
-
-      {currentPatient == null && (
-        <div
-          className="patient-details-container"
-          style={{
-            height: "30rem",
-            justifyContent: "center",
-            alignItems: "center",
-            display: "flex",
-            width: "100%",
-          }}
-        >
-          <div
-            className="card"
-            style={{
-              width: "100%",
-              height: "70%",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <p>Queue is currently empty</p>
-          </div>
-        </div>
-      )}
-    </>
+    </Box>
   );
 }

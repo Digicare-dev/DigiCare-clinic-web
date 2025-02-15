@@ -6,7 +6,6 @@ export default function SuccessAlert({ title, message }) {
     <div
       style={{
         margin: "auto",
-        margin: "auto",
         height: "60vh",
         display: "flex",
         alignItems: "center",

@@ -11,9 +11,23 @@ header {
   backdrop-filter: blur(12px);
 }
 
+.logout-button {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 40px;
+}
+
 @media (max-width: 768px) {
   header {
     display: flex;
     justify-content: center;
+  }
+  .logout-button {
+    padding-right: 10px;
+    width: fit-content;
+    position: absolute;
+    z-index: 10;
+    right: 10px;
   }
 }

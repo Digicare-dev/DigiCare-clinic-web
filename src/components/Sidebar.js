@@ -14,7 +14,6 @@ import { NavLink } from "react-router-dom";
 import HomeIcon from "@mui/icons-material/Home";
 import AddIcon from "@mui/icons-material/Add";
 import MedicalInformationIcon from "@mui/icons-material/MedicalInformation";
-import SettingsIcon from "@mui/icons-material/Settings";
 import HelpIcon from "@mui/icons-material/Help";
 
 const drawerWidth = 240;
@@ -28,7 +27,7 @@ export default function Sidebar() {
       path: "/patient-details",
       icon: MedicalInformationIcon,
     },
-    { text: "Settings", path: "/settings", icon: SettingsIcon },
+    // { text: "Settings", path: "/settings", icon: SettingsIcon },
     { text: "Help", path: "/help", icon: HelpIcon },
   ];
 
@@ -41,6 +40,7 @@ export default function Sidebar() {
         width: drawerWidth,
         flexShrink: 0,
         "& .MuiDrawer-paper": {
+          marginTop: "72px",
           width: drawerWidth,
           boxSizing: "border-box",
         },

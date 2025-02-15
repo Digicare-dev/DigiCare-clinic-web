@@ -4,11 +4,8 @@ import Box from "@mui/material/Box";
 import BottomNavigation from "@mui/material/BottomNavigation";
 import BottomNavigationAction from "@mui/material/BottomNavigationAction";
 
-import HomeIcon from "@mui/icons-material/Home";
 import AddIcon from "@mui/icons-material/Add";
 import MedicalInformationIcon from "@mui/icons-material/MedicalInformation";
-import SettingsIcon from "@mui/icons-material/Settings";
-import HelpIcon from "@mui/icons-material/Help";
 import TimerIcon from "@mui/icons-material/Timer";
 
 export default function BottomNavigator() {
@@ -42,8 +39,8 @@ export default function BottomNavigator() {
           label="Current Patient"
           icon={<MedicalInformationIcon />}
         />
-        <BottomNavigationAction label="Settings" icon={<SettingsIcon />} />
-        <BottomNavigationAction label="Help" icon={<HelpIcon />} />
+        {/* <BottomNavigationAction label="Settings" icon={<SettingsIcon />} />
+        <BottomNavigationAction label="Help" icon={<HelpIcon />} /> */}
       </BottomNavigation>
     </Box>
   );

@@ -1,18 +1,42 @@
 import axios from "axios";
 
-// Load API URLs from environment variables
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 const REFRESH_TOKEN_URL = process.env.REACT_APP_REFRESH_TOKEN_URL;
 
-// Create an Axios instance
+// Axios Instance
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
 });
 
-// Track refresh state to prevent multiple refresh calls
+// Flag to prevent multiple token refresh requests
 let isRefreshing = false;
-let refreshQueue = [];
+let refreshSubscribers = [];
+
+// Function to refresh token
+const refreshAccessToken = async () => {
+  try {
+    const refreshToken = localStorage.getItem("refreshToken");
+    // if (!refreshToken) throw new Error("No refresh token");
+
+    const { data } = await axios.post(REFRESH_TOKEN_URL, {
+      refresh: refreshToken,
+    });
+
+    localStorage.setItem("accessToken", data.access);
+    localStorage.setItem("refreshToken", data.refresh);
+
+    refreshSubscribers.forEach((callback) => callback(data.access));
+    refreshSubscribers = [];
+    return data.access;
+  } catch (error) {
+    console.error("Session expired. Redirecting to login.");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    window.location.replace("/login");
+    throw error;
+  }
+};
 
 // Request Interceptor: Attach Authorization Header
 axiosInstance.interceptors.request.use((config) => {
@@ -23,60 +47,33 @@ axiosInstance.interceptors.request.use((config) => {
   return config;
 });
 
-// Response Interceptor: Handle 401 Errors (Token Expired)
+// Response Interceptor: Handle Token Expiration
 axiosInstance.interceptors.response.use(
-  (response) => response, // Return response if no error
+  (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // If the error is 401 (Unauthorized) and the request has not been retried yet
     if (error.response?.status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
-        return new Promise((resolve) => {
-          refreshQueue.push((token) => {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            resolve(axiosInstance(originalRequest));
-          });
-        });
-      }
-
-      isRefreshing = true;
       originalRequest._retry = true;
 
-      try {
-        const refreshToken = localStorage.getItem("refreshToken");
-        if (!refreshToken) throw new Error("No refresh token available");
-
-        // Request a new access token
-        const { data } = await axios.post(REFRESH_TOKEN_URL, {
-          refresh: refreshToken,
-        });
-
-        // Update tokens in localStorage
-        localStorage.setItem("accessToken", data.accessToken);
-        if (data.refreshToken) {
-          localStorage.setItem("refreshToken", data.refreshToken);
+      if (!isRefreshing) {
+        isRefreshing = true;
+        try {
+          await refreshAccessToken();
+          isRefreshing = false;
+          return axiosInstance(originalRequest);
+        } catch (refreshError) {
+          isRefreshing = false;
+          return Promise.reject(refreshError);
         }
-
-        // Update axios defaults with the new token
-        axiosInstance.defaults.headers.Authorization = `Bearer ${data.accessToken}`;
-
-        // Resolve pending requests with the new token
-        refreshQueue.forEach((callback) => callback(data.accessToken));
-        refreshQueue = [];
-
-        return axiosInstance(originalRequest);
-      } catch (refreshError) {
-        console.error("Session expired. Redirecting to login.");
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
-
-        // Use window.location.replace() to prevent infinite loops
-        window.location.replace("/login");
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
       }
+
+      return new Promise((resolve) => {
+        refreshSubscribers.push((token) => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          resolve(axiosInstance(originalRequest));
+        });
+      });
     }
 
     return Promise.reject(error);

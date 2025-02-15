@@ -5,27 +5,35 @@ import {
   MenuItem,
   Select,
   TextField,
+  Button,
+  CircularProgress,
 } from "@mui/material";
+import { DatePicker } from "@mui/x-date-pickers";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
 import { useState } from "react";
 import SuccessAlert from "../components/SuccessAlert";
 import { postData } from "../services/apiService";
 
 export default function AddAppointment({ addAppointment }) {
-  const [otp, setOtp] = useState("");
-  const [sentOtp, setSentOtp] = useState(false);
   const [alert, setAlert] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
-    dob: "",
+    dob: null,
     sex: "",
+    guardian: "",
+    appointmentType: "P",
     mobileNumber: "",
     diseaseDescription: "",
   });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    console.log(name, value);
     setFormData((prevState) => ({
       ...prevState,
       [name]: value,
@@ -33,32 +41,43 @@ export default function AddAppointment({ addAppointment }) {
   };
 
   const addPatient = async () => {
+    setLoading(true);
     const payload = {
       first_name: formData.firstName,
       last_name: formData.lastName,
-      dob: formData.dob,
+      dob: formData.dob ? dayjs(formData.dob).format("YYYY-MM-DD") : "",
       gender: formData.sex,
       phone_number: formData.mobileNumber,
+      guardian: formData.guardian,
     };
-    const response = await postData("userinfo/add-patient/", payload);
-    // const result = addAppointment(
-    //   response.patient_id,
-    //   formData.diseaseDescription
-    // );
-    setAlert(true);
-    setTimeout(() => setAlert(false), 3000);
+    try {
+      const response = await postData("userinfo/add-patient/", payload);
+      addAppointment(
+        response.patient_id,
+        formData.diseaseDescription,
+        formData.appointmentType
+      );
+      setAlert(true);
+      setTimeout(() => setAlert(false), 1000);
+    } catch (error) {
+      console.error("Error adding patient:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    addPatient();
+    await addPatient();
     setFormData({
       firstName: "",
       lastName: "",
-      dob: "",
+      dob: null,
       sex: "",
       mobileNumber: "",
       diseaseDescription: "",
+      guardian: "",
+      appointmentType: "P",
     });
   };
 
@@ -67,7 +86,7 @@ export default function AddAppointment({ addAppointment }) {
       {alert && (
         <SuccessAlert
           title={"Success"}
-          message={"Appointment added successfuly!"}
+          message={"Appointment added successfully!"}
         />
       )}
       {!alert && (
@@ -93,22 +112,66 @@ export default function AddAppointment({ addAppointment }) {
             </div>
 
             <div className="input-row">
-              {/* Date of Birth Field */}
               <TextField
-                name="dob"
-                label="Date of Birth"
-                type="date"
-                value={formData.dob}
+                name="guardian"
+                label="Guardian"
+                value={formData.guardian}
                 onChange={handleChange}
-                InputLabelProps={{ shrink: true }} // Keeps label above when date is selected
-                style={{ flex: 1, marginRight: "10px" }}
+                fullWidth
                 required
               />
-              <FormControl>
+              <FormControl fullWidth>
+                <InputLabel id="demo-simple-select-helper-label">
+                  Appointment Type
+                </InputLabel>
+                <Select
+                  name="appointmentType"
+                  value={formData.appointmentType}
+                  onChange={handleChange}
+                  required
+                >
+                  <MenuItem value="P">Patient</MenuItem>
+                  <MenuItem value="E">Emergency</MenuItem>
+                  <MenuItem value="S">Staff</MenuItem>
+                </Select>
+              </FormControl>
+            </div>
+
+            <div className="input-row">
+              {/* Date Picker for Date of Birth */}
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  label="Date of Birth"
+                  value={formData.dob}
+                  onChange={(newValue) =>
+                    setFormData((prev) => ({ ...prev, dob: newValue }))
+                  }
+                  format="DD-MM-YYYY"
+                  required
+                />
+              </LocalizationProvider>
+
+              {/* Sex Selector with better alignment */}
+              {/* <FormControl>
                 <InputLabel>Sex</InputLabel>
                 <Select
                   name="sex"
-                  label="Sex"
+                  value={formData.sex}
+                  onChange={handleChange}
+                  required
+                >
+                  <MenuItem value="M">Male</MenuItem>
+                  <MenuItem value="F">Female</MenuItem>
+                  <MenuItem value="O">Others</MenuItem>
+                </Select>
+              </FormControl> */}
+
+              <FormControl fullWidth>
+                <InputLabel id="demo-simple-select-helper-label">
+                  Sex
+                </InputLabel>
+                <Select
+                  name="sex"
                   value={formData.sex}
                   onChange={handleChange}
                   required
@@ -127,8 +190,8 @@ export default function AddAppointment({ addAppointment }) {
                 type="tel"
                 value={formData.mobileNumber}
                 onChange={handleChange}
-                fullWidth
                 required
+                inputProps={{ maxLength: 10 }}
               />
             </div>
 
@@ -140,13 +203,35 @@ export default function AddAppointment({ addAppointment }) {
                 onChange={handleChange}
                 fullWidth
                 multiline
-                rows={4}
+                rows={3}
               />
             </div>
 
-            <button className="custom-button" type="submit">
-              Submit
-            </button>
+            <div className="input-row">
+              <Button
+                type="submit"
+                variant="outlined"
+                sx={{
+                  backgroundColor: "#007bff",
+                  color: "white",
+                  height: "40px",
+                  "&:hover": {
+                    backgroundColor: "#0066cc",
+                  },
+                  "&.Mui-disabled": {
+                    backgroundColor: "#007bff",
+                    color: "white",
+                  },
+                }}
+                disabled={loading}
+              >
+                {loading ? (
+                  <CircularProgress size={24} color="white" />
+                ) : (
+                  "Submit"
+                )}
+              </Button>
+            </div>
           </form>
         </div>
       )}

@@ -1,10 +1,11 @@
 .login-page-background {
   background-color: #f5f5f5;
   display: flex;
-  justify-content: space-between;
+  justify-content: center; /* Center horizontally */
+  align-items: center; /* Center vertically */
   padding: 0px 20px;
-  padding-top: 40px;
-  padding-bottom: 60px;
+  min-height: 90vh; /* Use min-height instead of height */
+  overflow: hidden;
 }
 
 .login-page-info {
@@ -21,7 +22,7 @@
   background-color: #fff;
   box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.12);
   padding: 60px;
-  height: 55vh;
+  min-height: 40vh; /* Use min-height instead of height */
 }
 
 .custom-button {
@@ -44,7 +45,28 @@
   background-color: #0066cc;
 }
 
+h1 {
+  font-size: 80px;
+  opacity: 0.8;
+}
+
 .dots-container {
   display: flex;
   align-items: center;
+}
+
+@media (max-width: 768px) {
+  .login-page-background {
+    overflow-y: hidden;
+    background-color: white;
+    padding: 0px;
+    flex-direction: column; /* Stack items vertically */
+  }
+  .login-container {
+    width: 100%;
+    padding: 20px;
+    margin: 10px;
+    padding-top: 80px;
+    margin-top: 50px;
+  }
 }

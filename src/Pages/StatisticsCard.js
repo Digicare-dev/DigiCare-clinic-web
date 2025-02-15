@@ -1,9 +1,10 @@
 import React from "react";
-import { Card, CardContent, Typography, Box } from "@mui/material";
+import { Card, CardContent, Typography, Box, ListItem } from "@mui/material";
 import { useState, useEffect } from "react";
+import Skeleton from "@mui/material/Skeleton";
 import "./StatisticCard.css";
 
-export default function StatisticsCard({ patients }) {
+export default function StatisticsCard({ patients, currentPatient, loading }) {
   const [stats, setStats] = useState({
     totalPatientsToday: 0,
     patientsMarkedLate: [],
@@ -16,24 +17,35 @@ export default function StatisticsCard({ patients }) {
   });
 
   useEffect(() => {
+    const checkCurrentPatientLateStatus = () => {
+      if (currentPatient) {
+        return currentPatient.late ? 1 : 0;
+      }
+    };
+
     const updatedStats = {
       totalPatientsToday: patients.length,
-      patientsMarkedLate: patients.filter((p) => p.late === true).length,
+      patientsMarkedLate:
+        patients.length !== 0
+          ? patients.filter((p) => {
+              return p.late === true && p.done_checkup === false;
+            }).length - checkCurrentPatientLateStatus()
+          : 0,
       patientsDoneTillNow: patients.filter((p) => p.done_checkup === true)
         .length,
       averageCheckupTime: "12 mins",
       patientsWaiting:
-        patients.length -
-        (patients.filter((p) => p.done_checkup === true).length +
-          patients.filter((p) => p.late === true).length +
-          1),
+        patients.length !== 0
+          ? patients.length -
+            (patients.filter((p) => p.done_checkup === true).length + 1)
+          : 0,
       estimatedClosingTime: "5:30 PM",
       mostCommonIssue: "Flu",
       doctorAvailability: 3,
     };
 
     setStats(updatedStats);
-  }, [patients]); // Runs whenever `patients` changes
+  }, [currentPatient, patients]);
 
   return (
     <Card sx={styles.card}>
@@ -43,25 +55,36 @@ export default function StatisticsCard({ patients }) {
         </Typography>
 
         {/* Statistics Grid */}
-        <Box sx={styles.grid}>
-          <StatItem
-            label="Total Patients Today"
-            value={stats.totalPatientsToday}
-          />
-          <StatItem
-            label="Patients Marked Late"
-            value={stats.patientsMarkedLate}
-          />
-          <StatItem
-            label="Patients Done Till Now"
-            value={stats.patientsDoneTillNow}
-          />
-          {/* <StatItem
+        {loading ? (
+          [...Array(5)].map((_, index) => (
+            <ListItem key={index}>
+              <Skeleton variant="text" width="80%" height={60} margin={0} />
+            </ListItem>
+          ))
+        ) : (
+          <Box sx={styles.grid}>
+            <StatItem
+              label="Total Patients Count"
+              value={stats.totalPatientsToday}
+            />
+            <StatItem
+              label="Late Patients Count"
+              value={stats.patientsMarkedLate}
+            />
+            <StatItem
+              label="Patients Done Till Now"
+              value={stats.patientsDoneTillNow}
+            />
+            {/* <StatItem
             label="Average Checkup Time"
             value={stats.averageCheckupTime}
           /> */}
-          <StatItem label="Patients Waiting" value={stats.patientsWaiting} />
-        </Box>
+            <StatItem
+              label="Patients Remaining"
+              value={stats.patientsWaiting}
+            />
+          </Box>
+        )}
       </CardContent>
     </Card>
   );

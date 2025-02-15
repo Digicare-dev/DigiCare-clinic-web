@@ -1,13 +1,6 @@
-import React, { useEffect, useState } from "react";
-import {
-  Card,
-  CardContent,
-  Typography,
-  Avatar,
-  Box,
-  Button,
-  useMediaQuery,
-} from "@mui/material";
+import React from "react";
+import { useMediaQuery, ListItem } from "@mui/material";
+import Skeleton from "@mui/material/Skeleton";
 import QueueContainer from "../components/QueueContainer";
 import { keyframes } from "@emotion/react";
 import StatisticsCard from "./StatisticsCard";
@@ -30,28 +23,47 @@ export default function Home({
   setPatients,
   handleLatePatient,
   shufflePosition,
+  loading,
 }) {
   const isMobile = useMediaQuery("(max-width: 768px)");
 
   const currentPatient = patients[currentPosition - 1];
 
-  const handleMarkLate = () => {
-    alert(`Patient ${currentPatient} has been marked as late.`);
-  };
-
   return (
     <div style={styles.container}>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <QueueContainer
-          patients={patients}
-          currentPosition={currentPosition}
-          setCurrentPosition={setCurrentPosition}
-          handleNextPatient={handleNextPatient}
-          setPatients={setPatients}
-          handleLatePatient={handleLatePatient}
-          shufflePosition={shufflePosition}
-        />
-        {!isMobile && <StatisticsCard patients={patients} />}
+        {loading ? (
+          <div className="queue-container">
+            {[...Array(6)].map((_, index) => (
+              <ListItem key={index}>
+                <Skeleton
+                  variant="text"
+                  width="100%"
+                  height={100}
+                  sx={{ margin: "-20px" }}
+                />
+              </ListItem>
+            ))}
+          </div>
+        ) : (
+          <QueueContainer
+            patients={patients}
+            currentPosition={currentPosition}
+            setCurrentPosition={setCurrentPosition}
+            handleNextPatient={handleNextPatient}
+            setPatients={setPatients}
+            handleLatePatient={handleLatePatient}
+            shufflePosition={shufflePosition}
+            loading={loading}
+          />
+        )}
+        {!isMobile && (
+          <StatisticsCard
+            patients={patients}
+            currentPatient={currentPatient}
+            loading={loading}
+          />
+        )}
       </div>
     </div>
   );

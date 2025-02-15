@@ -1,7 +1,7 @@
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Box } from "@mui/material";
-import AuthProvider, { AuthContext } from "./context/AuthContext";
+import { AuthContext } from "./context/AuthContext";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
 import BottomNavigator from "./components/BottomNavigator";
@@ -11,81 +11,86 @@ import PatientDetails from "./Pages/PatientDetails";
 import Login from "./Pages/Login";
 import PrivateRoute from "./components/PrivateRoute";
 import { getData, postData, putData } from "./services/apiService";
-import axios from "axios";
-import { login as loginService } from "./services/authService";
+import Help from "./Pages/Help";
+import RoleBasedRoute from "./components/RolebasedRoute";
 
 const App = () => {
-  // const user = useContext(AuthContext);
-  const user = true;
+  const { user } = useContext(AuthContext);
+
   const isMobile = window.innerWidth <= 768;
 
-  const [currentPosition, setCurrentPosition] = React.useState(null);
-  const [patients, setPatients] = React.useState([]);
-  const [currentPatient, setCurrentPatient] = React.useState(null);
+  const [currentPosition, setCurrentPosition] = useState(null);
+  const [patients, setPatients] = useState([]);
+  const [currentPatient, setCurrentPatient] = useState(null);
+  const slot = encodeURIComponent("2025-02-11 18:00:00");
+  const cabin = "1";
+
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    console.log(user);
     if (user) {
-      // handleLogin();
+      setLoading(true);
       fetchPatients();
       fetchCurrentPosition();
     }
-  }, []);
-
-  const handleLogin = async () => {
-    const response = await axios.post(
-      `https://backendtokenapp-production.up.railway.app/api/login/`,
-      {
-        username: "amitmittal",
-        password: "amitmittaldigicare1234",
-      }
-    );
-
-    localStorage.setItem("accessToken", response.data.access);
-    localStorage.setItem("refreshToken", response.data.refresh);
-  };
+  }, [user]);
 
   useEffect(() => {
-    fetchCurrentPatient();
+    if (patients.length > 0 && currentPosition !== null) {
+      const current = patients.find((p) => p.position === currentPosition);
+      setCurrentPatient(current || null);
+    }
   }, [patients, currentPosition]);
 
   const fetchPatients = async () => {
-    const slot = encodeURIComponent("2025-02-07 18:00:00");
-    const cabin = "1";
-    const result = await getData(`queueinfo/queue-list/${cabin}/${slot}`);
-    result.sort((a, b) => a.position - b.position);
-    setPatients(result);
+    try {
+      const result = await getData(`queueinfo/queue-list/${cabin}/${slot}`);
+      result.sort((a, b) => a.position - b.position);
+      if (result.length !== 0) {
+        setPatients(result);
+        setTimeout(() => {
+          setLoading(false);
+        }, 500);
+      }
+    } catch (error) {
+      console.error("Error fetching patients:", error);
+    }
   };
 
   const fetchCurrentPosition = async () => {
-    const slot = encodeURIComponent("2025-02-07 18:00:00");
-    const cabin = "1";
     const { current_number } = await getData(
       `queueinfo/current-position/${cabin}/${slot}`
     );
     setCurrentPosition(current_number);
   };
 
-  const fetchCurrentPatient = () => {
-    const current = patients.find((p) => p.position === currentPosition);
-    setCurrentPatient(current);
+  const markCurrentPatientAsDone = () => {
+    const newpatients = patients.map((p) => {
+      if (p.position === currentPosition) {
+        const newp = { ...p, done_checkup: true };
+        return newp;
+      } else {
+        return p;
+      }
+    });
+    setPatients(newpatients);
+    setCurrentPosition((prev) => prev + 1);
   };
 
-  const handleNextPatient = (id) => {
+  const handleNextPatient = async (id) => {
     const payload = {
       appointment_id: id,
     };
-    putData("queueinfo/done-checkup/", payload);
-    setCurrentPosition((prev) => prev + 1);
+    await putData("queueinfo/done-checkup/", payload);
+    markCurrentPatientAsDone();
   };
 
   const handleLatePatient = async (id, pos) => {
     console.log(id, pos);
     const payload = {
       appointment_id: id,
-      new_position: pos + 5,
     };
-    await putData("queueinfo/shuffle-position/", payload);
+    await putData("queueinfo/mark-late", payload);
     fetchPatients();
   };
 
@@ -94,24 +99,27 @@ const App = () => {
     fetchPatients();
   };
 
-  const addAppointment = (pid, disease) => {
+  const addAppointment = async (pid, disease, appointmentType) => {
     const payload = {
-      cabinId: "1",
+      cabinId: cabin,
       patientId: pid,
       paid: "False",
       disease: disease,
-      slot: "2025-02-10 18:00:00",
+      slot: "2025-02-11 18:00:00",
       username: "amitmittal",
+      appointment_type: appointmentType,
     };
-    postData("queueinfo/appointment-add/", payload);
+    await postData("queueinfo/appointment-add/", payload);
+    fetchPatients();
+    fetchCurrentPosition();
   };
 
   return (
     <Router>
       <div className="App">
-        <Header />
+        {user !== null && <Header />}
         <Box sx={{ display: "flex" }}>
-          {!isMobile && <Sidebar />}
+          {!isMobile && user !== null && <Sidebar />}
           <Box component="main" sx={{ flexGrow: 1, padding: "6px" }}>
             <Routes>
               <Route path="/login" element={<Login />} />
@@ -129,6 +137,7 @@ const App = () => {
                         handleLatePatient(id, pos)
                       }
                       shufflePosition={(payload) => shufflePosition(payload)}
+                      loading={loading}
                     />
                   </PrivateRoute>
                 }
@@ -138,8 +147,8 @@ const App = () => {
                 element={
                   <PrivateRoute>
                     <AddAppointment
-                      addAppointment={(pid, disease) =>
-                        addAppointment(pid, disease)
+                      addAppointment={(pid, disease, appointmentType) =>
+                        addAppointment(pid, disease, appointmentType)
                       }
                     />
                   </PrivateRoute>
@@ -149,10 +158,20 @@ const App = () => {
                 path="/patient-details"
                 element={
                   <PrivateRoute>
-                    <PatientDetails
-                      currentPatient={currentPatient}
-                      handleNextPatient={handleNextPatient}
-                    />
+                    <RoleBasedRoute allowedRoles={["doctor"]}>
+                      <PatientDetails
+                        currentPatient={currentPatient}
+                        handleNextPatient={handleNextPatient}
+                      />
+                    </RoleBasedRoute>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/help"
+                element={
+                  <PrivateRoute>
+                    <Help />
                   </PrivateRoute>
                 }
               />

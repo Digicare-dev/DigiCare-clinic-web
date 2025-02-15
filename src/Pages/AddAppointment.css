@@ -27,7 +27,7 @@
 .form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 15px;
 }
 
 .input-row {
@@ -44,7 +44,7 @@
     gap: 15px;
   }
   .add-appointment-container {
-    padding: 0px;
+    padding: 10px;
   }
   .form-container {
     padding: 20px;

@@ -4,6 +4,9 @@ import "./QueueContainer.css";
 import { DndContext } from "@dnd-kit/core";
 import { arrayMove, SortableContext } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import { Typography, Button } from "@mui/material";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import AssignmentIcon from "@mui/icons-material/Assignment";
 
 const QueueContainer = ({
   patients,
@@ -38,6 +41,7 @@ const QueueContainer = ({
 
   const handleDragEnd = async (event) => {
     const { active, over } = event;
+    console.log(active, over);
     if (over && active.id !== over.id) {
       setPatients(() => {
         const oldIndex = patients.findIndex(
@@ -58,16 +62,14 @@ const QueueContainer = ({
     }
 
     if (event.over) {
-      setTimeout(() => {
-        setDroppedItem(event.over.id);
-        setTimeout(() => setDroppedItem(null), 500); // Remove effect after 0.5s
-      }, 200);
+      setDroppedItem(event.over.id);
+      setTimeout(() => setDroppedItem(null), 500); // Remove effect after 0.5s
     }
   };
 
   return (
     <div className="queue-container">
-      {!patients.length && (
+      {/* {!patients.length && (
         <div
           style={{
             display: "flex",
@@ -77,9 +79,9 @@ const QueueContainer = ({
         >
           <h3>No patients currently.</h3>
         </div>
-      )}
+      )} */}
 
-      {patients.length !== 0 && (
+      {patients.length !== 0 ? (
         <DndContext
           modifiers={[restrictToVerticalAxis]}
           onDragEnd={handleDragEnd}
@@ -93,6 +95,10 @@ const QueueContainer = ({
                 type = "current";
               } else {
                 type = "upcoming";
+              }
+
+              if (patient.type === "E" && type === "upcoming") {
+                type += " emergency-case";
               }
 
               return (
@@ -109,6 +115,7 @@ const QueueContainer = ({
                   <PatientItem
                     firstName={patient.first_name}
                     lastName={patient.last_name}
+                    guardian={patient.guardian}
                     late={patient.late}
                     position={patient.position}
                     token={patient.token}
@@ -117,12 +124,48 @@ const QueueContainer = ({
                     type={type}
                     handleLatePatient={handleLatePatient}
                     droppedItem={droppedItem}
+                    appointmentType={patient.type}
+                    currentPosition={currentPosition}
                   />
                 </div>
               );
             })}
           </SortableContext>
         </DndContext>
+      ) : (
+        <div
+          style={{
+            textAlign: "center",
+            height: "inherit",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "space-around",
+          }}
+        >
+          <div>
+            <Typography variant="h6" gutterBottom>
+              Queue is currently empty
+            </Typography>
+            <AssignmentIcon style={{ fontSize: "60px", color: "#007bff" }} />
+            <Typography variant="body1" gutterBottom>
+              There are no patients in the queue at the moment.
+            </Typography>
+          </div>
+          <div>
+            <Button
+              variant="contained"
+              startIcon={<RefreshIcon />}
+              onClick={() => window.location.reload()} // Example action to refresh the page
+              sx={{
+                width: "fit-content",
+                backgroundColor: "#007bff",
+              }}
+            >
+              Refresh
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );

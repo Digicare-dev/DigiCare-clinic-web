@@ -1,14 +1,19 @@
-import { useEffect } from "react";
+import { useState } from "react";
 import "./PatientItem.css";
-import { useMediaQuery } from "@mui/material";
+import { useMediaQuery, CircularProgress } from "@mui/material";
 import DoneIcon from "@mui/icons-material/Done";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 
+const capitalizeFirstLetter = (string) => {
+  return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
+};
+
 export default function PatientItem({
   firstName,
   lastName,
+  guardian,
   late,
   position,
   token,
@@ -17,9 +22,11 @@ export default function PatientItem({
   type,
   handleLatePatient,
   droppedItem,
+  appointmentType,
+  currentPosition,
 }) {
   const isMobile = useMediaQuery("(max-width: 768px)");
-
+  const [loading, setLoading] = useState(null);
   const {
     attributes,
     listeners,
@@ -35,32 +42,57 @@ export default function PatientItem({
     touchAction: isDragging ? "none" : "auto",
   };
 
+  const handleNextclick = async (appointmentId) => {
+    setLoading(2);
+    const result = await onNext(appointmentId);
+    if (result) {
+      setLoading(null);
+    }
+  };
+
+  const handleLateClick = async (appointmentId) => {
+    setLoading(1);
+    const result = await handleLatePatient(appointmentId);
+    if (result) {
+      setLoading(null);
+    }
+  };
+
   return (
     <>
       {!isMobile && (
         <div
           ref={setNodeRef}
           style={style}
-          className={`patient-item-container ${type} ${
+          className={`patient-item-container ${
             droppedItem === position ? "dropped-effect" : ""
-          } ${late === true ? "late" : ""}`}
+          } ${type}  ${late === true ? "late" : ""} `}
         >
           <div className="patient-details">
             <div style={{ display: "flex", width: "100%", gap: "30px" }}>
               <p>
-                {position}.{" "}
                 <strong>
-                  {firstName} {lastName}
+                  {capitalizeFirstLetter(firstName)}{" "}
+                  {capitalizeFirstLetter(lastName)}
                 </strong>
               </p>
+              <p>With : {capitalizeFirstLetter(guardian)}</p>
+
               <p>Token : {token}</p>
+
+              {appointmentType === "E" && position > currentPosition && (
+                <span className="emergency-label">Emergency</span>
+              )}
+              {late && position > currentPosition && (
+                <span className="late-label">Running Late</span>
+              )}
             </div>
             {type === "done" && (
               <div className="patient-list-item-icon-right">
                 <DoneIcon />
               </div>
             )}
-            {type === "upcoming" && (
+            {position > currentPosition && (
               <div
                 {...attributes}
                 {...listeners}
@@ -77,20 +109,28 @@ export default function PatientItem({
           {type === "current" && (
             <div className="button-container">
               <button
-                className="late-button"
+                className="patient-item-button late-button"
                 onClick={() => {
-                  handleLatePatient(appointmentId, position);
+                  handleLateClick(appointmentId);
                 }}
               >
-                Mark Late
+                {loading === 1 ? (
+                  <CircularProgress size={20} color="white" />
+                ) : (
+                  "Mark Late"
+                )}{" "}
               </button>
               <button
-                className="next-button"
+                className="patient-item-button next-button"
                 onClick={() => {
-                  onNext(appointmentId);
+                  handleNextclick(appointmentId);
                 }}
               >
-                Next
+                {loading === 2 ? (
+                  <CircularProgress size={20} color="white" />
+                ) : (
+                  "Next"
+                )}
               </button>
             </div>
           )}
@@ -103,7 +143,7 @@ export default function PatientItem({
           style={style}
           className={`patient-item-container ${type} ${
             droppedItem === position ? "dropped-effect" : ""
-          }`}
+          } ${late === true ? "late" : ""}`}
         >
           <div className="patient-details">
             <div style={{ display: "flex", flexDirection: "column" }}>
@@ -139,7 +179,7 @@ export default function PatientItem({
           <div className="button-container">
             {type === "current" && (
               <button
-                className="late-button"
+                className="patient-item-button late-button"
                 onClick={() => {
                   handleLatePatient(appointmentId);
                 }}
@@ -149,12 +189,16 @@ export default function PatientItem({
             )}
             {type === "current" && (
               <button
-                className="next-button"
+                className="patient-item-button next-button"
                 onClick={() => {
                   onNext(appointmentId);
                 }}
               >
-                Next
+                {loading ? (
+                  <CircularProgress size={24} color="white" />
+                ) : (
+                  "Next"
+                )}
               </button>
             )}
           </div>
