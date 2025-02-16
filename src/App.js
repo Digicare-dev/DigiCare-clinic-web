@@ -86,7 +86,6 @@ const App = () => {
   };
 
   const handleLatePatient = async (id, pos) => {
-    console.log(id, pos);
     const payload = {
       appointment_id: id,
     };
@@ -158,12 +157,12 @@ const App = () => {
                 path="/patient-details"
                 element={
                   <PrivateRoute>
-                    <RoleBasedRoute allowedRoles={["doctor"]}>
-                      <PatientDetails
-                        currentPatient={currentPatient}
-                        handleNextPatient={handleNextPatient}
-                      />
-                    </RoleBasedRoute>
+                    {/* <RoleBasedRoute allowedRoles={["doctor"]}> */}
+                    <PatientDetails
+                      currentPatient={currentPatient}
+                      handleNextPatient={handleNextPatient}
+                    />
+                    {/* </RoleBasedRoute> */}
                   </PrivateRoute>
                 }
               />

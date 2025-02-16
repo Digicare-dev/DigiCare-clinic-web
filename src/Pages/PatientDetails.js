@@ -35,6 +35,13 @@ export default function PatientDetails({ currentPatient, handleNextPatient }) {
     setShowNextPatientMessage(true);
   };
 
+  const getAge = (dob) => {
+    const date = new Date(dob);
+    const diffMs = Date.now() - date.getTime();
+    const ageDt = new Date(diffMs);
+    return Math.abs(ageDt.getUTCFullYear() - 1970);
+  };
+
   return (
     <Box className={styles.patientDetailsContainer}>
       {currentPatient != null && (
@@ -59,13 +66,12 @@ export default function PatientDetails({ currentPatient, handleNextPatient }) {
               </Paper>
               <Paper className={styles.flexItem}>
                 <Typography variant="body1">
-                  <strong>Age:</strong> {currentPatient.age}
+                  <strong>Age:</strong> {getAge(currentPatient.dob)}
                 </Typography>
               </Paper>
-              <Paper className={styles.flexItemFullWidth}>
+              <Paper className={styles.flexItem}>
                 <Typography variant="body1">
-                  <strong>Disease Description:</strong>{" "}
-                  {currentPatient.diseaseDescription}
+                  <strong>Disease Description:</strong> {currentPatient.disease}
                 </Typography>
               </Paper>
               <div className={styles.flexItemFullWidth}>
@@ -85,22 +91,24 @@ export default function PatientDetails({ currentPatient, handleNextPatient }) {
                   color="primary"
                   onClick={addDoctorsRemark}
                   fullWidth
-                  className={styles.nextButton}
+                  // className={styles.nextButton}
+                  sx={{
+                    backgroundColor: "#007bff",
+                    color: "white",
+                    height: "50px",
+                    "&:hover": {
+                      backgroundColor: "#0066cc",
+                    },
+                    "&.Mui-disabled": {
+                      backgroundColor: "#007bff",
+                      color: "white",
+                    },
+                  }}
                 >
                   Add Remarks
                 </Button>
               </div>
             </div>
-            {showNextPatientMessage && (
-              <Typography
-                variant="body1"
-                color="textSecondary"
-                align="center"
-                style={{ marginTop: "20px" }}
-              >
-                The next patient will enter shortly.
-              </Typography>
-            )}
           </CardContent>
         </Card>
       )}

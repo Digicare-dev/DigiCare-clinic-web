@@ -10,8 +10,14 @@ const AuthProvider = ({ children }) => {
     const accessToken = localStorage.getItem("accessToken");
 
     if (accessToken) {
-      const decodedToken = jwtDecode(accessToken);
-      setUser({ accessToken, ...decodedToken });
+      try {
+        const decodedToken = jwtDecode(accessToken);
+        setUser({ accessToken, ...decodedToken });
+      } catch (error) {
+        console.error("Failed to decode token:", error);
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+      }
     }
   }, []);
 

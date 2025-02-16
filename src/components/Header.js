@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@mui/material";
 import logo from "../assets/DigiCare__logo.png";
+import "./Header.module.css";
 
 function Header() {
   const isMobile = window.innerWidth <= 768;
@@ -29,16 +30,7 @@ function Header() {
   };
 
   return (
-    <header
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "10px 20px",
-        // backgroundColor: "#f5f5f5",
-        boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-      }}
-    >
+    <header>
       <img
         src={logo}
         alt="DigiCare"

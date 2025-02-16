@@ -33,7 +33,6 @@ export default function AddAppointment({ addAppointment }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    console.log(name, value);
     setFormData((prevState) => ({
       ...prevState,
       [name]: value,
@@ -207,14 +206,15 @@ export default function AddAppointment({ addAppointment }) {
               />
             </div>
 
-            <div className="input-row">
+            <div style={{ flex: "1 1 100%" }}>
               <Button
+                variant="contained"
+                color="primary"
                 type="submit"
-                variant="outlined"
                 sx={{
                   backgroundColor: "#007bff",
                   color: "white",
-                  height: "40px",
+                  height: "50px",
                   "&:hover": {
                     backgroundColor: "#0066cc",
                   },
@@ -224,12 +224,13 @@ export default function AddAppointment({ addAppointment }) {
                   },
                 }}
                 disabled={loading}
+                fullWidth
               >
                 {loading ? (
                   <CircularProgress size={24} color="white" />
                 ) : (
                   "Submit"
-                )}
+                )}{" "}
               </Button>
             </div>
           </form>

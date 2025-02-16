@@ -41,7 +41,6 @@ const QueueContainer = ({
 
   const handleDragEnd = async (event) => {
     const { active, over } = event;
-    console.log(active, over);
     if (over && active.id !== over.id) {
       setPatients(() => {
         const oldIndex = patients.findIndex(
@@ -50,7 +49,6 @@ const QueueContainer = ({
         const newIndex = patients.findIndex(
           (patient) => patient.position === over.id
         );
-        console.log(patients, arrayMove(patients, oldIndex, newIndex));
         return arrayMove(patients, oldIndex, newIndex);
       });
 
