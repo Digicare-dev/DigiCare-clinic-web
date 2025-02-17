@@ -62,6 +62,7 @@ const App = () => {
       `queueinfo/current-position/${cabin}/${slot}`
     );
     setCurrentPosition(current_number);
+    return current_number;
   };
 
   const markCurrentPatientAsDone = () => {
@@ -81,21 +82,23 @@ const App = () => {
     const payload = {
       appointment_id: id,
     };
-    await putData("queueinfo/done-checkup/", payload);
+    const result = await putData("queueinfo/done-checkup/", payload);
     markCurrentPatientAsDone();
+    return result;
   };
 
   const handleLatePatient = async (id, pos) => {
     const payload = {
       appointment_id: id,
     };
-    await putData("queueinfo/mark-late", payload);
+    const result = await putData("queueinfo/mark-late", payload);
     fetchPatients();
+    return result;
   };
 
   const shufflePosition = async (payload) => {
-    await putData("queueinfo/shuffle-position/", payload);
-    fetchPatients();
+    return await putData("queueinfo/shuffle-position/", payload);
+    // fetchPatients();
   };
 
   const addAppointment = async (pid, disease, appointmentType) => {
@@ -108,9 +111,10 @@ const App = () => {
       username: "amitmittal",
       appointment_type: appointmentType,
     };
-    await postData("queueinfo/appointment-add/", payload);
+    const result = await postData("queueinfo/appointment-add/", payload);
     fetchPatients();
     fetchCurrentPosition();
+    return result;
   };
 
   return (

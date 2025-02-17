@@ -48,6 +48,7 @@ export default function AddAppointment({ addAppointment }) {
       gender: formData.sex,
       phone_number: formData.mobileNumber,
       guardian: formData.guardian,
+      age: 20,
     };
     try {
       const response = await postData("userinfo/add-patient/", payload);

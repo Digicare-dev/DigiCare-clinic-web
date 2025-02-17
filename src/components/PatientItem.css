@@ -1,30 +1,29 @@
 .patient-item-container {
   background-color: white;
-  margin-bottom: 16px; /* Increased margin for better spacing */
-  border-radius: 8px; /* Consistent border-radius */
-  padding: 16px; /* Increased padding for better spacing */
+  margin-bottom: 16px;
+  border-radius: 8px;
+  padding: 16px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-left: 20px;
   flex-direction: column;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Added box-shadow for better appearance */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s ease-in-out;
+}
+
+.patient-item-container:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .patient-details {
   display: flex;
   width: 100%;
-  gap: 30px;
+  gap: 20px;
   justify-content: space-between;
 }
 
 @media (max-width: 768px) {
   .patient-details {
-    display: flex;
-    flex-direction: row;
-    gap: 0px;
-    line-height: 0px;
-    font-size: large;
+    /* flex-direction: column; */
+    /* gap: 10px; */
   }
   .patient-item-button {
     font-size: medium;
@@ -36,28 +35,28 @@
 
 .patient-item-button {
   width: 100%;
-  height: 40px; /* Increased height for better appearance */
+  height: 40px;
   cursor: pointer;
-  border-radius: 8px; /* Consistent border-radius */
-  transition: background-color 0.3s ease; /* Added transition for hover effect */
+  border-radius: 8px;
+  transition: background-color 0.3s ease;
 }
 
 .patient-item-button:hover {
-  background-color: #007bff; /* Change background color on hover */
-  color: white; /* Change text color on hover */
+  background-color: #007bff;
+  color: white;
 }
 
 .next-button {
   background-color: #28a745;
   color: white;
   border: none;
-  height: 40px; /* Increased height for better appearance */
+  height: 40px;
   cursor: pointer;
-  border-radius: 8px; /* Consistent border-radius */
+  border-radius: 8px;
   margin: 4px;
   width: fit-content;
   flex-grow: 1;
-  transition: background-color 0.3s ease; /* Added transition for hover effect */
+  transition: background-color 0.3s ease;
 }
 
 .next-button:hover {
@@ -68,13 +67,13 @@
   background-color: #e65100;
   color: white;
   border: none;
-  height: 40px; /* Increased height for better appearance */
+  height: 40px;
   cursor: pointer;
-  border-radius: 8px; /* Consistent border-radius */
+  border-radius: 8px;
   margin: 4px;
   width: fit-content;
   flex-grow: 1;
-  transition: background-color 0.3s ease; /* Added transition for hover effect */
+  transition: background-color 0.3s ease;
 }
 
 .late-button:hover {
@@ -85,7 +84,7 @@
   background: #d4edda !important;
   color: #155724 !important;
   margin-bottom: 10px;
-  border-radius: 8px; /* Consistent border-radius */
+  border-radius: 8px;
 }
 
 .current {
@@ -94,7 +93,7 @@
   font-weight: bold !important;
   border: 2px solid #856404 !important;
   margin-bottom: 10px;
-  border-radius: 8px; /* Consistent border-radius */
+  border-radius: 8px;
   transition: background-color 0.2s ease-in-out !important;
 }
 
@@ -102,23 +101,23 @@
   background: #cce5ff;
   color: #004085;
   margin-bottom: 10px;
-  border-radius: 8px; /* Consistent border-radius */
+  border-radius: 8px;
 }
 
 .late {
   background: #ffebee;
   color: #b71c1c;
   margin-bottom: 10px;
-  border-radius: 8px; /* Consistent border-radius */
+  border-radius: 8px;
   border: none;
   transition: background-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
 }
 
 .emergency-case {
-  background-color: #ff4d4d; /* Red background for emergency cases */
+  background-color: #ff4d4d;
   color: white;
-  border: 1px solid #ff0000; /* Red border */
-  border-radius: 8px; /* Consistent border-radius */
+  border: 1px solid #ff0000;
+  border-radius: 8px;
 }
 
 .button-container {
@@ -149,7 +148,7 @@
   font-size: large;
   font-weight: bold;
   margin-left: 10px;
-  padding: 2px 4px; /* Padding for better appearance */
+  padding: 2px 4px;
 }
 
 .late-label {
@@ -159,7 +158,7 @@
   font-size: large;
   font-weight: bold;
   margin-left: 10px;
-  padding: 2px 4px; /* Padding for better appearance */
+  padding: 2px 4px;
 }
 
 @keyframes dropEffect {

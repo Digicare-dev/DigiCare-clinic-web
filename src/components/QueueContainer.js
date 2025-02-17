@@ -18,11 +18,12 @@ const QueueContainer = ({
 }) => {
   const patientRefs = useRef({});
   const [droppedItem, setDroppedItem] = useState(null);
+  const [changedPosition, setChangedPosition] = useState(null);
 
   useEffect(() => {
     if (patientRefs.current[currentPosition]) {
       const element = patientRefs.current[currentPosition];
-      const targetScroll = element.offsetTop - 100;
+      const targetScroll = element.offsetTop - 160;
       const container = document.querySelector(".queue-container");
       const startScroll = container.scrollTop;
       const distance = targetScroll - startScroll;
@@ -42,15 +43,21 @@ const QueueContainer = ({
   const handleDragEnd = async (event) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
-      setPatients(() => {
-        const oldIndex = patients.findIndex(
+      setPatients((prevPatients) => {
+        const oldIndex = prevPatients.findIndex(
           (patient) => patient.position === active.id
         );
-        const newIndex = patients.findIndex(
+        const newIndex = prevPatients.findIndex(
           (patient) => patient.position === over.id
         );
-        return arrayMove(patients, oldIndex, newIndex);
+        const newPatients = arrayMove(prevPatients, oldIndex, newIndex);
+        setChangedPosition(active.id); // Set the changed position
+
+        return newPatients;
       });
+
+      setDroppedItem(event.active.id);
+      setTimeout(() => setDroppedItem(null), 300); // Remove effect after 0.5s
 
       const payload = {
         appointment_id: patients[active.id - 1].appointment_id,
@@ -58,27 +65,10 @@ const QueueContainer = ({
       };
       await shufflePosition(payload);
     }
-
-    if (event.over) {
-      setDroppedItem(event.over.id);
-      setTimeout(() => setDroppedItem(null), 500); // Remove effect after 0.5s
-    }
   };
 
   return (
     <div className="queue-container">
-      {/* {!patients.length && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <h3>No patients currently.</h3>
-        </div>
-      )} */}
-
       {patients.length !== 0 ? (
         <DndContext
           modifiers={[restrictToVerticalAxis]}
@@ -124,6 +114,8 @@ const QueueContainer = ({
                     droppedItem={droppedItem}
                     appointmentType={patient.type}
                     currentPosition={currentPosition}
+                    changedPosition={changedPosition}
+                    dob={patient.dob}
                   />
                 </div>
               );

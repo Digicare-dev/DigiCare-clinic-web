@@ -4,7 +4,7 @@ import Skeleton from "@mui/material/Skeleton";
 import QueueContainer from "../components/QueueContainer";
 import { keyframes } from "@emotion/react";
 import StatisticsCard from "./StatisticsCard";
-
+import DoctorHeader from "./DoctorHeader";
 const fadeIn = keyframes(`
   from {
     opacity: 0;
@@ -31,6 +31,8 @@ export default function Home({
 
   return (
     <div style={styles.container}>
+      {/* <DoctorHeader doctorName="Dr. Amit Mittal" />{" "} */}
+      {/* Add the DoctorHeader component */}
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         {loading ? (
           <div className="queue-container">
@@ -46,16 +48,21 @@ export default function Home({
             ))}
           </div>
         ) : (
-          <QueueContainer
-            patients={patients}
-            currentPosition={currentPosition}
-            setCurrentPosition={setCurrentPosition}
-            handleNextPatient={handleNextPatient}
-            setPatients={setPatients}
-            handleLatePatient={handleLatePatient}
-            shufflePosition={shufflePosition}
-            loading={loading}
-          />
+          <div
+            style={{ display: "flex", flexDirection: "column", flexGrow: "3" }}
+          >
+            {!isMobile && <DoctorHeader doctorName="Dr. Amit Mittal" />}{" "}
+            {/* Add the DoctorHeader component */}
+            <QueueContainer
+              patients={patients}
+              currentPosition={currentPosition}
+              setCurrentPosition={setCurrentPosition}
+              handleNextPatient={handleNextPatient}
+              setPatients={setPatients}
+              handleLatePatient={handleLatePatient}
+              shufflePosition={shufflePosition}
+            />
+          </div>
         )}
         {!isMobile && (
           <StatisticsCard

@@ -24,6 +24,8 @@ export default function PatientItem({
   droppedItem,
   appointmentType,
   currentPosition,
+  changedPosition,
+  dob,
 }) {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [loading, setLoading] = useState(null);
@@ -58,15 +60,22 @@ export default function PatientItem({
     }
   };
 
+  const getAge = (dob) => {
+    const date = new Date(dob);
+    const diffMs = Date.now() - date.getTime();
+    const ageDt = new Date(diffMs);
+    return Math.abs(ageDt.getUTCFullYear() - 1970);
+  };
+
   return (
     <>
       {!isMobile && (
         <div
           ref={setNodeRef}
           style={style}
-          className={`patient-item-container ${
+          className={`patient-item-container ${type} ${
             droppedItem === position ? "dropped-effect" : ""
-          } ${type}  ${late === true ? "late" : ""} `}
+          } ${late === true ? "late" : ""}`}
         >
           <div className="patient-details">
             <div style={{ display: "flex", width: "100%", gap: "30px" }}>
@@ -76,9 +85,10 @@ export default function PatientItem({
                   {capitalizeFirstLetter(lastName)}
                 </strong>
               </p>
-              <p>With : {capitalizeFirstLetter(guardian)}</p>
+              <p>[{capitalizeFirstLetter(guardian)}]</p>
 
               <p>Token : {token}</p>
+              <p>Age : {getAge(dob)}</p>
 
               {appointmentType === "E" && position > currentPosition && (
                 <span className="emergency-label">Emergency</span>
@@ -143,10 +153,14 @@ export default function PatientItem({
           style={style}
           className={`patient-item-container ${type} ${
             droppedItem === position ? "dropped-effect" : ""
-          } ${late === true ? "late" : ""}`}
+          } ${late === true ? "late" : ""} ${
+            changedPosition === position ? "changed-position" : ""
+          }`}
         >
           <div className="patient-details">
-            <div style={{ display: "flex", flexDirection: "column" }}>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "2px" }}
+            >
               <p>
                 {position}
                 {". "}
@@ -154,8 +168,10 @@ export default function PatientItem({
                   {firstName} {lastName}
                 </strong>
               </p>
-              <p>Token - {token}</p>
-              {/* <p>Position - {position}</p> */}
+              <p>[{guardian}]</p>
+              <p> loading={loading} </p>
+              {/* <p>Token - {token}</p> */}
+              {/* <p>Age - {getAge(dob)}</p> */}
             </div>
             {type === "upcoming" && (
               <div {...attributes} {...listeners} className="icon-drag-handle">
@@ -184,7 +200,11 @@ export default function PatientItem({
                   handleLatePatient(appointmentId);
                 }}
               >
-                Mark Late
+                {loading ? (
+                  <CircularProgress size={24} color="white" />
+                ) : (
+                  "Mark Late"
+                )}{" "}
               </button>
             )}
             {type === "current" && (

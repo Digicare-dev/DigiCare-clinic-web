@@ -84,8 +84,7 @@ export default function PatientDetails({ currentPatient, handleNextPatient }) {
               </Paper>
               <Paper className={styles.flexItemFullWidth}>
                 <Typography variant="body1">
-                  <strong>Disease Description:</strong>{" "}
-                  {currentPatient.diseaseDescription}
+                  <strong>Disease Description:</strong> {currentPatient.disease}
                 </Typography>
               </Paper>
               <div className={styles.flexItemFullWidth}>
