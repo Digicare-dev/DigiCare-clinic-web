@@ -79,7 +79,7 @@ export default function PatientDetails({ currentPatient, handleNextPatient }) {
               </Paper>
               <Paper className={styles.flexItem}>
                 <Typography variant="body1">
-                  <strong>Age:</strong> {getAge(currentPatient.dob)}
+                  <strong>Age:</strong> {currentPatient.age}
                 </Typography>
               </Paper>
               <Paper className={styles.flexItemFullWidth}>

@@ -23,7 +23,8 @@ export default function AddAppointment({ addAppointment }) {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
-    dob: null,
+    // dob: null,
+    age: "",
     sex: "",
     guardian: "",
     appointmentType: "P",
@@ -44,11 +45,11 @@ export default function AddAppointment({ addAppointment }) {
     const payload = {
       first_name: formData.firstName,
       last_name: formData.lastName,
-      dob: formData.dob ? dayjs(formData.dob).format("YYYY-MM-DD") : "",
+      // dob: formData.dob ? dayjs(formData.dob).format("YYYY-MM-DD") : "",
+      age: formData.age ? parseInt(formData.age, 10) : "",
       gender: formData.sex,
       phone_number: formData.mobileNumber,
       guardian: formData.guardian,
-      age: 20,
     };
     try {
       const response = await postData("userinfo/add-patient/", payload);
@@ -72,7 +73,8 @@ export default function AddAppointment({ addAppointment }) {
     setFormData({
       firstName: "",
       lastName: "",
-      dob: null,
+      // dob: null,
+      age: "",
       sex: "",
       mobileNumber: "",
       diseaseDescription: "",
@@ -138,8 +140,15 @@ export default function AddAppointment({ addAppointment }) {
             </div>
 
             <div className="input-row">
+              <TextField
+                name="age"
+                label="Age"
+                value={formData.age}
+                onChange={handleChange}
+                fullWidth
+              />
               {/* Date Picker for Date of Birth */}
-              <LocalizationProvider dateAdapter={AdapterDayjs}>
+              {/* <LocalizationProvider dateAdapter={AdapterDayjs}>
                 <DatePicker
                   label="Date of Birth"
                   value={formData.dob}
@@ -149,7 +158,7 @@ export default function AddAppointment({ addAppointment }) {
                   format="DD-MM-YYYY"
                   required
                 />
-              </LocalizationProvider>
+              </LocalizationProvider> */}
 
               {/* Sex Selector with better alignment */}
               {/* <FormControl>

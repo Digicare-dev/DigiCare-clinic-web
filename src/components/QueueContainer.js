@@ -115,7 +115,8 @@ const QueueContainer = ({
                     appointmentType={patient.type}
                     currentPosition={currentPosition}
                     changedPosition={changedPosition}
-                    dob={patient.dob}
+                    // dob={patient.dob}
+                    age={patient.age}
                   />
                 </div>
               );

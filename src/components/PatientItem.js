@@ -26,6 +26,7 @@ export default function PatientItem({
   currentPosition,
   changedPosition,
   dob,
+  age,
 }) {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [loading, setLoading] = useState(null);
@@ -88,7 +89,7 @@ export default function PatientItem({
               <p>[{capitalizeFirstLetter(guardian)}]</p>
 
               <p>Token : {token}</p>
-              <p>Age : {getAge(dob)}</p>
+              <p>Age : {age}</p>
 
               {appointmentType === "E" && position > currentPosition && (
                 <span className="emergency-label">Emergency</span>
@@ -169,7 +170,6 @@ export default function PatientItem({
                 </strong>
               </p>
               <p>[{guardian}]</p>
-              <p> loading={loading} </p>
               {/* <p>Token - {token}</p> */}
               {/* <p>Age - {getAge(dob)}</p> */}
             </div>
