@@ -27,7 +27,7 @@ export default function Home({
 }) {
   const isMobile = useMediaQuery("(max-width: 768px)");
 
-  const currentPatient = patients[currentPosition - 1];
+  const currentPatient = patients.find((p) => p.position === currentPosition);
 
   return (
     <div style={styles.container}>

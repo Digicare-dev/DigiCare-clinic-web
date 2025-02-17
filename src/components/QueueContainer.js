@@ -38,9 +38,11 @@ const QueueContainer = ({
 
       requestAnimationFrame(animateScroll);
     }
+    console.log(patients);
   }, [currentPosition]);
 
   const handleDragEnd = async (event) => {
+    debugger;
     const { active, over } = event;
     if (over && active.id !== over.id) {
       setPatients((prevPatients) => {
@@ -52,15 +54,18 @@ const QueueContainer = ({
         );
         const newPatients = arrayMove(prevPatients, oldIndex, newIndex);
         setChangedPosition(active.id); // Set the changed position
-
+        console.log(patients);
         return newPatients;
       });
 
       setDroppedItem(event.active.id);
       setTimeout(() => setDroppedItem(null), 300); // Remove effect after 0.5s
 
+      const droppedPatientId = patients.find(
+        (patient) => patient.position === active.id
+      ).appointment_id;
       const payload = {
-        appointment_id: patients[active.id - 1].appointment_id,
+        appointment_id: droppedPatientId,
         new_position: over.id,
       };
       await shufflePosition(payload);
