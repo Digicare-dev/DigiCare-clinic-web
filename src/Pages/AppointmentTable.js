@@ -130,7 +130,8 @@ export default function AppointmentTable() {
       setLoading(true);
       try {
         const response = await axios.get(
-          `${API_BASE_URL}/queueinfo/appointment-list/${user.checkupcabindata[0].id}/${user.checkupcabindata[0].cabin_slots[0]}`
+          `${API_BASE_URL}/queueinfo/appointment-list/${user.checkupcabindata[0].id}/${user.checkupcabindata[0].cabin_slots[0]}`,
+          { withCredentials: true }
         );
         setRows(response.data);
         setLoading(false);
