@@ -7,43 +7,29 @@ const REFRESH_TOKEN_URL = process.env.REACT_APP_REFRESH_TOKEN_URL;
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
+  withCredentials: true, // Ensure cookies are sent with every request
 });
 
-// Flag to prevent multiple token refresh requests
-let isRefreshing = false;
-let refreshSubscribers = [];
-
-// Function to refresh token
+// Function to refresh token (if needed)
 const refreshAccessToken = async () => {
   try {
-    const refreshToken = localStorage.getItem("refreshToken");
-    // if (!refreshToken) throw new Error("No refresh token");
-
-    const { data } = await axios.post(REFRESH_TOKEN_URL, {
-      refresh: refreshToken,
-    });
-
-    localStorage.setItem("accessToken", data.access);
-    localStorage.setItem("refreshToken", data.refresh);
-
-    refreshSubscribers.forEach((callback) => callback(data.access));
-    refreshSubscribers = [];
-    return data.access;
+    const response = await axios.post(
+      REFRESH_TOKEN_URL,
+      {},
+      { withCredentials: true }
+    );
+    return response.data; // This will contain the new tokens if needed
   } catch (error) {
     console.error("Session expired. Redirecting to login.");
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
+    // Handle session expiration (e.g., redirect to login)
     window.location.replace("/login");
     throw error;
   }
 };
 
-// Request Interceptor: Attach Authorization Header
+// Request Interceptor: Optional, if you want to handle specific logic before requests
 axiosInstance.interceptors.request.use((config) => {
-  const accessToken = localStorage.getItem("accessToken");
-  if (accessToken) {
-    config.headers.Authorization = `Bearer ${accessToken}`;
-  }
+  // You can add any custom logic here if necessary
   return config;
 });
 
@@ -53,27 +39,16 @@ axiosInstance.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // If unauthorized (401), attempt to refresh the access token
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      if (!isRefreshing) {
-        isRefreshing = true;
-        try {
-          await refreshAccessToken();
-          isRefreshing = false;
-          return axiosInstance(originalRequest);
-        } catch (refreshError) {
-          isRefreshing = false;
-          return Promise.reject(refreshError);
-        }
+      try {
+        await refreshAccessToken(); // Refresh token logic
+        return axiosInstance(originalRequest); // Retry original request
+      } catch (refreshError) {
+        return Promise.reject(refreshError);
       }
-
-      return new Promise((resolve) => {
-        refreshSubscribers.push((token) => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          resolve(axiosInstance(originalRequest));
-        });
-      });
     }
 
     return Promise.reject(error);

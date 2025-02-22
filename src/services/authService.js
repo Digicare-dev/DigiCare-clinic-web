@@ -2,26 +2,58 @@ import axios from "axios";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
+// Function to handle user login
 export const login = async (username, password) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/login/`, {
-      username,
-      password,
-    });
-
-    if (!response.data.access || !response.data.refresh) {
-      throw new Error("Invalid response structure");
+    // Send a POST request to the login API
+    const response = await axios.post(
+      `${API_BASE_URL}/api/login/`,
+      {
+        username,
+        password,
+      },
+      { withCredentials: true }
+    ); // Important for sending cookies
+    console.log(response);
+    // Check if response indicates success
+    if (response.status !== 200) {
+      throw new Error("Login failed");
     }
 
-    localStorage.setItem("accessToken", response.data.access);
-    localStorage.setItem("refreshToken", response.data.refresh);
+    // Access and refresh tokens are set as HTTP-only cookies by the server
+    // No need to handle them manually in client-side code
 
-    return response.data;
+    return response.data; // Return the response data if needed
   } catch (error) {
     console.error(
       "Login failed:",
       error.response ? error.response.data : error
     );
-    throw error;
+    throw error; // Rethrow error for further handling
+  }
+};
+
+export const logout = async () => {
+  try {
+    // Send a POST request to the login API
+    const response = await axios.post(`${API_BASE_URL}/api/logout`, {
+      withCredentials: true,
+    }); // Important for sending cookies
+    console.log(response);
+    // Check if response indicates success
+    if (response.status !== 200) {
+      throw new Error("Login failed");
+    }
+
+    // Access and refresh tokens are set as HTTP-only cookies by the server
+    // No need to handle them manually in client-side code
+
+    return response.data; // Return the response data if needed
+  } catch (error) {
+    console.error(
+      "Login failed:",
+      error.response ? error.response.data : error
+    );
+    throw error; // Rethrow error for further handling
   }
 };

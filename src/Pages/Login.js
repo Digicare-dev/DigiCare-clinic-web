@@ -15,12 +15,14 @@ import FormControl from "@mui/material/FormControl";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
+import Cookie from "js-cookie";
+
 const Login = () => {
   const isMobile = window.innerWidth <= 768;
-
-  const [showPassword, setShowPassword] = React.useState(false);
-
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const { setUser } = useContext(AuthContext);
 
   const handleClickShowPassword = () => setShowPassword((show) => !show);
 
@@ -36,7 +38,6 @@ const Login = () => {
     username: "",
     password: "",
   });
-  const { login } = useContext(AuthContext);
   const navigate = useNavigate();
   const dotsContainerRef = useRef(null);
   const [numberOfDots, setNumberOfDots] = useState(0);
@@ -55,11 +56,12 @@ const Login = () => {
     try {
       const data = await loginService(credential.username, credential.password);
       if (data) {
+        setUser(data);
         setLoading(false);
+        navigate("/");
       }
-      login(data.access, data.refresh);
-      navigate("/");
     } catch (error) {
+      console.log(error);
       setLoading(false);
       alert("Invalid credentials");
     }
