@@ -241,9 +241,14 @@ const App = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    debugger;
+    console.log(user);
+  }, []);
+
+  useEffect(() => {
     if (user) {
       setLoading(true);
-      // fetchPatients();
+      fetchPatients();
       // fetchCurrentPosition();
     }
   }, [user]);
@@ -258,7 +263,7 @@ const App = () => {
   const fetchPatients = async () => {
     try {
       const result = await axios.get(
-        `${API_BASE_URL}/queueinfo/queue-list/${user.checkupcabindata[0].id}/2025-02-21 11:28:29`,
+        `${API_BASE_URL}/queueinfo/queue-list/${user.checkupcabindata[0].id}/${user.checkupcabindata[0].cabin_slots[0]}`,
         {
           withCredentials: true,
         }
