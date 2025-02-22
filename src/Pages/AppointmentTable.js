@@ -26,23 +26,8 @@ import {
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Tooltip from "@mui/material/Tooltip";
-import axios from "axios";
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
-
-const initialRows = [
-  {
-    id: 1,
-    token: 1,
-    firstName: "John",
-    lastName: "Doe",
-    age: 25,
-    mobile: "1234567890",
-    place: "New York",
-    payment: false,
-    status: "waiting",
-  },
-];
+import CircularProgress from "@mui/material/CircularProgress";
+import { fetchAppointments, addAppointment } from "../services/api";
 
 const modalStyle = {
   position: "absolute",
@@ -56,6 +41,19 @@ const modalStyle = {
   boxShadow: 24,
   p: 3,
 };
+
+const CustomNoRowsOverlay = () => (
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      height: "100%",
+    }}
+  >
+    <Typography variant="h6">Currently no patients</Typography>
+  </div>
+);
 
 function generateDisplayRows(actualRows) {
   if (actualRows.length === 0) return [];
@@ -126,14 +124,14 @@ export default function AppointmentTable() {
   const displayedRows = React.useMemo(() => generateDisplayRows(rows), [rows]);
 
   React.useEffect(() => {
-    const fetchAppointments = async () => {
+    const getAppointments = async () => {
       setLoading(true);
       try {
-        const response = await axios.get(
-          `${API_BASE_URL}/queueinfo/appointment-list/${user.checkupcabindata[0].id}/${user.checkupcabindata[0].cabin_slots[0]}`,
-          { withCredentials: true }
+        const data = await fetchAppointments(
+          user.checkupcabindata[0].id,
+          user.checkupcabindata[0].cabin_slots[0]
         );
-        setRows(response.data);
+        setRows(data);
         setLoading(false);
       } catch (error) {
         console.error(error);
@@ -141,12 +139,7 @@ export default function AppointmentTable() {
       }
     };
 
-    fetchAppointments();
-
-    setTimeout(() => {
-      setRows(initialRows);
-      setLoading(false);
-    }, 300);
+    getAppointments();
   }, []);
 
   React.useEffect(() => {
@@ -378,8 +371,8 @@ export default function AppointmentTable() {
   const AddAppointmentApi = async (newEntry) => {
     try {
       const payload = {
-        cabinId: 1,
-        slot: "2025-02-26 18:00:00",
+        cabinId: user.checkupcabindata[0].id,
+        slot: user.checkupcabindata[0].cabin_slots[0],
         name: `${newEntry.firstName} ${newEntry.lastName}`,
         token: newEntry.token,
       };
@@ -395,7 +388,7 @@ export default function AppointmentTable() {
       if (newEntry.checkedIn) payload.checkin = newEntry.checkedIn;
       if (newEntry.payment) payload.paid = newEntry.payment;
 
-      await axios.post(`${API_BASE_URL}/queueinfo/appointment-add/`, payload);
+      await addAppointment(payload);
     } catch (error) {
       console.error(error);
     }
@@ -510,7 +503,18 @@ export default function AppointmentTable() {
         New Appointment
       </Button>
 
-      {!loading && (
+      {loading ? (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            height: "100%",
+          }}
+        >
+          <CircularProgress />
+        </div>
+      ) : (
         <div
           style={{
             width: "100%",
@@ -520,7 +524,7 @@ export default function AppointmentTable() {
           <DataGrid
             rows={displayedRows}
             columns={columnsWithPlaceholders}
-            slots={{ toolbar: GridToolbar }}
+            slots={{ toolbar: GridToolbar, noRowsOverlay: CustomNoRowsOverlay }}
             editMode="row"
             processRowUpdate={processRowUpdate}
             experimentalFeatures={{ newEditingApi: true }}
@@ -571,7 +575,6 @@ export default function AppointmentTable() {
                 maxWidth: "100% !important",
               },
             }}
-            loading={loading}
             autoPageSize
             density="compact"
           />

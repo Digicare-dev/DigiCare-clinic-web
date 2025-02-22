@@ -1,5 +1,5 @@
-import React from "react";
-import { useMediaQuery, ListItem } from "@mui/material";
+import React, { useEffect } from "react";
+import { useMediaQuery, ListItem, Typography } from "@mui/material";
 import Skeleton from "@mui/material/Skeleton";
 import QueueContainer from "../components/QueueContainer";
 import { keyframes } from "@emotion/react";
@@ -29,49 +29,79 @@ export default function Home({
 
   const currentPatient = patients.find((p) => p.position === currentPosition);
 
+  useEffect(() => {
+    if (patients.length > 0 && currentPosition !== null) {
+      // Sort patients with current first, then by position
+      const sorted = [...patients].sort((a, b) => {
+        if (a.position === currentPosition) return -1;
+        if (b.position === currentPosition) return 1;
+        return a.position - b.position;
+      });
+
+      // Only update if sorting changed
+      if (JSON.stringify(sorted) !== JSON.stringify(patients)) {
+        setPatients(sorted);
+      }
+    }
+  }, [patients, currentPosition]);
+
   return (
-    <div style={styles.container}>
-      {/* <DoctorHeader doctorName="Dr. Amit Mittal" />{" "} */}
-      {/* Add the DoctorHeader component */}
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        {loading ? (
-          <div className="queue-container">
-            {[...Array(6)].map((_, index) => (
-              <ListItem key={index}>
-                <Skeleton
-                  variant="text"
-                  width="100%"
-                  height={100}
-                  sx={{ margin: "-20px" }}
-                />
-              </ListItem>
-            ))}
-          </div>
-        ) : (
-          <div
-            style={{ display: "flex", flexDirection: "column", flexGrow: "3" }}
-          >
-            {!isMobile && <DoctorHeader doctorName="Dr. Amit Mittal" />}{" "}
-            {/* Add the DoctorHeader component */}
-            <QueueContainer
-              patients={patients}
-              currentPosition={currentPosition}
-              setCurrentPosition={setCurrentPosition}
-              handleNextPatient={handleNextPatient}
-              setPatients={setPatients}
-              handleLatePatient={handleLatePatient}
-              shufflePosition={shufflePosition}
-            />
-          </div>
-        )}
-        {!isMobile && (
-          <StatisticsCard
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        height: "90%",
+      }}
+    >
+      {loading ? (
+        <div className="queue-container">
+          {[...Array(6)].map((_, index) => (
+            <ListItem key={index}>
+              <Skeleton
+                variant="text"
+                width="100%"
+                height={100}
+                sx={{ margin: "-20px" }}
+              />
+            </ListItem>
+          ))}
+        </div>
+      ) : patients.length === 0 ? (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            height: "100%",
+            width: "100%",
+          }}
+        >
+          <Typography variant="h6">Currently no patients</Typography>
+        </div>
+      ) : (
+        <div
+          style={{ display: "flex", flexDirection: "column", flexGrow: "3" }}
+        >
+          {!isMobile && <DoctorHeader doctorName="Dr. Amit Mittal" />}{" "}
+          {/* Add the DoctorHeader component */}
+          <QueueContainer
             patients={patients}
-            currentPatient={currentPatient}
-            loading={loading}
+            currentPosition={currentPosition}
+            setCurrentPosition={setCurrentPosition}
+            handleNextPatient={handleNextPatient}
+            setPatients={setPatients}
+            handleLatePatient={handleLatePatient}
+            shufflePosition={shufflePosition}
           />
-        )}
-      </div>
+        </div>
+      )}
+      {!isMobile && (
+        <StatisticsCard
+          patients={patients}
+          currentPatient={currentPatient}
+          loading={loading}
+        />
+      )}
     </div>
   );
 }
@@ -80,6 +110,7 @@ const styles = {
   container: {
     // margin: "auto",
     // marginTop: "20px",
+    height: "80%",
   },
   card: {
     // marginBottom: "20px",
