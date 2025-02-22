@@ -1,4 +1,6 @@
 import * as React from "react";
+import { useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
 import "./AppointmentTable.module.css";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import {
@@ -92,6 +94,8 @@ function generateDisplayRows(actualRows) {
 }
 
 export default function AppointmentTable() {
+  const { user } = useContext(AuthContext);
+
   const [rows, setRows] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [open, setOpen] = React.useState(false);
@@ -126,7 +130,7 @@ export default function AppointmentTable() {
       setLoading(true);
       try {
         const response = await axios.get(
-          `${API_BASE_URL}/queueinfo/appointment-list/1/2025-02-26 18:00:00`
+          `${API_BASE_URL}/queueinfo/appointment-list/${user.checkupcabindata[0].id}/${user.checkupcabindata[0].cabin_slots[0]}`
         );
         setRows(response.data);
         setLoading(false);
