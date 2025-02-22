@@ -1,0 +1,5 @@
+.cancelled-row {
+  background-color: #ffebee !important;
+  color: #d32f2f !important;
+  text-decoration: line-through !important;
+}
