@@ -15,8 +15,6 @@ import FormControl from "@mui/material/FormControl";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
-import Cookie from "js-cookie";
-
 const Login = () => {
   const isMobile = window.innerWidth <= 768;
   const [showPassword, setShowPassword] = useState(false);

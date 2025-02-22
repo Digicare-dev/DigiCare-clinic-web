@@ -1,5 +1,6 @@
 import React, { useContext, useState } from "react";
-import { AuthContext } from "../context/AuthContext";
+import { logout } from "../services/authService";
+
 import {
   Button,
   Dialog,
@@ -13,7 +14,6 @@ import "./Header.module.css";
 
 function Header() {
   const isMobile = window.innerWidth <= 768;
-  const { logout } = useContext(AuthContext);
   const [open, setOpen] = useState(false);
 
   const handleClickOpen = () => {

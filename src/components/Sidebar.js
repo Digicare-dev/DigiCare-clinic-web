@@ -27,7 +27,7 @@ export default function Sidebar() {
       path: "/patient-details",
       icon: MedicalInformationIcon,
     },
-    // { text: "Settings", path: "/settings", icon: SettingsIcon },
+    { text: "Appointments", path: "/appointments", icon: AddIcon },
     { text: "Help", path: "/help", icon: HelpIcon },
   ];
 
