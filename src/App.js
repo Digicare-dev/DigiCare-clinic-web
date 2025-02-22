@@ -34,8 +34,8 @@ const App = () => {
   useEffect(() => {
     if (user) {
       setLoading(true);
-      fetchPatients();
-      fetchCurrentPosition();
+      fetchPatientsData();
+      fetchCurrentPositionData();
     }
   }, [user]);
 
