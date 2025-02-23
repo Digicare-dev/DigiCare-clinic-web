@@ -161,6 +161,41 @@
   padding: 2px 4px;
 }
 
+/* Add absent button styling */
+.absent-button {
+  background-color: #d32f2f;
+  color: white;
+  border: none;
+  height: 40px;
+  cursor: pointer;
+  border-radius: 8px;
+  margin: 4px;
+  width: fit-content;
+  flex-grow: 1;
+  transition: background-color 0.3s ease;
+}
+
+.absent-button:hover {
+  background-color: #b71c1c;
+}
+
+/* Enhance current patient styling */
+.current {
+  background-color: #fff3cd !important;
+  color: #856404 !important;
+  border: 2px solid #856404 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transform: scale(1.02);
+  z-index: 1;
+}
+
+/* Add divider styling */
+.divider {
+  padding: 8px 0;
+  font-weight: bold;
+  color: #666;
+}
+
 @keyframes dropEffect {
   0% {
     transform: scale(1.05);

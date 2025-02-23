@@ -81,19 +81,21 @@ function generateDisplayRows(actualRows) {
     const existing = tokenMap.get(token);
     return (
       existing || {
-        id: token,
-        token,
-        isPlaceholder: true,
+        id: "",
+        token: "",
+        appointment_id: "",
         firstName: "",
         lastName: "",
-        age: "",
-        mobile: "",
-        place: "",
-        sex: "",
-        checkedIn: false,
+        checkin: false,
+        paid: false,
+        status: "",
         disease: "",
+        age: "",
+        phone_number: "",
+        location: "",
+        sex: "",
         guardian: "",
-        appointmentType: "New",
+        appointment_type: "",
       }
     );
   });
@@ -119,7 +121,7 @@ export default function AppointmentTable() {
     age: "",
     phone_number: "",
     location: "",
-    sex: null,
+    sex: "",
     guardian: "",
     appointment_type: "New",
   });
@@ -213,7 +215,7 @@ export default function AppointmentTable() {
       location: "",
       sex: "",
       guardian: "",
-      appointment_type: "new",
+      appointment_type: "New",
     });
   };
 
@@ -478,7 +480,7 @@ export default function AppointmentTable() {
         payload.appointment_type = newEntry.appointment_type;
       if (newEntry.disease) payload.disease = newEntry.disease;
       if (newEntry.guardian) payload.guardian = newEntry.guardian;
-      if (newEntry.sex) payload.gender = newEntry.sex || "";
+      if (newEntry.sex) payload.gender = newEntry.sex || null;
 
       await addAppointment(payload);
     } catch (error) {
@@ -499,7 +501,7 @@ export default function AppointmentTable() {
         age: newData.age,
         phone_number: newData.phone_number,
         location: newData.location,
-        gender: newData.sex || "",
+        gender: newData.sex || null,
         guardian: newData.guardian,
         appointment_type: newData.appointment_type,
       };
@@ -894,14 +896,11 @@ export default function AppointmentTable() {
 
             <FormControl component="fieldset">
               <ToggleButtonGroup
-                value={newAppointment.sex || ""}
+                value={newAppointment.sex}
                 exclusive
                 onChange={handleSexChange}
                 color="primary"
               >
-                <ToggleButton value="">
-                  <em>None</em>
-                </ToggleButton>
                 <ToggleButton value="M" color="primary">
                   Male
                 </ToggleButton>
@@ -942,7 +941,7 @@ export default function AppointmentTable() {
                     onChange={(e) =>
                       setNewAppointment((prev) => ({
                         ...prev,
-                        checkedIn: e.target.checked,
+                        checkin: e.target.checked,
                       }))
                     }
                   />
@@ -957,7 +956,7 @@ export default function AppointmentTable() {
                     onChange={(e) =>
                       setNewAppointment((prev) => ({
                         ...prev,
-                        payment: e.target.checked,
+                        paid: e.target.checked,
                       }))
                     }
                   />

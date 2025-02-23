@@ -200,7 +200,7 @@ export default function AddAppointment({ addAppointment }) {
                 value={formData.mobileNumber}
                 onChange={handleChange}
                 required
-                inputProps={{ maxLength: 10 }}
+                slotProps={{ input: { maxLength: 10 } }}
               />
             </div>
 

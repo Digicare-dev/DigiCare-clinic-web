@@ -1,229 +1,130 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import "./PatientItem.css";
-import { useMediaQuery, CircularProgress } from "@mui/material";
-import DoneIcon from "@mui/icons-material/Done";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import {
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Button as MuiButton,
+  CircularProgress,
+} from "@mui/material";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 
-const capitalizeFirstLetter = (string) => {
-  return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
-};
-
-export default function PatientItem({
-  firstName,
-  lastName,
-  guardian,
-  late,
+const PatientItem = ({
   position,
-  token,
-  onNext,
-  appointmentId,
-  type,
-  handleLatePatient,
-  droppedItem,
-  appointmentType,
+  appointment,
+  late,
   currentPosition,
-  changedPosition,
-  dob,
-  age,
-}) {
-  const isMobile = useMediaQuery("(max-width: 768px)");
-  const [loading, setLoading] = useState(null);
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: position });
+  handleNextPatient,
+  handleLatePatient,
+  isDraggable,
+}) => {
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [loadingType, setLoadingType] = useState(null);
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({
+      id: `${appointment.appointment_id}-${position}`,
+    });
+
+  const handleConfirm = async () => {
+    if (!confirmAction) return;
+
+    try {
+      setLoadingType(confirmAction);
+      switch (confirmAction) {
+        case "late":
+          await handleLatePatient(appointment.appointment_id);
+          break;
+        case "next":
+          await handleNextPatient(appointment.appointment_id);
+          break;
+      }
+    } finally {
+      setConfirmAction(null);
+      setLoadingType(null);
+    }
+  };
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    touchAction: isDragging ? "none" : "auto",
+    position: "relative",
   };
 
-  const handleNextclick = async (appointmentId) => {
-    setLoading(2);
-    const result = await onNext(appointmentId);
-    if (result) {
-      setLoading(null);
-    }
-  };
-
-  const handleLateClick = async (appointmentId) => {
-    setLoading(1);
-    const result = await handleLatePatient(appointmentId);
-    if (result) {
-      setLoading(null);
-    }
-  };
-
-  const getAge = (dob) => {
-    const date = new Date(dob);
-    const diffMs = Date.now() - date.getTime();
-    const ageDt = new Date(diffMs);
-    return Math.abs(ageDt.getUTCFullYear() - 1970);
-  };
+  const type =
+    position === currentPosition
+      ? "current"
+      : position < currentPosition
+      ? "done"
+      : "upcoming";
 
   return (
-    <>
-      {!isMobile && (
-        <div
-          ref={setNodeRef}
-          style={style}
-          className={`patient-item-container ${type} ${
-            droppedItem === position ? "dropped-effect" : ""
-          } ${late === true ? "late" : ""}`}
-        >
-          <div className="patient-details">
-            <div style={{ display: "flex", width: "100%", gap: "30px" }}>
-              <p>
-                <strong>
-                  {capitalizeFirstLetter(firstName)}{" "}
-                  {capitalizeFirstLetter(lastName)}
-                </strong>
-              </p>
-              <p>[{capitalizeFirstLetter(guardian)}]</p>
-
-              <p>Token : {token}</p>
-              <p>Age : {age}</p>
-
-              {appointmentType === "E" && position > currentPosition && (
-                <span className="emergency-label">Emergency</span>
-              )}
-              {late && position > currentPosition && (
-                <span className="late-label">Running Late</span>
-              )}
-            </div>
-            {type === "done" && (
-              <div className="patient-list-item-icon-right">
-                <DoneIcon />
-              </div>
-            )}
-            {position > currentPosition && (
-              <div
-                {...attributes}
-                {...listeners}
-                className="patient-list-item-icon-right icon-drag-handle"
-              >
-                <DragHandleIcon />
-              </div>
-            )}
-
-            {/* <p>Age: {age}</p> */}
-            {/* <p>Gender: {gender}</p> */}
-            {/* <p>Condition: {medicalCondition}</p> */}
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`patient-item ${type} ${late ? "late" : ""}`}
+    >
+      <div className="patient-content">
+        <div className="patient-info">
+          <div className="token-badge">Token {appointment.token}</div>
+          <div>
+            <h3>{appointment.name}</h3>
+            <p>Type: {appointment.appointment_type}</p>
           </div>
-          {type === "current" && (
-            <div className="button-container">
-              <button
-                className="patient-item-button late-button"
-                onClick={() => {
-                  handleLateClick(appointmentId);
-                }}
-              >
-                {loading === 1 ? (
-                  <CircularProgress size={20} color="white" />
-                ) : (
-                  "Mark Late"
-                )}{" "}
-              </button>
-              <button
-                className="patient-item-button next-button"
-                onClick={() => {
-                  handleNextclick(appointmentId);
-                }}
-              >
-                {loading === 2 ? (
-                  <CircularProgress size={20} color="white" />
-                ) : (
-                  "Next"
-                )}
-              </button>
-            </div>
-          )}
         </div>
-      )}
 
-      {isMobile && (
-        <div
-          ref={setNodeRef}
-          style={style}
-          className={`patient-item-container ${type} ${
-            droppedItem === position ? "dropped-effect" : ""
-          } ${late === true ? "late" : ""} ${
-            changedPosition === position ? "changed-position" : ""
-          }`}
-        >
-          <div className="patient-details">
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: "2px" }}
+        {type === "current" && (
+          <div className="action-buttons">
+            <MuiButton
+              variant="contained"
+              color="error"
+              onClick={() => setConfirmAction("late")}
+              disabled={loadingType}
             >
-              <p>
-                {position}
-                {". "}
-                <strong>
-                  {firstName} {lastName}
-                </strong>
-              </p>
-              <p>[{guardian}]</p>
-              {/* <p>Token - {token}</p> */}
-              {/* <p>Age - {getAge(dob)}</p> */}
-            </div>
-            {type === "upcoming" && (
-              <div {...attributes} {...listeners} className="icon-drag-handle">
-                <DragHandleIcon />
-              </div>
-            )}
-            {type === "done" && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  marginRight: "20px",
-                }}
-              >
-                <DoneIcon />
-              </div>
-            )}
+              {loadingType === "late" ? (
+                <CircularProgress size={20} />
+              ) : (
+                "Mark Late"
+              )}
+            </MuiButton>
+            <MuiButton
+              variant="contained"
+              color="success"
+              onClick={() => setConfirmAction("next")}
+              disabled={loadingType}
+            >
+              {loadingType === "next" ? (
+                <CircularProgress size={20} />
+              ) : (
+                "Next Patient"
+              )}
+            </MuiButton>
+          </div>
+        )}
 
-            {/* <p>Age - {age}</p> */}
+        {isDraggable && type === "upcoming" && (
+          <div className="drag-handle" {...attributes} {...listeners}>
+            <DragHandleIcon />
           </div>
-          <div className="button-container">
-            {type === "current" && (
-              <button
-                className="patient-item-button late-button"
-                onClick={() => {
-                  handleLatePatient(appointmentId);
-                }}
-              >
-                {loading ? (
-                  <CircularProgress size={24} color="white" />
-                ) : (
-                  "Mark Late"
-                )}{" "}
-              </button>
-            )}
-            {type === "current" && (
-              <button
-                className="patient-item-button next-button"
-                onClick={() => {
-                  onNext(appointmentId);
-                }}
-              >
-                {loading ? (
-                  <CircularProgress size={24} color="white" />
-                ) : (
-                  "Next"
-                )}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-    </>
+        )}
+      </div>
+
+      <Dialog open={!!confirmAction} onClose={() => setConfirmAction(null)}>
+        <DialogTitle>Confirm Action</DialogTitle>
+        <DialogContent>
+          Are you sure you want to {confirmAction} this patient?
+        </DialogContent>
+        <DialogActions>
+          <MuiButton onClick={() => setConfirmAction(null)}>Cancel</MuiButton>
+          <MuiButton onClick={handleConfirm} color="primary">
+            Confirm
+          </MuiButton>
+        </DialogActions>
+      </Dialog>
+    </div>
   );
-}
+};
+
+export default PatientItem;

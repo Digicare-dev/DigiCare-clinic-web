@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState, useCallback } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Box } from "@mui/material";
 import { AuthContext } from "./context/AuthContext";
@@ -46,25 +46,24 @@ const App = () => {
     }
   }, [patients, currentPosition]);
 
-  const fetchPatientsData = async () => {
+  const fetchPatientsData = useCallback(async () => {
     try {
+      setLoading(true);
       const data = await fetchPatients(
         user.checkupcabindata[0].id,
         user.checkupcabindata[0].cabin_slots[0]
       );
       data.sort((a, b) => a.position - b.position);
-
       const remainingPatients = data.filter(
         (p) => p.appointment.appointment_type !== "done"
       );
-
       setPatients(remainingPatients);
-      setLoading(false);
     } catch (error) {
       console.error("Error fetching patients:", error);
+    } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   const fetchCurrentPositionData = async () => {
     const { current_number } = await fetchCurrentPosition(
@@ -147,6 +146,7 @@ const App = () => {
                       }
                       shufflePosition={(payload) => shufflePosition(payload)}
                       loading={loading}
+                      fetchPatientsData={fetchPatientsData}
                     />
                   </PrivateRoute>
                 }

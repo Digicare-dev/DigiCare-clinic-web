@@ -1,12 +1,10 @@
 import React, { useRef, useEffect, useState } from "react";
-import PatientItem from "../components/PatientItem";
+import PatientItem from "./PatientItem";
 import "./QueueContainer.css";
 import { DndContext } from "@dnd-kit/core";
 import { arrayMove, SortableContext } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
-import { Typography, Button } from "@mui/material";
-import RefreshIcon from "@mui/icons-material/Refresh";
-import AssignmentIcon from "@mui/icons-material/Assignment";
+import { Typography, Divider } from "@mui/material";
 
 const QueueContainer = ({
   patients,
@@ -15,153 +13,127 @@ const QueueContainer = ({
   handleNextPatient,
   handleLatePatient,
   shufflePosition,
+  fetchPatientsData, // Added prop for refetch
 }) => {
-  const patientRefs = useRef({});
   const [droppedItem, setDroppedItem] = useState(null);
-  const [changedPosition, setChangedPosition] = useState(null);
+  const sortedPatients = [...patients].sort((a, b) => a.position - b.position);
 
-  useEffect(() => {
-    if (patientRefs.current[currentPosition]) {
-      const element = patientRefs.current[currentPosition];
-      const targetScroll = element.offsetTop - 160;
-      const container = document.querySelector(".queue-container");
-      const startScroll = container.scrollTop;
-      const distance = targetScroll - startScroll;
-      let startTime = null;
+  // Calculate max position to show
+  const positions = sortedPatients.map((p) => p.position);
+  const maxPosition = Math.max(...positions, currentPosition + 4);
 
-      function animateScroll(time) {
-        if (!startTime) startTime = time;
-        const progress = Math.min((time - startTime) / 800, 1);
-        container.scrollTop = startScroll + distance * progress;
-        if (progress < 1) requestAnimationFrame(animateScroll);
-      }
+  // Create array of all positions with empty slots
+  const allSlots = Array.from({ length: maxPosition }, (_, i) => {
+    const position = i + 1;
+    const patient = sortedPatients.find((p) => p.position === position);
+    return patient || { position, isEmpty: true };
+  });
 
-      requestAnimationFrame(animateScroll);
-    }
-    console.log(patients);
-  }, [currentPosition]);
+  // Split into current and upcoming groups
+  const currentGroupEnd = Math.min(currentPosition + 4, maxPosition);
+  const currentGroup = allSlots.slice(currentPosition - 1, currentGroupEnd);
+  const upcomingGroup = allSlots.slice(currentGroupEnd);
 
   const handleDragEnd = async (event) => {
-    debugger;
     const { active, over } = event;
     if (over && active.id !== over.id) {
-      setPatients((prevPatients) => {
-        const oldIndex = prevPatients.findIndex(
-          (patient) => patient.position === active.id
-        );
-        const newIndex = prevPatients.findIndex(
-          (patient) => patient.position === over.id
-        );
-        const newPatients = arrayMove(prevPatients, oldIndex, newIndex);
-        setChangedPosition(active.id); // Set the changed position
-        console.log(patients);
-        return newPatients;
-      });
+      const draggedPatient = sortedPatients.find(
+        (p) => p.appointment.appointment_id === active.id.split("-")[0]
+      );
+      const targetPosition = parseInt(over.id.split("-")[1]);
 
-      setDroppedItem(event.active.id);
-      setTimeout(() => setDroppedItem(null), 300); // Remove effect after 0.5s
+      if (draggedPatient && targetPosition) {
+        const payload = {
+          appointment_id: draggedPatient.appointment.appointment_id,
+          new_position: targetPosition,
+        };
 
-      const droppedPatientId = patients.find(
-        (patient) => patient.position === active.id
-      ).appointment_id;
-      const payload = {
-        appointment_id: droppedPatientId,
-        new_position: over.id,
-      };
-      await shufflePosition(payload);
+        await shufflePosition(payload);
+        fetchPatientsData(); // Refresh data after shuffle
+      }
     }
   };
 
   return (
     <div className="queue-container">
-      {patients.length !== 0 ? (
-        <DndContext
-          modifiers={[restrictToVerticalAxis]}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext items={patients.map((p) => p.position)}>
-            {patients.map((patient) => {
-              let type;
-              if (patient.position < currentPosition) {
-                type = "done";
-              } else if (patient.position === currentPosition) {
-                type = "current";
-              } else {
-                type = "upcoming";
-              }
-
-              if (patient.type === "E" && type === "upcoming") {
-                type += " emergency-case";
-              }
-
-              return (
-                <div
-                  key={patient.token}
-                  ref={(el) => {
-                    if (el) {
-                      patientRefs.current[patient.position] = el;
-                    } else {
-                      delete patientRefs.current[patient.position];
-                    }
-                  }}
-                >
-                  <PatientItem
-                    firstName={patient.first_name}
-                    lastName={patient.last_name}
-                    guardian={patient.guardian}
-                    late={patient.late}
-                    position={patient.position}
-                    token={patient.token}
-                    appointmentId={patient.appointment_id}
-                    onNext={handleNextPatient}
-                    type={type}
-                    handleLatePatient={handleLatePatient}
-                    droppedItem={droppedItem}
-                    appointmentType={patient.type}
-                    currentPosition={currentPosition}
-                    changedPosition={changedPosition}
-                    // dob={patient.dob}
-                    age={patient.age}
-                  />
-                </div>
-              );
-            })}
-          </SortableContext>
-        </DndContext>
-      ) : (
-        <div
-          style={{
-            textAlign: "center",
-            height: "inherit",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "space-around",
-          }}
-        >
-          <div>
-            <Typography variant="h6" gutterBottom>
-              Queue is currently empty
-            </Typography>
-            <AssignmentIcon style={{ fontSize: "60px", color: "#007bff" }} />
-            <Typography variant="body1" gutterBottom>
-              There are no patients in the queue at the moment.
-            </Typography>
-          </div>
-          <div>
-            <Button
-              variant="contained"
-              startIcon={<RefreshIcon />}
-              onClick={() => window.location.reload()} // Example action to refresh the page
-              sx={{
-                width: "fit-content",
-                backgroundColor: "#007bff",
-              }}
-            >
-              Refresh
-            </Button>
-          </div>
+      {sortedPatients.length === 0 ? (
+        <div className="empty-queue">
+          <Typography variant="h6">Queue is currently empty</Typography>
         </div>
+      ) : (
+        <>
+          <div className="current-group">
+            {currentGroup.map((slot) =>
+              slot.isEmpty ? (
+                <div key={`empty-${slot.position}`} className="empty-slot">
+                  Available
+                </div>
+              ) : (
+                <PatientItem
+                  key={slot.appointment.appointment_id}
+                  {...slot}
+                  currentPosition={currentPosition}
+                  handleNextPatient={async (id) => {
+                    await handleNextPatient(id);
+                    fetchPatientsData(); // Refresh after action
+                  }}
+                  handleLatePatient={async (id) => {
+                    await handleLatePatient(id);
+                    fetchPatientsData(); // Refresh after action
+                  }}
+                  isDraggable={false}
+                />
+              )
+            )}
+          </div>
+
+          {upcomingGroup.length > 0 && (
+            <>
+              <Divider sx={{ my: 2 }}>
+                <Typography variant="subtitle1">Upcoming Patients</Typography>
+              </Divider>
+
+              <DndContext
+                modifiers={[restrictToVerticalAxis]}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={upcomingGroup
+                    .filter((slot) => !slot.isEmpty)
+                    .map(
+                      (p) => `${p.appointment.appointment_id}-${p.position}`
+                    )}
+                >
+                  {upcomingGroup.map((slot) =>
+                    slot.isEmpty ? (
+                      <div
+                        key={`empty-${slot.position}`}
+                        className="empty-slot"
+                      >
+                        Available
+                      </div>
+                    ) : (
+                      <PatientItem
+                        key={`${slot.appointment.appointment_id}-${slot.position}`}
+                        {...slot}
+                        currentPosition={currentPosition}
+                        handleNextPatient={async (id) => {
+                          await handleNextPatient(id);
+                          fetchPatientsData();
+                        }}
+                        handleLatePatient={async (id) => {
+                          await handleLatePatient(id);
+                          fetchPatientsData();
+                        }}
+                        isDraggable={true}
+                      />
+                    )
+                  )}
+                </SortableContext>
+              </DndContext>
+            </>
+          )}
+        </>
       )}
     </div>
   );

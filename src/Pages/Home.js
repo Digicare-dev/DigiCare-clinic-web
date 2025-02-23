@@ -24,9 +24,9 @@ export default function Home({
   handleLatePatient,
   shufflePosition,
   loading,
+  fetchPatientsData,
 }) {
   const isMobile = useMediaQuery("(max-width: 768px)");
-
   const currentPatient = patients.find((p) => p.position === currentPosition);
 
   useEffect(() => {
@@ -92,6 +92,7 @@ export default function Home({
             setPatients={setPatients}
             handleLatePatient={handleLatePatient}
             shufflePosition={shufflePosition}
+            fetchPatientsData={fetchPatientsData}
           />
         </div>
       )}
