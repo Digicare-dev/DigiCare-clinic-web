@@ -14,7 +14,7 @@ export const login = async (username, password) => {
       },
       { withCredentials: true }
     ); // Important for sending cookies
-    console.log(response);
+
     // Check if response indicates success
     if (response.status !== 200) {
       throw new Error("Login failed");
@@ -36,18 +36,17 @@ export const login = async (username, password) => {
 export const logout = async () => {
   try {
     // Send a POST request to the login API
-    const response = await axios.post(`${API_BASE_URL}/api/logout`, {
-      withCredentials: true,
-    }); // Important for sending cookies
-    console.log(response);
-    // Check if response indicates success
-    if (response.status !== 200) {
-      throw new Error("Login failed");
+    const response = await axios.post(
+      `${API_BASE_URL}/api/logout`,
+      {},
+      {
+        withCredentials: true,
+      }
+    ); // Important for sending cookies
+    if (response.status === 205) {
+      localStorage.removeItem("user");
+      return;
     }
-
-    // Access and refresh tokens are set as HTTP-only cookies by the server
-    // No need to handle them manually in client-side code
-
     return response.data; // Return the response data if needed
   } catch (error) {
     console.error(

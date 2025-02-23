@@ -31,26 +31,26 @@ export default function Home({
 
   useEffect(() => {
     if (patients.length > 0 && currentPosition !== null) {
-      // Sort patients with current first, then by position
-      const sorted = [...patients].sort((a, b) => {
-        if (a.position === currentPosition) return -1;
-        if (b.position === currentPosition) return 1;
-        return a.position - b.position;
-      });
+      const needsSorting = patients.some((p, index) =>
+        index === 0
+          ? p.position !== currentPosition
+          : p.position <= patients[index - 1].position
+      );
 
-      // Only update if sorting changed
-      if (JSON.stringify(sorted) !== JSON.stringify(patients)) {
+      if (needsSorting) {
+        const sorted = [...patients].sort((a, b) => a.position - b.position);
         setPatients(sorted);
       }
     }
-  }, [patients, currentPosition]);
+  }, [currentPosition]);
 
   return (
     <div
       style={{
-        display: "flex",
-        justifyContent: "space-between",
-        height: "90%",
+        display: "grid",
+        gridTemplateColumns: "1fr 300px", // Fixed width for stats card
+        gap: "32px",
+        height: "100%",
       }}
     >
       {loading ? (

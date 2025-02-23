@@ -1,5 +1,7 @@
 import React, { useContext, useState } from "react";
 import { logout } from "../services/authService";
+import { AuthContext } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 import {
   Button,
@@ -15,6 +17,8 @@ import "./Header.module.css";
 function Header() {
   const isMobile = window.innerWidth <= 768;
   const [open, setOpen] = useState(false);
+  const { setUser } = useContext(AuthContext);
+  const navigate = useNavigate();
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -25,8 +29,10 @@ function Header() {
   };
 
   const handleLogout = () => {
+    setUser(null);
     logout();
     handleClose();
+    navigate("/login");
   };
 
   return (

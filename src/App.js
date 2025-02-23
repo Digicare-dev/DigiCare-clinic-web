@@ -54,7 +54,10 @@ const App = () => {
       );
       data.sort((a, b) => a.position - b.position);
 
-      const remainingPatients = data.filter((p) => p.done_checkup === false);
+      const remainingPatients = data.filter(
+        (p) => p.appointment.appointment_type !== "done"
+      );
+
       setPatients(remainingPatients);
       setLoading(false);
     } catch (error) {
@@ -177,7 +180,7 @@ const App = () => {
                 path="/appointments"
                 element={
                   <PrivateRoute>
-                    <AppointmentTable />
+                    {<AppointmentTable key={window.location.pathname} />}
                   </PrivateRoute>
                 }
               />

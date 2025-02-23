@@ -43,3 +43,14 @@ export const deleteData = async (endpoint) => {
     throw error;
   }
 };
+
+// Partially update data (PATCH request)
+export const patchData = async (endpoint, data) => {
+  try {
+    const response = await axiosInstance.patch(endpoint, data);
+    return response.data;
+  } catch (error) {
+    console.error("Error partially updating data:", error);
+    throw error;
+  }
+};

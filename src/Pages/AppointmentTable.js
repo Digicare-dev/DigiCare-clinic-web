@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
-import "./AppointmentTable.module.css";
+import "./AppointmentTable.css";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import {
   Button,
@@ -26,8 +26,12 @@ import {
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Tooltip from "@mui/material/Tooltip";
-import CircularProgress from "@mui/material/CircularProgress";
-import { fetchAppointments, addAppointment } from "../services/api";
+import {
+  fetchAppointments,
+  addAppointment,
+  updateAppointmentDetails,
+  removeAppointment,
+} from "../services/api";
 
 const modalStyle = {
   position: "absolute",
@@ -92,7 +96,7 @@ function generateDisplayRows(actualRows) {
 }
 
 export default function AppointmentTable() {
-  const { user } = useContext(AuthContext);
+  const user = JSON.parse(localStorage.getItem("user"));
 
   const [rows, setRows] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
@@ -131,14 +135,38 @@ export default function AppointmentTable() {
           user.checkupcabindata[0].id,
           user.checkupcabindata[0].cabin_slots[0]
         );
-        setRows(data);
-        setLoading(false);
+        if (data.length !== 0) {
+          const formattedData = data.map((item) => {
+            const [firstName, ...lastNameParts] = item.name.split(" ");
+            return {
+              id: item.token,
+              token: item.token,
+              appointment_id: item.appointment_id,
+              firstName: firstName || "",
+              lastName: lastNameParts.join(" ") || "",
+              checkin: item.checkin,
+              paid: item.paid,
+              status: item.status,
+              disease: item.disease !== null ? item.disease : "",
+              age: item.patient ? item.patient.age : "",
+              phone_number: item.patient ? item.patient.phone_number : "",
+              location: item.patient ? item.patient.location : "",
+              sex: item.patient ? item.patient.gender : "",
+              guardian: item.patient ? item.patient.guardian : "",
+              appointment_type: item.appointment_type,
+            };
+          });
+
+          setRows(formattedData);
+          setLoading(false);
+        } else {
+          setLoading(false);
+        }
       } catch (error) {
         console.error(error);
         setLoading(false);
       }
     };
-
     getAppointments();
   }, []);
 
@@ -194,8 +222,9 @@ export default function AppointmentTable() {
     },
     {
       field: "firstName",
-      headerName: "Full Name",
-      width: 200,
+      headerName: "First Name",
+      width: 100,
+      editable: true,
       renderCell: (params) => {
         if (params.row.isPlaceholder)
           return (
@@ -203,9 +232,22 @@ export default function AppointmentTable() {
               Empty Slot
             </span>
           );
-        const firstName = params?.row?.firstName?.trim() || "";
-        const lastName = params?.row?.lastName?.trim() || "";
-        return <span>{`${firstName} ${lastName}`.trim() || "N/A"}</span>;
+        return <span>{params.value || "N/A"}</span>;
+      },
+    },
+    {
+      field: "lastName",
+      headerName: "Last Name",
+      width: 100,
+      editable: true,
+      renderCell: (params) => {
+        if (params.row.isPlaceholder)
+          return (
+            <span style={{ color: "#666", fontStyle: "italic" }}>
+              Empty Slot
+            </span>
+          );
+        return <span>{params.value || "N/A"}</span>;
       },
     },
     {
@@ -221,7 +263,7 @@ export default function AppointmentTable() {
         ),
     },
     {
-      field: "mobile",
+      field: "phone_number",
       headerName: "Mobile",
       width: 120,
       editable: true,
@@ -233,7 +275,7 @@ export default function AppointmentTable() {
         ),
     },
     {
-      field: "place",
+      field: "location",
       headerName: "Place",
       width: 150,
       editable: true,
@@ -246,8 +288,8 @@ export default function AppointmentTable() {
     },
     {
       field: "sex",
-      headerName: "Sex",
-      width: 100,
+      headerName: "Gender",
+      width: 80,
       type: "singleSelect",
       valueOptions: ["male", "female", "other"],
       editable: true,
@@ -261,7 +303,7 @@ export default function AppointmentTable() {
         ),
     },
     {
-      field: "checkedIn",
+      field: "checkin",
       headerName: "Check-in",
       width: 80,
       type: "boolean",
@@ -298,7 +340,7 @@ export default function AppointmentTable() {
         ),
     },
     {
-      field: "appointmentType",
+      field: "appointment_type",
       headerName: "Type",
       width: 100,
       type: "singleSelect",
@@ -312,7 +354,7 @@ export default function AppointmentTable() {
         ),
     },
     {
-      field: "payment",
+      field: "paid",
       headerName: "Payment",
       width: 80,
       type: "boolean",
@@ -339,17 +381,20 @@ export default function AppointmentTable() {
     {
       field: "action",
       headerName: "Action",
-      width: 100,
-      renderCell: (params) => (
-        <Tooltip title="Cancel Appointment">
-          <DeleteIcon
-            style={{ cursor: "pointer", color: "#d32f2f" }}
-            onClick={() => {
-              handleCancelAppointment(params.row);
-            }}
-          />
-        </Tooltip>
-      ),
+      width: 80,
+      renderCell: (params) => {
+        if (params.row.status === "cancelled") {
+          return null; // or return <></>;
+        }
+        return (
+          <Tooltip title="Cancel Appointment">
+            <DeleteIcon
+              style={{ cursor: "pointer", color: "#d32f2f" }}
+              onClick={() => handleCancelAppointment(params.row)}
+            />
+          </Tooltip>
+        );
+      },
     },
   ];
 
@@ -373,8 +418,10 @@ export default function AppointmentTable() {
       const payload = {
         cabinId: user.checkupcabindata[0].id,
         slot: user.checkupcabindata[0].cabin_slots[0],
-        name: `${newEntry.firstName} ${newEntry.lastName}`,
+        name: `${newEntry.firstName} ${newEntry.lastName}`.trim(),
         token: newEntry.token,
+        paid: newEntry.payment,
+        checkin: newEntry.checkedIn,
       };
 
       if (newEntry.age) payload.age = newEntry.age;
@@ -385,12 +432,35 @@ export default function AppointmentTable() {
       if (newEntry.disease) payload.disease = newEntry.disease;
       if (newEntry.guardian) payload.guardian = newEntry.guardian;
       if (newEntry.sex) payload.gender = newEntry.sex;
-      if (newEntry.checkedIn) payload.checkin = newEntry.checkedIn;
-      if (newEntry.payment) payload.paid = newEntry.payment;
 
       await addAppointment(payload);
     } catch (error) {
       console.error(error);
+    }
+  };
+
+  const updateAppointmentApi = async (newData) => {
+    try {
+      const payload = {
+        token: newData.token,
+        appointment_id: newData.appointment_id,
+        name: `${newData.firstName} ${newData.lastName}`.trim(),
+        checkin: newData.checkin,
+        paid: newData.paid,
+        status: newData.status,
+        disease: newData.disease,
+        age: newData.age,
+        phone_number: newData.phone_number,
+        location: newData.location,
+        gender: newData.sex,
+        guardian: newData.guardian,
+        appointment_type: newData.appointment_type,
+      };
+
+      await updateAppointmentDetails(payload);
+    } catch (error) {
+      console.error("Failed to update appointment:", error);
+      throw error;
     }
   };
 
@@ -463,13 +533,30 @@ export default function AppointmentTable() {
     [rows]
   );
 
-  const handleConfirmEdit = () => {
-    setRows((prev) =>
-      prev.map((row) =>
-        row.id === pendingRow.id ? { ...pendingRow, id: pendingRow.token } : row
-      )
-    );
-    pendingRow.resolve(pendingRow);
+  const handleConfirmEdit = async () => {
+    try {
+      await updateAppointmentApi(pendingRow);
+
+      // Update local state
+      setRows((prev) =>
+        prev.map((row) =>
+          row.id === pendingRow.id
+            ? { ...pendingRow, id: pendingRow.token }
+            : row
+        )
+      );
+
+      pendingRow.resolve(pendingRow);
+    } catch (error) {
+      // Revert changes on error
+      setRows((prev) =>
+        prev.map((row) => (row.id === originalRow.id ? originalRow : row))
+      );
+      pendingRow.reject(originalRow);
+      alert("Failed to update appointment. Please try again.");
+    } finally {
+      setEditConfirmationOpen(false);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -490,96 +577,112 @@ export default function AppointmentTable() {
     setCancelConfirmationOpen(true);
   };
 
+  const cancelAppointment = async () => {
+    try {
+      const payload = {
+        appointment_id: rowToCancel.appointment_id,
+      };
+      const response = await removeAppointment(payload);
+      const removedId = response.removed_appointment_id;
+      if (removedId) {
+        const updatedRows = rows.map((r) => {
+          if (r.appointment_id === removedId) {
+            return { ...r, status: "cancelled" };
+          }
+          return r;
+        });
+        setRows(updatedRows);
+        setCancelConfirmationOpen(false);
+      }
+    } catch (error) {
+      console.error("Failed to remove appointment:", error);
+      throw error;
+    }
+  };
+
+  const isCellEditable = (params) => {
+    return params.row.status !== "cancelled";
+  };
+
   return (
     <div
       style={{
         height: "80vh",
         width: "95%",
         padding: "8px",
-        overflow: "auto !important",
+        overflow: "hidden",
       }}
     >
       <Button onClick={handleOpen} variant="contained" sx={{ mb: 2 }}>
         New Appointment
       </Button>
 
-      {loading ? (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            height: "100%",
-          }}
-        >
-          <CircularProgress />
-        </div>
-      ) : (
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-          }}
-        >
-          <DataGrid
-            rows={displayedRows}
-            columns={columnsWithPlaceholders}
-            slots={{ toolbar: GridToolbar, noRowsOverlay: CustomNoRowsOverlay }}
-            editMode="row"
-            processRowUpdate={processRowUpdate}
-            experimentalFeatures={{ newEditingApi: true }}
-            getRowClassName={(params) =>
-              params.row.isPlaceholder
-                ? "placeholder-row"
-                : params.row.status === "cancelled"
-                ? "cancelled-row"
-                : "data-row"
-            }
-            sortModel={[{ field: "token", sort: "asc" }]}
-            sx={{
-              "& .MuiDataGrid-columnHeaders": {
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+        }}
+      >
+        <DataGrid
+          rows={displayedRows}
+          columns={columnsWithPlaceholders}
+          isCellEditable={isCellEditable}
+          slots={{ toolbar: GridToolbar, noRowsOverlay: CustomNoRowsOverlay }}
+          editMode="row"
+          processRowUpdate={processRowUpdate}
+          experimentalFeatures={{ newEditingApi: true }}
+          getRowClassName={(params) =>
+            params.row.isPlaceholder
+              ? "placeholder-row"
+              : params.row.status === "cancelled"
+              ? "cancelled-row"
+              : "data-row"
+          }
+          sortModel={[{ field: "token", sort: "asc" }]}
+          loading={loading} // Add this line to show the loading spinner
+          sx={{
+            "& .MuiDataGrid-columnHeaders": {
+              backgroundColor: "#f5f5f5",
+              borderBottom: "2px solid #e0e0e0",
+              fontWeight: "bold",
+              fontSize: "0.875rem",
+            },
+            "& .MuiDataGrid-columnHeaderTitle": {
+              fontWeight: 600,
+            },
+            "& .placeholder-row": {
+              backgroundColor: "#fafafa",
+              color: "#666",
+              fontStyle: "italic",
+              borderBottom: "1px dashed #e0e0e0",
+              "&:hover": {
                 backgroundColor: "#f5f5f5",
-                borderBottom: "2px solid #e0e0e0",
-                fontWeight: "bold",
-                fontSize: "0.875rem",
               },
-              "& .MuiDataGrid-columnHeaderTitle": {
-                fontWeight: 600,
+            },
+            "& .data-row": {
+              backgroundColor: "#fff",
+              "&:hover": {
+                backgroundColor: "#f5f5f5",
               },
-              "& .placeholder-row": {
-                backgroundColor: "#fafafa",
-                color: "#666",
-                fontStyle: "italic",
-                borderBottom: "1px dashed #e0e0e0",
-                "&:hover": {
-                  backgroundColor: "#f5f5f5",
-                },
-              },
-              "& .data-row": {
-                backgroundColor: "#fff",
-                "&:hover": {
-                  backgroundColor: "#f5f5f5",
-                },
-              },
-              "& .MuiDataGrid-cell:focus": { outline: "none" },
-              "& .MuiDataGrid-columnHeader:focus": { outline: "none" },
-              "& .MuiDataGrid-cell": {
-                borderBottom: "1px solid #f0f0f0",
-                whiteSpace: "normal !important",
-                wordWrap: "break-word",
-              },
-              "& .MuiDataGrid-columnHeader": {
-                maxWidth: "100% !important",
-              },
-              "& .MuiDataGrid-row": {
-                maxWidth: "100% !important",
-              },
-            }}
-            autoPageSize
-            density="compact"
-          />
-        </div>
-      )}
+            },
+            "& .MuiDataGrid-cell:focus": { outline: "none" },
+            "& .MuiDataGrid-columnHeader:focus": { outline: "none" },
+            "& .MuiDataGrid-cell": {
+              borderBottom: "1px solid #f0f0f0",
+              whiteSpace: "normal !important",
+              wordWrap: "break-word",
+            },
+            "& .MuiDataGrid-columnHeader": {
+              maxWidth: "100% !important",
+            },
+            "& .MuiDataGrid-row": {
+              maxWidth: "100% !important",
+            },
+          }}
+          autoPageSize
+          density="compact"
+        />
+      </div>
 
       <Dialog open={editConfirmationOpen} onClose={handleCancelEdit}>
         <DialogTitle>Confirm Changes</DialogTitle>
@@ -613,16 +716,7 @@ export default function AppointmentTable() {
         <DialogActions>
           <Button onClick={() => setCancelConfirmationOpen(false)}>No</Button>
           <Button
-            onClick={() => {
-              setRows((prev) =>
-                prev.map((row) =>
-                  row.id === rowToCancel.id
-                    ? { ...row, status: "cancelled" }
-                    : row
-                )
-              );
-              setCancelConfirmationOpen(false);
-            }}
+            onClick={cancelAppointment}
             color="primary"
             variant="contained"
           >
@@ -715,13 +809,13 @@ export default function AppointmentTable() {
                 onChange={handleSexChange}
                 aria-label="sex"
               >
-                <ToggleButton value="male" color="primary">
+                <ToggleButton value="M" color="primary">
                   Male
                 </ToggleButton>
-                <ToggleButton value="female" color="secondary">
+                <ToggleButton value="F" color="secondary">
                   Female
                 </ToggleButton>
-                <ToggleButton value="other">Other</ToggleButton>
+                <ToggleButton value="O">Other</ToggleButton>
               </ToggleButtonGroup>
             </FormControl>
 

@@ -116,3 +116,34 @@ export const addDoctorsRemark = async (payload) => {
     throw error;
   }
 };
+
+// Update appointment details
+export const updateAppointmentDetails = async (payload) => {
+  try {
+    const response = await axiosInstance.patch(
+      "/queueinfo/appointment-edit/",
+      payload,
+      { withCredentials: true }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error updating appointment details:", error);
+    throw error;
+  }
+};
+
+//Delete appointment
+
+export const removeAppointment = async (payload) => {
+  try {
+    const response = await axiosInstance.put(
+      "/queueinfo/remove-appointment/",
+      payload,
+      { withCredentials: true }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error adding appointment:", error);
+    throw error;
+  }
+};

@@ -54,7 +54,7 @@ const Login = () => {
     try {
       const data = await loginService(credential.username, credential.password);
       if (data) {
-        console.log(data);
+        localStorage.setItem("user", JSON.stringify(data));
         setUser(data);
         setLoading(false);
         navigate("/");
