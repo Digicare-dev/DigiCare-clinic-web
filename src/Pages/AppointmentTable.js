@@ -1,8 +1,11 @@
 import * as React from "react";
-import { useContext } from "react";
-import { AuthContext } from "../context/AuthContext";
 import "./AppointmentTable.css";
-import { DataGrid, GridToolbar } from "@mui/x-data-grid";
+import {
+  DataGrid,
+  GridToolbar,
+  GridEditInputCell,
+  GridEditSingleSelectCell,
+} from "@mui/x-data-grid";
 import {
   Button,
   Modal,
@@ -23,6 +26,7 @@ import {
   Select,
   InputLabel,
   FormControl,
+  CircularProgress,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Tooltip from "@mui/material/Tooltip";
@@ -103,19 +107,21 @@ export default function AppointmentTable() {
   const [open, setOpen] = React.useState(false);
   const [error, setError] = React.useState("");
   const [newAppointment, setNewAppointment] = React.useState({
+    id: "",
     token: "",
+    appointment_id: "",
     firstName: "",
     lastName: "",
-    age: "",
-    mobile: "",
-    place: "",
-    sex: "",
-    checkedIn: false,
+    checkin: false,
+    paid: false,
+    status: "pending",
     disease: "",
+    age: "",
+    phone_number: "",
+    location: "",
+    sex: null,
     guardian: "",
-    appointmentType: "New",
-    payment: false,
-    status: "waiting",
+    appointment_type: "New",
   });
   const [suggestedToken, setSuggestedToken] = React.useState();
   const [editConfirmationOpen, setEditConfirmationOpen] = React.useState(false);
@@ -124,6 +130,9 @@ export default function AppointmentTable() {
   const [cancelConfirmationOpen, setCancelConfirmationOpen] =
     React.useState(false);
   const [rowToCancel, setRowToCancel] = React.useState(null);
+
+  const [isUpdating, setIsUpdating] = React.useState(false);
+  const [isCanceling, setIsCanceling] = React.useState(false);
 
   const displayedRows = React.useMemo(() => generateDisplayRows(rows), [rows]);
 
@@ -151,9 +160,11 @@ export default function AppointmentTable() {
               age: item.patient ? item.patient.age : "",
               phone_number: item.patient ? item.patient.phone_number : "",
               location: item.patient ? item.patient.location : "",
-              sex: item.patient ? item.patient.gender : "",
+              sex: item.patient?.gender || "",
               guardian: item.patient ? item.patient.guardian : "",
-              appointment_type: item.appointment_type,
+              appointment_type:
+                item.appointment_type?.charAt(0).toUpperCase() +
+                item.appointment_type?.slice(1).toLowerCase(),
             };
           });
 
@@ -188,18 +199,21 @@ export default function AppointmentTable() {
 
   const resetForm = () => {
     setNewAppointment({
+      id: "",
       token: "",
+      appointment_id: "",
       firstName: "",
       lastName: "",
-      age: "",
-      mobile: "",
-      place: "",
-      sex: "",
-      checkedIn: false,
+      checkin: false,
+      paid: false,
+      status: "pending",
       disease: "",
+      age: "",
+      phone_number: "",
+      location: "",
+      sex: "",
       guardian: "",
-      appointmentType: "New",
-      payment: false,
+      appointment_type: "new",
     });
   };
 
@@ -267,6 +281,20 @@ export default function AppointmentTable() {
       headerName: "Mobile",
       width: 120,
       editable: true,
+      renderEditCell: (params) => (
+        <GridEditInputCell
+          {...params}
+          slotProps={{
+            input: {
+              maxLength: 10,
+              type: "tel",
+              pattern: "[0-9]{10}",
+              inputMode: "numeric",
+              style: { padding: "8px" },
+            },
+          }}
+        />
+      ),
       renderCell: (params) =>
         params.row.isPlaceholder ? (
           <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
@@ -291,16 +319,31 @@ export default function AppointmentTable() {
       headerName: "Gender",
       width: 80,
       type: "singleSelect",
-      valueOptions: ["male", "female", "other"],
+      valueOptions: [{ value: "", label: " " }, "M", "F", "O"], // Add empty option with space
       editable: true,
       renderCell: (params) =>
         params.row.isPlaceholder ? (
           <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
         ) : (
           <span style={{ color: "#1976d2", fontWeight: 600 }}>
-            {params?.value?.toUpperCase() || ""}
+            {params.value === "M" && "Male"} {params.value === "F" && "Female"}
+            {params.value === "O" && "Other"} {!params.value && ""}
           </span>
         ),
+      renderEditCell: (params) => (
+        <GridEditSingleSelectCell
+          {...params}
+          getOptionLabel={(option) =>
+            option === "M"
+              ? "Male"
+              : option === "F"
+              ? "Female"
+              : option === "O"
+              ? "Other"
+              : "Select..."
+          }
+        />
+      ),
     },
     {
       field: "checkin",
@@ -346,6 +389,10 @@ export default function AppointmentTable() {
       type: "singleSelect",
       valueOptions: ["New", "Follow-up", "Emergency", "Routine"],
       editable: true,
+      valueFormatter: ({ value }) =>
+        value
+          ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
+          : "",
       renderCell: (params) =>
         params.row.isPlaceholder ? (
           <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
@@ -420,18 +467,18 @@ export default function AppointmentTable() {
         slot: user.checkupcabindata[0].cabin_slots[0],
         name: `${newEntry.firstName} ${newEntry.lastName}`.trim(),
         token: newEntry.token,
-        paid: newEntry.payment,
-        checkin: newEntry.checkedIn,
+        paid: newEntry.paid,
+        checkin: newEntry.checkin,
       };
 
       if (newEntry.age) payload.age = newEntry.age;
-      if (newEntry.mobile) payload.phone_number = newEntry.mobile;
-      if (newEntry.place) payload.location = newEntry.place;
-      if (newEntry.appointmentType)
-        payload.appointment_type = newEntry.appointmentType;
+      if (newEntry.phone_number) payload.phone_number = newEntry.phone_number;
+      if (newEntry.location) payload.location = newEntry.location;
+      if (newEntry.appointment_type)
+        payload.appointment_type = newEntry.appointment_type;
       if (newEntry.disease) payload.disease = newEntry.disease;
       if (newEntry.guardian) payload.guardian = newEntry.guardian;
-      if (newEntry.sex) payload.gender = newEntry.sex;
+      if (newEntry.sex) payload.gender = newEntry.sex || "";
 
       await addAppointment(payload);
     } catch (error) {
@@ -452,7 +499,7 @@ export default function AppointmentTable() {
         age: newData.age,
         phone_number: newData.phone_number,
         location: newData.location,
-        gender: newData.sex,
+        gender: newData.sex || "",
         guardian: newData.guardian,
         appointment_type: newData.appointment_type,
       };
@@ -480,22 +527,30 @@ export default function AppointmentTable() {
       setError("This token number is already in use");
       return;
     }
-    if (newAppointment.mobile && !/^\d{10}$/.test(newAppointment.mobile)) {
+    if (
+      newAppointment.phone_number &&
+      !/^\d{10}$/.test(newAppointment.phone_number)
+    ) {
       setError("Invalid mobile number (10 digits required)");
       return;
     }
 
     const newEntry = {
       id: parseInt(newAppointment.token),
-      ...newAppointment,
+      token: parseInt(newAppointment.token),
+      appointment_id: newAppointment.appointment_id,
       firstName: trimmedFirstName,
       lastName: trimmedLastName,
-      token: parseInt(newAppointment.token),
-      age: newAppointment.age || null,
-      mobile: newAppointment.mobile || null,
-      place: newAppointment.place || null,
-      payment: newAppointment.payment,
+      checkin: newAppointment.checkin,
+      paid: newAppointment.paid,
       status: newAppointment.status,
+      disease: newAppointment.disease,
+      age: newAppointment.age,
+      phone_number: newAppointment.phone_number,
+      location: newAppointment.location,
+      sex: newAppointment.sex,
+      guardian: newAppointment.guardian,
+      appointment_type: newAppointment.appointment_type,
     };
 
     setRows((prev) => [...prev, newEntry].sort((a, b) => a.token - b.token));
@@ -508,6 +563,22 @@ export default function AppointmentTable() {
   const processRowUpdate = React.useCallback(
     (newRow, originalRow) => {
       return new Promise((resolve, reject) => {
+        if (newRow.sex && !["M", "F", "O"].includes(newRow.sex)) {
+          reject(new Error("Invalid gender value"));
+          return;
+        }
+
+        // Validate mobile number format
+
+        if (newRow.phone_number?.toString().length > 10) {
+          reject(new Error("Mobile number cannot exceed 10 digits"));
+          return;
+        }
+
+        if (newRow.phone_number && !/^\d+$/.test(newRow.phone_number)) {
+          return;
+        }
+
         const changed = JSON.stringify(newRow) !== JSON.stringify(originalRow);
         if (changed) {
           setPendingRow(newRow);
@@ -534,6 +605,7 @@ export default function AppointmentTable() {
   );
 
   const handleConfirmEdit = async () => {
+    setIsUpdating(true);
     try {
       await updateAppointmentApi(pendingRow);
 
@@ -555,6 +627,7 @@ export default function AppointmentTable() {
       pendingRow.reject(originalRow);
       alert("Failed to update appointment. Please try again.");
     } finally {
+      setIsUpdating(false);
       setEditConfirmationOpen(false);
     }
   };
@@ -578,6 +651,7 @@ export default function AppointmentTable() {
   };
 
   const cancelAppointment = async () => {
+    setIsCanceling(true);
     try {
       const payload = {
         appointment_id: rowToCancel.appointment_id,
@@ -597,6 +671,8 @@ export default function AppointmentTable() {
     } catch (error) {
       console.error("Failed to remove appointment:", error);
       throw error;
+    } finally {
+      setIsCanceling(false);
     }
   };
 
@@ -624,6 +700,9 @@ export default function AppointmentTable() {
         }}
       >
         <DataGrid
+          onProcessRowUpdateError={(error) => {
+            alert(error.message);
+          }}
           rows={displayedRows}
           columns={columnsWithPlaceholders}
           isCellEditable={isCellEditable}
@@ -697,8 +776,13 @@ export default function AppointmentTable() {
             onClick={handleConfirmEdit}
             color="primary"
             variant="contained"
+            disabled={isUpdating}
           >
-            Confirm
+            {isUpdating ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              "Confirm"
+            )}{" "}
           </Button>
         </DialogActions>
       </Dialog>
@@ -719,8 +803,13 @@ export default function AppointmentTable() {
             onClick={cancelAppointment}
             color="primary"
             variant="contained"
+            disabled={isCanceling}
           >
-            Yes
+            {isCanceling ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              "Yes"
+            )}{" "}
           </Button>
         </DialogActions>
       </Dialog>
@@ -759,7 +848,7 @@ export default function AppointmentTable() {
               <InputLabel>Appointment Type *</InputLabel>
               <Select
                 name="appointmentType"
-                value={newAppointment.appointmentType}
+                value={newAppointment.appointment_type}
                 onChange={handleInputChange}
                 label="Appointment Type"
               >
@@ -796,19 +885,23 @@ export default function AppointmentTable() {
 
             <TextField
               label="Mobile"
-              name="mobile"
-              value={newAppointment.mobile}
+              name="phone_number"
+              value={newAppointment.phone_number}
               onChange={handleInputChange}
-              inputProps={{ maxLength: 10 }}
+              slotProps={{ input: { maxLength: 10 } }}
+              fullWidth
             />
 
             <FormControl component="fieldset">
               <ToggleButtonGroup
-                value={newAppointment.sex}
+                value={newAppointment.sex || ""}
                 exclusive
                 onChange={handleSexChange}
-                aria-label="sex"
+                color="primary"
               >
+                <ToggleButton value="">
+                  <em>None</em>
+                </ToggleButton>
                 <ToggleButton value="M" color="primary">
                   Male
                 </ToggleButton>
@@ -836,8 +929,8 @@ export default function AppointmentTable() {
             {/* Place TextField moved here */}
             <TextField
               label="Place"
-              name="place"
-              value={newAppointment.place}
+              name="location"
+              value={newAppointment.location}
               onChange={handleInputChange}
             />
 
@@ -845,7 +938,7 @@ export default function AppointmentTable() {
               <FormControlLabel
                 control={
                   <Checkbox
-                    checked={newAppointment.checkedIn}
+                    checked={newAppointment.checkin}
                     onChange={(e) =>
                       setNewAppointment((prev) => ({
                         ...prev,
@@ -860,7 +953,7 @@ export default function AppointmentTable() {
               <FormControlLabel
                 control={
                   <Checkbox
-                    checked={newAppointment.payment}
+                    checked={newAppointment.paid}
                     onChange={(e) =>
                       setNewAppointment((prev) => ({
                         ...prev,
