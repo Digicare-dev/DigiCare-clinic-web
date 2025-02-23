@@ -60,9 +60,7 @@ const Login = () => {
         navigate("/");
       }
     } catch (error) {
-      console.log(error);
       setLoading(false);
-      alert("Invalid credentials");
     }
   };
 
