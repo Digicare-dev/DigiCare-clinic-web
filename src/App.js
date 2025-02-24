@@ -64,8 +64,7 @@ const App = () => {
       }));
 
       processedData.sort((a, b) => a.position - b.position);
-      const remainingPatients = data.filter((p) => p.status === "pending");
-      setPatients(remainingPatients);
+      setPatients(processedData);
     } catch (error) {
       console.error("Error fetching patients:", error);
     } finally {

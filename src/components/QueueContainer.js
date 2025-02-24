@@ -20,7 +20,9 @@ const QueueContainer = ({
   fetchPatientsData, // Added prop for refetch
 }) => {
   const [droppedItem, setDroppedItem] = useState(null);
-  const sortedPatients = [...patients].sort((a, b) => a.position - b.position);
+  const sortedPatients = [...patients]
+    .filter((p) => p.status === "pending")
+    .sort((a, b) => a.position - b.position);
 
   // Calculate max position to show
   const positions = sortedPatients.map((p) => p.position);

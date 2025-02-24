@@ -81,34 +81,54 @@ const PatientItem = ({
         <div className="patient-info">
           <div className="token-badge">
             <MedicalServices fontSize="small" />
-            <span>Token {appointment.token}</span>
+            <div className="token-details">
+              <span>Token {appointment.token}</span>
+              {/* <Tooltip title={`Appointment ID: ${appointment.appointment_id}`}>
+                <span className="appointment-id">
+                  ID: {appointment.appointment_id.slice(0, 6)}...
+                </span>
+              </Tooltip> */}
+            </div>
           </div>
 
           <div className="patient-details">
             <div className="patient-header">
               <h3>{appointment.name}</h3>
               <div className="status-tags">
-                {paid ? (
-                  <Tooltip title="Payment Completed">
+                {/* Status Chip */}
+                {status === "done_checkup" && (
+                  <Tooltip title="Checkup Completed">
                     <Chip
-                      icon={<Paid fontSize="small" />}
-                      label="Paid"
+                      label="Completed"
                       size="small"
                       color="success"
                       variant="outlined"
                     />
                   </Tooltip>
-                ) : (
-                  <Tooltip title="Payment Pending">
+                )}
+                {status === "cancelled" && (
+                  <Tooltip title="Appointment Cancelled">
                     <Chip
-                      icon={<Paid fontSize="small" />}
-                      label="Unpaid"
+                      label="Cancelled"
                       size="small"
                       color="error"
                       variant="outlined"
                     />
                   </Tooltip>
                 )}
+
+                {/* Payment Status */}
+                <Tooltip title={paid ? "Payment Completed" : "Payment Pending"}>
+                  <Chip
+                    icon={<Paid fontSize="small" />}
+                    label={paid ? "Paid" : "Unpaid"}
+                    size="small"
+                    color={paid ? "success" : "error"}
+                    variant="outlined"
+                  />
+                </Tooltip>
+
+                {/* Check-in Status */}
                 {checkin && (
                   <Tooltip title="Checked In">
                     <Chip
@@ -120,14 +140,18 @@ const PatientItem = ({
                     />
                   </Tooltip>
                 )}
+
+                {/* Late Status */}
                 {late && (
-                  <Chip
-                    icon={<AccessTime fontSize="small" />}
-                    label="Running Late"
-                    size="small"
-                    color="warning"
-                    variant="outlined"
-                  />
+                  <Tooltip title="Patient Running Late">
+                    <Chip
+                      icon={<AccessTime fontSize="small" />}
+                      label="Late"
+                      size="small"
+                      color="warning"
+                      variant="outlined"
+                    />
+                  </Tooltip>
                 )}
               </div>
             </div>
@@ -137,19 +161,20 @@ const PatientItem = ({
                 <PendingActions fontSize="small" />
                 <span>{appointment.appointment_type}</span>
               </div>
+
               {appointment.disease && (
                 <div className="meta-item">
                   <MedicalServices fontSize="small" />
                   <span>{appointment.disease}</span>
                 </div>
               )}
+
               {appointment.appointment_time && (
                 <div className="meta-item">
                   <AccessTime fontSize="small" />
                   <span>
-                    {new Date(
-                      appointment.appointment_time
-                    ).toLocaleTimeString()}
+                    Scheduled:{" "}
+                    {new Date(appointment.appointment_time).toLocaleString()}
                   </span>
                 </div>
               )}

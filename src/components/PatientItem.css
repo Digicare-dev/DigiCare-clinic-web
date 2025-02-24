@@ -120,3 +120,44 @@
   margin-left: 4px;
   margin-right: -4px;
 }
+
+/* PatientItem.css updates */
+.token-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.appointment-id {
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
+.patient-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.status-tags {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.appointment-meta {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.meta-item {
+  background: #f8f9fa;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
