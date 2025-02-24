@@ -105,15 +105,13 @@ function StatItem({ label, value }) {
 
 const styles = {
   card: {
-    marginBottom: "20px",
-    marginTop: "0px",
     padding: "0 20px",
     boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.12)",
     borderRadius: "12px",
     // background: "linear-gradient(145deg, #ffffff, #f0f0f0)",
     background: "#fff",
     flexGrow: 1,
-    margin: "20px 20px 0px 20px",
+    margin: "10px",
   },
   title: {
     fontWeight: "bold",

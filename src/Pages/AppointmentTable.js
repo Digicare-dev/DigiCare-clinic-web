@@ -37,6 +37,8 @@ import {
   removeAppointment,
 } from "../services/api";
 
+import CustomSnackbar from "../components/CustomSnackbar";
+
 const modalStyle = {
   position: "absolute",
   top: "50%",
@@ -107,6 +109,7 @@ export default function AppointmentTable({ fetchPatientsData }) {
 
   const [rows, setRows] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
+  const [isAdding, setIsAdding] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const [error, setError] = React.useState("");
   const [newAppointment, setNewAppointment] = React.useState({
@@ -136,6 +139,25 @@ export default function AppointmentTable({ fetchPatientsData }) {
 
   const [isUpdating, setIsUpdating] = React.useState(false);
   const [isCanceling, setIsCanceling] = React.useState(false);
+
+  const [paginationModel, setPaginationModel] = React.useState({
+    page: 0,
+    pageSize: 25,
+  });
+
+  const [snackbar, setSnackbar] = React.useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+
+  const handleOpenSnackbar = (message, severity = "success") => {
+    setSnackbar({ open: true, message, severity });
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar((prev) => ({ ...prev, open: false }));
+  };
 
   const displayedRows = React.useMemo(() => generateDisplayRows(rows), [rows]);
 
@@ -538,6 +560,14 @@ export default function AppointmentTable({ fetchPatientsData }) {
 
       await addAppointment(payload);
       await fetchPatientsData();
+
+      const itemsPerPage = paginationModel.pageSize;
+      const newPage = Math.floor((newEntry.token - 1) / itemsPerPage);
+
+      setPaginationModel((prev) => ({
+        ...prev,
+        page: newPage,
+      }));
     } catch (error) {
       console.error(error);
     }
@@ -613,9 +643,18 @@ export default function AppointmentTable({ fetchPatientsData }) {
 
     setRows((prev) => [...prev, newEntry].sort((a, b) => a.token - b.token));
 
-    AddAppointmentApi(newEntry);
-
-    handleClose();
+    setIsAdding(true);
+    AddAppointmentApi(newEntry)
+      .then(() => {
+        handleOpenSnackbar("Appointment added successfully");
+        handleClose();
+      })
+      .catch(() => {
+        handleOpenSnackbar("Failed to add appointment", "error");
+      })
+      .finally(() => {
+        setIsAdding(false);
+      });
   };
 
   const processRowUpdate = React.useCallback(
@@ -666,6 +705,7 @@ export default function AppointmentTable({ fetchPatientsData }) {
     setIsUpdating(true);
     try {
       await updateAppointmentApi(pendingRow);
+      handleOpenSnackbar("Appointment updated successfully");
 
       // Update local state
       setRows((prev) =>
@@ -683,7 +723,7 @@ export default function AppointmentTable({ fetchPatientsData }) {
         prev.map((row) => (row.id === originalRow.id ? originalRow : row))
       );
       pendingRow.reject(originalRow);
-      alert("Failed to update appointment. Please try again.");
+      handleOpenSnackbar("Failed to update appointment", "error");
     } finally {
       setIsUpdating(false);
       setEditConfirmationOpen(false);
@@ -725,10 +765,11 @@ export default function AppointmentTable({ fetchPatientsData }) {
         });
         setRows(updatedRows);
         setCancelConfirmationOpen(false);
+        handleOpenSnackbar("Appointment cancelled successfully");
         await fetchPatientsData();
       }
     } catch (error) {
-      console.error("Failed to remove appointment:", error);
+      handleOpenSnackbar("Failed to cancel appointment", "error");
       throw error;
     } finally {
       setIsCanceling(false);
@@ -783,6 +824,9 @@ export default function AppointmentTable({ fetchPatientsData }) {
           editMode="row"
           processRowUpdate={processRowUpdate}
           experimentalFeatures={{ newEditingApi: true }}
+          paginationModel={paginationModel}
+          onPaginationModelChange={setPaginationModel}
+          pageSizeOptions={[10, 25, 50]}
           getRowClassName={(params) => {
             const classes = getRowClassName(params);
             return classes;
@@ -790,6 +834,7 @@ export default function AppointmentTable({ fetchPatientsData }) {
           sortModel={[{ field: "token", sort: "asc" }]}
           loading={loading}
           sx={{
+            height: 600,
             "& .MuiDataGrid-columnHeaders": {
               backgroundColor: "#f5f5f5",
               borderBottom: "2px solid #e0e0e0",
@@ -813,7 +858,6 @@ export default function AppointmentTable({ fetchPatientsData }) {
               maxWidth: "100% !important",
             },
           }}
-          autoPageSize
           density="compact"
         />
       </div>
@@ -1021,15 +1065,30 @@ export default function AppointmentTable({ fetchPatientsData }) {
           </div>
 
           <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end" }}>
-            <Button onClick={handleClose} sx={{ mr: 2 }}>
+            <Button onClick={handleClose} sx={{ mr: 2 }} disabled={isAdding}>
               Cancel
             </Button>
-            <Button variant="contained" onClick={handleAddAppointment}>
-              Add Appointment
+            <Button
+              variant="contained"
+              onClick={handleAddAppointment}
+              disabled={isAdding}
+            >
+              {isAdding ? (
+                <CircularProgress size={24} color="inherit" />
+              ) : (
+                "Add Appointment"
+              )}{" "}
             </Button>
           </Box>
         </Box>
       </Modal>
+
+      <CustomSnackbar
+        open={snackbar.open}
+        message={snackbar.message}
+        severity={snackbar.severity}
+        onClose={handleCloseSnackbar}
+      />
     </div>
   );
 }

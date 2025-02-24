@@ -49,7 +49,7 @@ export default function Home({
       style={{
         display: "grid",
         gridTemplateColumns: "1fr 300px", // Fixed width for stats card
-        gap: "32px",
+        gap: "10px",
         height: "100%",
       }}
     >
