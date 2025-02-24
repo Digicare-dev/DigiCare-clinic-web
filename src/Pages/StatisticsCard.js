@@ -7,13 +7,14 @@ import "./StatisticCard.css";
 export default function StatisticsCard({ patients, currentPatient, loading }) {
   const [stats, setStats] = useState({
     totalPatientsToday: 0,
-    patientsMarkedLate: [],
-    patientsDoneTillNow: [],
+    patientsMarkedLate: 0,
+    patientsDoneTillNow: 0,
     averageCheckupTime: "12 mins",
-    patientsWaiting: 6,
+    patientsWaiting: 0,
     estimatedClosingTime: "5:30 PM",
     mostCommonIssue: "Flu",
     doctorAvailability: 3,
+    totalCancelled: 0,
   });
 
   useEffect(() => {
@@ -21,27 +22,28 @@ export default function StatisticsCard({ patients, currentPatient, loading }) {
       if (currentPatient) {
         return currentPatient.late ? 1 : 0;
       }
+      return 0;
     };
 
     const updatedStats = {
       totalPatientsToday: patients.length,
       patientsMarkedLate:
         patients.length !== 0
-          ? patients.filter((p) => {
-              return p.late === true && p.done_checkup === false;
-            }).length - checkCurrentPatientLateStatus()
+          ? patients.filter((p) => p.late === true).length
           : 0,
-      patientsDoneTillNow: patients.filter((p) => p.done_checkup === true)
+      patientsDoneTillNow: patients.filter((p) => p.status === "done_checkup")
         .length,
       averageCheckupTime: "12 mins",
       patientsWaiting:
         patients.length !== 0
-          ? patients.length -
-            (patients.filter((p) => p.done_checkup === true).length + 1)
+          ? patients.filter(
+              (p) => p.status !== "done_checkup" && p.status !== "cancelled"
+            ).length
           : 0,
       estimatedClosingTime: "5:30 PM",
       mostCommonIssue: "Flu",
       doctorAvailability: 3,
+      totalCancelled: patients.filter((p) => p.status === "cancelled").length,
     };
 
     setStats(updatedStats);
@@ -75,14 +77,11 @@ export default function StatisticsCard({ patients, currentPatient, loading }) {
               label="Patients Done Till Now"
               value={stats.patientsDoneTillNow}
             />
-            {/* <StatItem
-            label="Average Checkup Time"
-            value={stats.averageCheckupTime}
-          /> */}
             <StatItem
               label="Patients Remaining"
               value={stats.patientsWaiting}
             />
+            <StatItem label="Total Cancelled" value={stats.totalCancelled} />
           </Box>
         )}
       </CardContent>

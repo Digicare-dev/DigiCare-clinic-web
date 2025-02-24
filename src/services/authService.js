@@ -42,7 +42,8 @@ export const logout = async () => {
       {
         withCredentials: true,
       }
-    ); // Important for sending cookies
+    );
+    debugger;
     if (response.status === 205) {
       localStorage.removeItem("user");
       return;

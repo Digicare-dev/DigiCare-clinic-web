@@ -21,12 +21,12 @@ const drawerWidth = 240;
 export default function Sidebar() {
   const menuItems = [
     { text: "Home", path: "/", icon: HomeIcon },
-    { text: "Add Appointment", path: "/add-appointment", icon: AddIcon },
-    {
-      text: "Patient Details",
-      path: "/patient-details",
-      icon: MedicalInformationIcon,
-    },
+    // { text: "Add Appointment", path: "/add-appointment", icon: AddIcon },
+    // {
+    //   text: "Patient Details",
+    //   path: "/patient-details",
+    //   icon: MedicalInformationIcon,
+    // },
     { text: "Appointments", path: "/appointments", icon: AddIcon },
     { text: "Help", path: "/help", icon: HelpIcon },
   ];

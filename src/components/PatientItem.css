@@ -1,211 +1,122 @@
-.patient-item-container {
-  background-color: white;
-  margin-bottom: 16px;
+.patient-item {
+  background: white;
   border-radius: 8px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
+  margin-bottom: 1rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: box-shadow 0.3s ease-in-out;
+  transition: transform 0.2s, box-shadow 0.2s;
+  padding: 1rem;
 }
 
-.patient-item-container:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+.patient-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.patient-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-grow: 1;
+}
+
+.token-badge {
+  background: #4a5568;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 100px;
+}
+
+.token-badge svg {
+  font-size: 16px;
 }
 
 .patient-details {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.patient-header {
   display: flex;
-  width: 100%;
-  gap: 20px;
-  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
 }
 
-@media (max-width: 768px) {
-  .patient-details {
-    /* flex-direction: column; */
-    /* gap: 10px; */
-  }
-  .patient-item-button {
-    font-size: medium;
-  }
-  .icon-drag-handle {
-    touch-action: none;
-  }
+.patient-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #2d3748;
 }
 
-.patient-item-button {
-  width: 100%;
-  height: 40px;
-  cursor: pointer;
-  border-radius: 8px;
-  transition: background-color 0.3s ease;
+.status-tags {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
-.patient-item-button:hover {
-  background-color: #007bff;
-  color: white;
+.appointment-meta {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
-.next-button {
-  background-color: #28a745;
-  color: white;
-  border: none;
-  height: 40px;
-  cursor: pointer;
-  border-radius: 8px;
-  margin: 4px;
-  width: fit-content;
-  flex-grow: 1;
-  transition: background-color 0.3s ease;
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #4a5568;
+  font-size: 0.9rem;
 }
 
-.next-button:hover {
-  background-color: #218838;
+.meta-item svg {
+  color: #718096;
+  font-size: 16px;
 }
 
-.late-button {
-  background-color: #e65100;
-  color: white;
-  border: none;
-  height: 40px;
-  cursor: pointer;
-  border-radius: 8px;
-  margin: 4px;
-  width: fit-content;
-  flex-grow: 1;
-  transition: background-color 0.3s ease;
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  flex-shrink: 0;
 }
 
-.late-button:hover {
-  background-color: #bf360c;
+.drag-handle {
+  cursor: grab;
+  padding: 0.5rem;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
 }
 
-.done {
-  background: #d4edda !important;
-  color: #155724 !important;
-  margin-bottom: 10px;
-  border-radius: 8px;
+.drag-handle:hover {
+  opacity: 1;
 }
 
+/* Status colors */
 .current {
-  background-color: #fff3cd !important;
-  color: #856404 !important;
-  font-weight: bold !important;
-  border: 2px solid #856404 !important;
-  margin-bottom: 10px;
-  border-radius: 8px;
-  transition: background-color 0.2s ease-in-out !important;
-}
-
-.upcoming {
-  background: #cce5ff;
-  color: #004085;
-  margin-bottom: 10px;
-  border-radius: 8px;
+  border-left: 4px solid #3182ce;
+  background: #ebf8ff;
 }
 
 .late {
-  background: #ffebee;
-  color: #b71c1c;
-  margin-bottom: 10px;
-  border-radius: 8px;
-  border: none;
-  transition: background-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+  border-left: 4px solid #dd6b20;
 }
 
-.emergency-case {
-  background-color: #ff4d4d;
-  color: white;
-  border: 1px solid #ff0000;
-  border-radius: 8px;
+.done {
+  opacity: 0.6;
+  background: #f7fafc;
 }
 
-.button-container {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
+.MuiChip-root {
+  height: 24px;
 }
 
-.patient-list-item-icon-right {
-  display: flex;
-  align-items: center;
-  margin-right: 20px;
-}
-
-.icon-drag-handle {
-  cursor: grab;
-}
-
-.dropped-effect {
-  animation: dropEffect 0.5s ease-in-out;
-}
-
-.emergency-label {
-  display: flex;
-  align-items: center;
-  color: white;
-  font-size: large;
-  font-weight: bold;
-  margin-left: 10px;
-  padding: 2px 4px;
-}
-
-.late-label {
-  display: flex;
-  align-items: center;
-  color: #b71c1c;
-  font-size: large;
-  font-weight: bold;
-  margin-left: 10px;
-  padding: 2px 4px;
-}
-
-/* Add absent button styling */
-.absent-button {
-  background-color: #d32f2f;
-  color: white;
-  border: none;
-  height: 40px;
-  cursor: pointer;
-  border-radius: 8px;
-  margin: 4px;
-  width: fit-content;
-  flex-grow: 1;
-  transition: background-color 0.3s ease;
-}
-
-.absent-button:hover {
-  background-color: #b71c1c;
-}
-
-/* Enhance current patient styling */
-.current {
-  background-color: #fff3cd !important;
-  color: #856404 !important;
-  border: 2px solid #856404 !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  transform: scale(1.02);
-  z-index: 1;
-}
-
-/* Add divider styling */
-.divider {
-  padding: 8px 0;
-  font-weight: bold;
-  color: #666;
-}
-
-@keyframes dropEffect {
-  0% {
-    transform: scale(1.05);
-    background-color: rgba(255, 223, 105, 0.8);
-  }
-  50% {
-    transform: scale(1);
-    background-color: rgba(255, 223, 105, 0.6);
-  }
-  100% {
-    background-color: white;
-  }
+.MuiChip-icon {
+  margin-left: 4px;
+  margin-right: -4px;
 }

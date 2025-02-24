@@ -80,7 +80,7 @@ const QueueContainer = ({
       });
     } catch (error) {
       console.error("Drag failed:", error);
-      fetchPatientsData(); // Fallback refresh
+      fetchPatientsData();
     }
   };
 
@@ -105,13 +105,14 @@ const QueueContainer = ({
                   currentPosition={currentPosition}
                   handleNextPatient={async (id) => {
                     await handleNextPatient(id);
-                    fetchPatientsData(); // Refresh after action
                   }}
                   handleLatePatient={async (id) => {
                     await handleLatePatient(id);
-                    fetchPatientsData(); // Refresh after action
                   }}
                   isDraggable={false}
+                  paid={slot.paid}
+                  status={slot.status}
+                  checkin={slot.checkin}
                 />
               )
             )}

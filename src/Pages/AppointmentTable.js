@@ -81,8 +81,8 @@ function generateDisplayRows(actualRows) {
     const existing = tokenMap.get(token);
     return (
       existing || {
-        id: "",
-        token: "",
+        id: token,
+        token: token,
         appointment_id: "",
         firstName: "",
         lastName: "",
@@ -96,12 +96,13 @@ function generateDisplayRows(actualRows) {
         sex: "",
         guardian: "",
         appointment_type: "",
+        isPlaceholder: true,
       }
     );
   });
 }
 
-export default function AppointmentTable() {
+export default function AppointmentTable({ fetchPatientsData }) {
   const user = JSON.parse(localStorage.getItem("user"));
 
   const [rows, setRows] = React.useState([]);
@@ -137,6 +138,50 @@ export default function AppointmentTable() {
   const [isCanceling, setIsCanceling] = React.useState(false);
 
   const displayedRows = React.useMemo(() => generateDisplayRows(rows), [rows]);
+
+  React.useEffect(() => {
+    const eventSource = new EventSource(
+      `YOUR_API_ENDPOINT/${user.checkupcabindata[0].id}/${user.checkupcabindata[0].cabin_slots[0]}`
+    );
+
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      const formattedData = data.map((item) => {
+        const [firstName, ...lastNameParts] = item.name.split(" ");
+        return {
+          id: item.token,
+          token: item.token,
+          appointment_id: item.appointment_id,
+          firstName: firstName || "",
+          lastName: lastNameParts.join(" ") || "",
+          checkin: item.checkin,
+          paid: item.paid,
+          status: item.status,
+          disease: item.disease !== null ? item.disease : "",
+          age: item.patient ? item.patient.age : "",
+          phone_number: item.patient ? item.patient.phone_number : "",
+          location: item.patient ? item.patient.location : "",
+          sex: item.patient?.gender || "",
+          guardian: item.patient ? item.patient.guardian : "",
+          appointment_type:
+            item.appointment_type?.charAt(0).toUpperCase() +
+            item.appointment_type?.slice(1).toLowerCase(),
+        };
+      });
+
+      setRows(formattedData);
+      setLoading(false);
+    };
+
+    eventSource.onerror = (error) => {
+      console.error("EventSource failed:", error);
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, []);
 
   React.useEffect(() => {
     const getAppointments = async () => {
@@ -432,8 +477,12 @@ export default function AppointmentTable() {
       headerName: "Action",
       width: 80,
       renderCell: (params) => {
-        if (params.row.status === "cancelled") {
-          return null; // or return <></>;
+        if (
+          params.row.status === "cancelled" ||
+          params.row.status === "done_checkup" ||
+          params.row.isPlaceholder
+        ) {
+          return null;
         }
         return (
           <Tooltip title="Cancel Appointment">
@@ -449,6 +498,11 @@ export default function AppointmentTable() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+
+    if (name === "phone_number" && value.length > 10) {
+      return;
+    }
+
     setNewAppointment((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -483,6 +537,7 @@ export default function AppointmentTable() {
       if (newEntry.sex) payload.gender = newEntry.sex || null;
 
       await addAppointment(payload);
+      await fetchPatientsData();
     } catch (error) {
       console.error(error);
     }
@@ -507,6 +562,7 @@ export default function AppointmentTable() {
       };
 
       await updateAppointmentDetails(payload);
+      await fetchPatientsData();
     } catch (error) {
       console.error("Failed to update appointment:", error);
       throw error;
@@ -669,6 +725,7 @@ export default function AppointmentTable() {
         });
         setRows(updatedRows);
         setCancelConfirmationOpen(false);
+        await fetchPatientsData();
       }
     } catch (error) {
       console.error("Failed to remove appointment:", error);
@@ -679,7 +736,20 @@ export default function AppointmentTable() {
   };
 
   const isCellEditable = (params) => {
-    return params.row.status !== "cancelled";
+    return params.row.status === "pending";
+  };
+
+  const getRowClassName = (params) => {
+    if (params.row.isPlaceholder) {
+      return "placeholder-row";
+    }
+    if (params.row.status === "cancelled") {
+      return "cancelled-row";
+    }
+    if (params.row.status === "done_checkup") {
+      return "done-checkup-row";
+    }
+    return "data-row";
   };
 
   return (
@@ -688,7 +758,6 @@ export default function AppointmentTable() {
         height: "80vh",
         width: "95%",
         padding: "8px",
-        overflow: "hidden",
       }}
     >
       <Button onClick={handleOpen} variant="contained" sx={{ mb: 2 }}>
@@ -699,6 +768,8 @@ export default function AppointmentTable() {
         style={{
           width: "100%",
           height: "100%",
+          overflowY: "auto",
+          overflowX: "auto",
         }}
       >
         <DataGrid
@@ -712,15 +783,12 @@ export default function AppointmentTable() {
           editMode="row"
           processRowUpdate={processRowUpdate}
           experimentalFeatures={{ newEditingApi: true }}
-          getRowClassName={(params) =>
-            params.row.isPlaceholder
-              ? "placeholder-row"
-              : params.row.status === "cancelled"
-              ? "cancelled-row"
-              : "data-row"
-          }
+          getRowClassName={(params) => {
+            const classes = getRowClassName(params);
+            return classes;
+          }}
           sortModel={[{ field: "token", sort: "asc" }]}
-          loading={loading} // Add this line to show the loading spinner
+          loading={loading}
           sx={{
             "& .MuiDataGrid-columnHeaders": {
               backgroundColor: "#f5f5f5",
@@ -730,21 +798,6 @@ export default function AppointmentTable() {
             },
             "& .MuiDataGrid-columnHeaderTitle": {
               fontWeight: 600,
-            },
-            "& .placeholder-row": {
-              backgroundColor: "#fafafa",
-              color: "#666",
-              fontStyle: "italic",
-              borderBottom: "1px dashed #e0e0e0",
-              "&:hover": {
-                backgroundColor: "#f5f5f5",
-              },
-            },
-            "& .data-row": {
-              backgroundColor: "#fff",
-              "&:hover": {
-                backgroundColor: "#f5f5f5",
-              },
             },
             "& .MuiDataGrid-cell:focus": { outline: "none" },
             "& .MuiDataGrid-columnHeader:focus": { outline: "none" },
