@@ -36,47 +36,6 @@ const App = () => {
 
   useEffect(() => {
     if (user) {
-      // setLoading(true);
-      // const eventSource = new EventSource(
-      //   `${API_BASE_URL}/doctorinfo/queue_updates/${user.checkupcabindata[0].id}/${user.checkupcabindata[0].cabin_slots[0]}`,
-      //   {
-      //     withCredentials: true,
-      //   }
-      // );
-      // fetch(
-      //   `${API_BASE_URL}/doctorinfo/queue_updates/${user.checkupcabindata[0].id}/${user.checkupcabindata[0].cabin_slots[0]}`,
-      //   {
-      //     credentials: "include",
-      //   }
-      // )
-      //   .then((response) => response.text())
-      //   .then((data) => console.log(data))
-      //   .catch((error) => console.error(error));
-      // eventSource.onmessage = (event) => {
-      //   debugger;
-      //   console.log(event.data);
-      //   // const data = JSON.parse(event.data);
-      //   // if (data.type === "patient") {
-      //   //   setPatients(data.patients);
-      //   // } else if (data.type === "appointment") {
-      //   //   setAppointments(data.appointments);
-      //   // } else if (data.type === "currentPosition") {
-      //   //   setCurrentPosition(data.currentPosition);
-      //   // }
-      //   setLoading(false);
-      // };
-      // eventSource.onerror = (error) => {
-      //   console.error("EventSource failed:", error);
-      //   eventSource.close();
-      // };
-      // return () => {
-      //   eventSource.close();
-      // };
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (user) {
       fetchPatientsData();
       fetchCurrentPositionData();
     }
@@ -105,9 +64,7 @@ const App = () => {
       }));
 
       processedData.sort((a, b) => a.position - b.position);
-      const remainingPatients = data.filter(
-        (p) => p.appointment.appointment_type !== "done"
-      );
+      const remainingPatients = data.filter((p) => p.status === "pending");
       setPatients(remainingPatients);
     } catch (error) {
       console.error("Error fetching patients:", error);

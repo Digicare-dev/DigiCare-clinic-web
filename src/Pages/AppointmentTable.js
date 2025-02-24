@@ -139,49 +139,49 @@ export default function AppointmentTable({ fetchPatientsData }) {
 
   const displayedRows = React.useMemo(() => generateDisplayRows(rows), [rows]);
 
-  React.useEffect(() => {
-    const eventSource = new EventSource(
-      `YOUR_API_ENDPOINT/${user.checkupcabindata[0].id}/${user.checkupcabindata[0].cabin_slots[0]}`
-    );
+  // React.useEffect(() => {
+  //   const eventSource = new EventSource(
+  //     `YOUR_API_ENDPOINT/${user.checkupcabindata[0].id}/${user.checkupcabindata[0].cabin_slots[0]}`
+  //   );
 
-    eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      const formattedData = data.map((item) => {
-        const [firstName, ...lastNameParts] = item.name.split(" ");
-        return {
-          id: item.token,
-          token: item.token,
-          appointment_id: item.appointment_id,
-          firstName: firstName || "",
-          lastName: lastNameParts.join(" ") || "",
-          checkin: item.checkin,
-          paid: item.paid,
-          status: item.status,
-          disease: item.disease !== null ? item.disease : "",
-          age: item.patient ? item.patient.age : "",
-          phone_number: item.patient ? item.patient.phone_number : "",
-          location: item.patient ? item.patient.location : "",
-          sex: item.patient?.gender || "",
-          guardian: item.patient ? item.patient.guardian : "",
-          appointment_type:
-            item.appointment_type?.charAt(0).toUpperCase() +
-            item.appointment_type?.slice(1).toLowerCase(),
-        };
-      });
+  //   eventSource.onmessage = (event) => {
+  //     const data = JSON.parse(event.data);
+  //     const formattedData = data.map((item) => {
+  //       const [firstName, ...lastNameParts] = item.name.split(" ");
+  //       return {
+  //         id: item.token,
+  //         token: item.token,
+  //         appointment_id: item.appointment_id,
+  //         firstName: firstName || "",
+  //         lastName: lastNameParts.join(" ") || "",
+  //         checkin: item.checkin,
+  //         paid: item.paid,
+  //         status: item.status,
+  //         disease: item.disease !== null ? item.disease : "",
+  //         age: item.patient ? item.patient.age : "",
+  //         phone_number: item.patient ? item.patient.phone_number : "",
+  //         location: item.patient ? item.patient.location : "",
+  //         sex: item.patient?.gender || "",
+  //         guardian: item.patient ? item.patient.guardian : "",
+  //         appointment_type:
+  //           item.appointment_type?.charAt(0).toUpperCase() +
+  //           item.appointment_type?.slice(1).toLowerCase(),
+  //       };
+  //     });
 
-      setRows(formattedData);
-      setLoading(false);
-    };
+  //     setRows(formattedData);
+  //     setLoading(false);
+  //   };
 
-    eventSource.onerror = (error) => {
-      console.error("EventSource failed:", error);
-      eventSource.close();
-    };
+  //   eventSource.onerror = (error) => {
+  //     console.error("EventSource failed:", error);
+  //     eventSource.close();
+  //   };
 
-    return () => {
-      eventSource.close();
-    };
-  }, []);
+  //   return () => {
+  //     eventSource.close();
+  //   };
+  // }, []);
 
   React.useEffect(() => {
     const getAppointments = async () => {
