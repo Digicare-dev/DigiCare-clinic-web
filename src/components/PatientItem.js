@@ -23,10 +23,16 @@ const PatientItem = ({
 }) => {
   const [confirmAction, setConfirmAction] = useState(null);
   const [loadingType, setLoadingType] = useState(null);
-  const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({
-      id: `${appointment.appointment_id}-${position}`,
-    });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: appointment.appointment_id,
+  });
 
   const handleConfirm = async () => {
     if (!confirmAction) return;

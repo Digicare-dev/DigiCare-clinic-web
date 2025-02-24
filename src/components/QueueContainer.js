@@ -1,8 +1,12 @@
 import React, { useRef, useEffect, useState } from "react";
 import PatientItem from "./PatientItem";
 import "./QueueContainer.css";
-import { DndContext } from "@dnd-kit/core";
-import { arrayMove, SortableContext } from "@dnd-kit/sortable";
+import { DndContext, closestCenter } from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { Typography, Divider } from "@mui/material";
 
@@ -34,23 +38,49 @@ const QueueContainer = ({
   const currentGroup = allSlots.slice(currentPosition - 1, currentGroupEnd);
   const upcomingGroup = allSlots.slice(currentGroupEnd);
 
+  // QueueContainer.js
   const handleDragEnd = async (event) => {
     const { active, over } = event;
-    if (over && active.id !== over.id) {
-      const draggedPatient = sortedPatients.find(
-        (p) => p.appointment.appointment_id === active.id.split("-")[0]
+
+    if (!over || active.id === over.id) return;
+
+    try {
+      const draggedAppointmentId = active.id;
+      const targetAppointmentId = over.id;
+
+      const draggedPatient = patients.find(
+        (p) => p.appointment.appointment_id === draggedAppointmentId
       );
-      const targetPosition = parseInt(over.id.split("-")[1]);
 
-      if (draggedPatient && targetPosition) {
-        const payload = {
-          appointment_id: draggedPatient.appointment.appointment_id,
-          new_position: targetPosition,
-        };
+      const targetPatient = patients.find(
+        (p) => p.appointment.appointment_id === targetAppointmentId
+      );
 
-        await shufflePosition(payload);
-        fetchPatientsData(); // Refresh data after shuffle
-      }
+      if (!draggedPatient || !targetPatient) return;
+
+      const payload = {
+        appointment_id: draggedAppointmentId,
+        new_position: targetPatient.position,
+      };
+
+      await shufflePosition(payload);
+      await fetchPatientsData();
+
+      // Optimistic update
+      setPatients((prev) => {
+        const newPatients = [...prev];
+        const draggedIndex = newPatients.findIndex(
+          (p) => p.appointment.appointment_id === draggedAppointmentId
+        );
+        const targetIndex = newPatients.findIndex(
+          (p) => p.appointment.appointment_id === targetAppointmentId
+        );
+
+        return arrayMove(newPatients, draggedIndex, targetIndex);
+      });
+    } catch (error) {
+      console.error("Drag failed:", error);
+      fetchPatientsData(); // Fallback refresh
     }
   };
 
@@ -95,14 +125,14 @@ const QueueContainer = ({
 
               <DndContext
                 modifiers={[restrictToVerticalAxis]}
+                collisionDetection={closestCenter}
                 onDragEnd={handleDragEnd}
               >
                 <SortableContext
                   items={upcomingGroup
                     .filter((slot) => !slot.isEmpty)
-                    .map(
-                      (p) => `${p.appointment.appointment_id}-${p.position}`
-                    )}
+                    .map((p) => p.appointment.appointment_id)}
+                  strategy={verticalListSortingStrategy}
                 >
                   {upcomingGroup.map((slot) =>
                     slot.isEmpty ? (
