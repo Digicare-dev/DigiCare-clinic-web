@@ -205,48 +205,49 @@ export default function AppointmentTable({ fetchPatientsData }) {
   //   };
   // }, []);
 
-  React.useEffect(() => {
-    const getAppointments = async () => {
-      setLoading(true);
-      try {
-        const data = await fetchAppointments(
-          user.checkupcabindata[0].id,
-          user.checkupcabindata[0].cabin_slots[0]
-        );
-        if (data.length !== 0) {
-          const formattedData = data.map((item) => {
-            const [firstName, ...lastNameParts] = item.name.split(" ");
-            return {
-              id: item.token,
-              token: item.token,
-              appointment_id: item.appointment_id,
-              firstName: firstName || "",
-              lastName: lastNameParts.join(" ") || "",
-              checkin: item.checkin,
-              paid: item.paid,
-              status: item.status,
-              disease: item.disease !== null ? item.disease : "",
-              age: item.patient ? item.patient.age : "",
-              phone_number: item.patient ? item.patient.phone_number : "",
-              location: item.patient ? item.patient.location : "",
-              sex: item.patient?.gender || "",
-              guardian: item.patient ? item.patient.guardian : "",
-              appointment_type:
-                item.appointment_type?.charAt(0).toUpperCase() +
-                item.appointment_type?.slice(1).toLowerCase(),
-            };
-          });
+  const getAppointments = async () => {
+    setLoading(true);
+    try {
+      const data = await fetchAppointments(
+        user.checkupcabindata[0].id,
+        user.checkupcabindata[0].cabin_slots[0]
+      );
+      if (data.length !== 0) {
+        const formattedData = data.map((item) => {
+          const [firstName, ...lastNameParts] = item.name.split(" ");
+          return {
+            id: item.token,
+            token: item.token,
+            appointment_id: item.appointment_id,
+            firstName: firstName || "",
+            lastName: lastNameParts.join(" ") || "",
+            checkin: item.checkin,
+            paid: item.paid,
+            status: item.status,
+            disease: item.disease !== null ? item.disease : "",
+            age: item.patient ? item.patient.age : "",
+            phone_number: item.patient ? item.patient.phone_number : "",
+            location: item.patient ? item.patient.location : "",
+            sex: item.patient?.gender || "",
+            guardian: item.patient ? item.patient.guardian : "",
+            appointment_type:
+              item.appointment_type?.charAt(0).toUpperCase() +
+              item.appointment_type?.slice(1).toLowerCase(),
+          };
+        });
 
-          setRows(formattedData);
-          setLoading(false);
-        } else {
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error(error);
+        setRows(formattedData);
+        setLoading(false);
+      } else {
         setLoading(false);
       }
-    };
+    } catch (error) {
+      console.error(error);
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
     getAppointments();
   }, []);
 
@@ -705,6 +706,7 @@ export default function AppointmentTable({ fetchPatientsData }) {
     setIsUpdating(true);
     try {
       await updateAppointmentApi(pendingRow);
+      await getAppointments();
       handleOpenSnackbar("Appointment updated successfully");
 
       // Update local state
