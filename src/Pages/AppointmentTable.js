@@ -757,6 +757,7 @@ export default function AppointmentTable({ fetchPatientsData }) {
         appointment_id: rowToCancel.appointment_id,
       };
       const response = await removeAppointment(payload);
+      await getAppointments();
       const removedId = response.removed_appointment_id;
       if (removedId) {
         const updatedRows = rows.map((r) => {
