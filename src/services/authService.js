@@ -43,7 +43,6 @@ export const logout = async () => {
         withCredentials: true,
       }
     );
-    debugger;
     if (response.status === 205) {
       localStorage.removeItem("user");
       return;

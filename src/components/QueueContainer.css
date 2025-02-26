@@ -124,3 +124,91 @@
   min-width: 80px;
   text-align: center;
 }
+
+/* QueueContainer.css additions */
+@media (max-width: 768px) {
+  .queue-container {
+    padding: 10px;
+    margin-left: 0;
+    height: calc(100vh - 160px);
+  }
+
+  .patient-item {
+    width: 95vw;
+    margin-left: -10px;
+    transform: scale(0.98);
+  }
+
+  .patient-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .action-buttons {
+    width: 100%;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .action-buttons button {
+    width: 100%;
+    padding: 8px;
+    font-size: 0.8rem;
+  }
+
+  .token-badge {
+    min-width: 80px;
+    padding: 6px 10px;
+  }
+
+  .patient-header h3 {
+    font-size: 1rem;
+  }
+
+  .meta-item {
+    font-size: 0.8rem;
+    padding: 2px 4px;
+  }
+}
+
+/* PatientItem.css additions */
+@media (max-width: 768px) {
+  .patient-item {
+    min-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .patient-details {
+    width: 100%;
+  }
+
+  .status-tags {
+    gap: 4px;
+  }
+
+  .MuiChip-root {
+    height: 20px;
+    font-size: 0.7rem;
+  }
+
+  .drag-handle {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+  }
+}
+
+.skeleton-container {
+  padding: 10px;
+}
+
+.skeleton-item {
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 768px) {
+  .skeleton-item {
+    width: 95vw;
+    margin-left: -10px;
+  }
+}

@@ -1,0 +1,26 @@
+.mobile-table {
+  width: 100%;
+}
+
+.mobile-table .MuiTableCell-root {
+  padding: 8px;
+  font-size: 0.75rem;
+}
+
+.mobile-table .MuiTableRow-root {
+  vertical-align: top;
+}
+
+.status-chip {
+  font-size: 0.65rem;
+  height: 20px;
+}
+
+.placeholder-row td {
+  background-color: #fafafa;
+  color: #666;
+}
+
+.placeholder-row .status-chip {
+  visibility: hidden;
+}

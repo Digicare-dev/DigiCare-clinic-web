@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./PatientItem.css";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -20,6 +20,7 @@ import {
   MedicalServices,
 } from "@mui/icons-material";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
+import { fetchCurrentPosition } from "../services/api";
 
 const PatientItem = ({
   position,
@@ -32,13 +33,27 @@ const PatientItem = ({
   paid,
   checkin,
   status,
+  fetchPatientsDataWithoutLoader,
+  fetchCurrentPositionDataWithoutLoader,
 }) => {
   const [confirmAction, setConfirmAction] = useState(null);
   const [loadingType, setLoadingType] = useState(null);
+  const [disable, setDisable] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
       id: appointment.appointment_id,
     });
+
+  // useEffect(() => {
+  //   const interval = setInterval(async () => {
+  //     setDisable(true);
+  //     await fetchPatientsDataWithoutLoader();
+  //     await fetchCurrentPositionDataWithoutLoader();
+  //     setDisable(false);
+  //   }, 20000);
+
+  //   return () => clearInterval(interval); // Cleanup on unmount
+  // }, []);
 
   const handleConfirm = async () => {
     if (!confirmAction) return;
@@ -190,8 +205,11 @@ const PatientItem = ({
               onClick={() => setConfirmAction("late")}
               disabled={loadingType}
               startIcon={
-                loadingType === "late" ? <CircularProgress size={20} /> : null
+                loadingType === "late" && (
+                  <CircularProgress size={20} color="inherit" />
+                )
               }
+              sx={{ minWidth: 120 }} // Add fixed width
             >
               {loadingType !== "late" && "Mark Late"}
             </MuiButton>
@@ -201,8 +219,11 @@ const PatientItem = ({
               onClick={() => setConfirmAction("next")}
               disabled={loadingType}
               startIcon={
-                loadingType === "next" ? <CircularProgress size={20} /> : null
+                loadingType === "next" && (
+                  <CircularProgress size={20} color="inherit" />
+                )
               }
+              sx={{ minWidth: 120 }} // Add fixed width
             >
               {loadingType !== "next" && "Next Patient"}
             </MuiButton>
@@ -222,8 +243,20 @@ const PatientItem = ({
           Are you sure you want to {confirmAction} this patient?
         </DialogContent>
         <DialogActions>
-          <MuiButton onClick={() => setConfirmAction(null)}>Cancel</MuiButton>
-          <MuiButton onClick={handleConfirm} color="primary">
+          <MuiButton
+            onClick={() => setConfirmAction(null)}
+            disabled={loadingType}
+          >
+            Cancel
+          </MuiButton>
+          <MuiButton
+            onClick={handleConfirm}
+            color="primary"
+            disabled={loadingType}
+            startIcon={
+              loadingType && <CircularProgress size={20} color="inherit" />
+            }
+          >
             Confirm
           </MuiButton>
         </DialogActions>

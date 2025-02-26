@@ -1,0 +1,12 @@
+@media (max-width: 768px) {
+  button,
+  [role="button"] {
+    min-width: 48px;
+    min-height: 48px;
+  }
+
+  .MuiButton-root {
+    padding: 8px 12px;
+    font-size: 0.875rem;
+  }
+}

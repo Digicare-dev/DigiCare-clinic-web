@@ -2,25 +2,49 @@ import React, { useState, useContext, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { login as loginService } from "../services/authService";
-import { TextField, Button, CircularProgress } from "@mui/material";
-import "./Login.css";
-import EastIcon from "@mui/icons-material/East";
-import CircleIcon from "@mui/icons-material/Circle";
-
-import IconButton from "@mui/material/IconButton";
-import OutlinedInput from "@mui/material/OutlinedInput";
-import InputLabel from "@mui/material/InputLabel";
-import InputAdornment from "@mui/material/InputAdornment";
-import FormControl from "@mui/material/FormControl";
+import {
+  TextField,
+  Button,
+  CircularProgress,
+  Typography,
+  FormControl,
+  OutlinedInput,
+  InputLabel,
+  InputAdornment,
+  IconButton,
+  useMediaQuery,
+} from "@mui/material";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import LockIcon from "@mui/icons-material/Lock";
+import { Snackbar, Alert } from "@mui/material";
+import "./Login.css";
 
 const Login = () => {
-  const isMobile = window.innerWidth <= 768;
+  const isMobile = useMediaQuery("(max-width:768px)");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-
   const { setUser } = useContext(AuthContext);
+  const [credential, setCredential] = useState({
+    username: "",
+    password: "",
+  });
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "error",
+  });
+  const timeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      // Clear timeout when component unmounts
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  const navigate = useNavigate();
 
   const handleClickShowPassword = () => setShowPassword((show) => !show);
 
@@ -28,24 +52,9 @@ const Login = () => {
     event.preventDefault();
   };
 
-  const handleMouseUpPassword = (event) => {
-    event.preventDefault();
-  };
-
-  const [credential, setCredential] = useState({
-    username: "",
-    password: "",
-  });
-  const navigate = useNavigate();
-  const dotsContainerRef = useRef(null);
-  const [numberOfDots, setNumberOfDots] = useState(0);
-
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setCredential((prevState) => ({
-      ...prevState,
-      [name]: value,
-    }));
+    setCredential((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleLogin = async (e) => {
@@ -56,127 +65,188 @@ const Login = () => {
       if (data) {
         localStorage.setItem("user", JSON.stringify(data));
         setUser(data);
-        setLoading(false);
         navigate("/");
       }
     } catch (error) {
+      // Clear any existing timeout
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+      // Set new timeout
+      timeoutRef.current = setTimeout(() => {
+        setSnackbar((prev) => ({ ...prev, open: false }));
+      }, 5000);
+
+      let errorMessage = "Login failed. Please try again.";
+
+      if (error.response) {
+        switch (error.response.status) {
+          case 401:
+            errorMessage = "Invalid username or password";
+            break;
+          case 403:
+            errorMessage = "Account locked. Contact support";
+            break;
+          case 500:
+            errorMessage = "Server error. Please try again later";
+            break;
+        }
+      } else if (error.message.includes("Network Error")) {
+        errorMessage = "Network error. Check your connection";
+      }
+
+      setSnackbar({
+        open: true,
+        message: errorMessage,
+        severity: "error",
+      });
+    } finally {
       setLoading(false);
     }
   };
 
-  // Calculate the number of dots that fit in the container
-  useEffect(() => {
-    const calculateDots = () => {
-      if (dotsContainerRef.current) {
-        const containerWidth = dotsContainerRef.current.offsetWidth;
-        const dotWidth = 40;
-        const dots = Math.floor(containerWidth / dotWidth);
-        setNumberOfDots(dots);
-      }
-    };
-
-    calculateDots();
-    window.addEventListener("resize", calculateDots);
-    return () => window.removeEventListener("resize", calculateDots);
-  }, []);
-
-  // Generate dots dynamically
-  const dots = Array.from({ length: numberOfDots }, (_, index) => (
-    <CircleIcon
-      key={index}
-      sx={{ fontSize: "20px", color: "#007bff", marginRight: "12px" }}
-    />
-  ));
-
   return (
     <div className="login-page-background">
-      {!isMobile && (
-        <div className="login-page-info">
-          <h1>
-            Portal to simplify managing the clinic is on the way{" "}
-            <div
-              ref={dotsContainerRef}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                overflow: "hidden",
-              }}
-            >
-              {dots}
-              <EastIcon sx={{ fontSize: "100px", color: "#007bff" }} />
-            </div>
-          </h1>
-        </div>
-      )}
+      <div className="desktop-content">
+        {/* <img
+          src="login-illustration.svg"
+          alt="Secure login"
+          className="login-illustration"
+        /> */}
+        <Typography
+          variant="h3"
+          sx={{
+            fontWeight: 700,
+            color: "#1976d2",
+            mt: 4,
+            marginBottom: "50px",
+          }}
+        >
+          Welcome Back!
+        </Typography>
+      </div>
+
       <div className="login-container">
+        <div className="mobile-header">
+          <Typography
+            variant="body2"
+            sx={{
+              color: "#666",
+              mb: 4,
+              fontSize: "0.9rem",
+            }}
+          >
+            Sign in to continue
+          </Typography>
+        </div>
+
         <form onSubmit={handleLogin}>
           <TextField
             name="username"
             label="Username"
-            value={credential.username}
-            onChange={handleChange}
+            variant="outlined"
             fullWidth
             required
-            sx={{ marginBottom: "30px" }}
-            InputLabelProps={{ required: false }}
+            value={credential.username}
+            onChange={handleChange}
+            sx={{
+              mb: 3,
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "12px",
+                backgroundColor: "#f8f9fa",
+              },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <PersonOutlineIcon sx={{ color: "#1976d2" }} />
+                </InputAdornment>
+              ),
+            }}
+            InputLabelProps={{
+              style: { color: "#666" },
+              shrink: true,
+            }}
           />
-          <FormControl
-            sx={{ width: "100%", marginBottom: "50px" }}
-            variant="outlined"
-          >
-            <InputLabel htmlFor="outlined-adornment-password">
-              Password
-            </InputLabel>
+
+          <FormControl fullWidth sx={{ mb: 4 }}>
+            <InputLabel style={{ color: "#666" }}>Password</InputLabel>
             <OutlinedInput
               required
               name="password"
-              onChange={handleChange}
               value={credential.password}
-              id="outlined-adornment-password"
+              onChange={handleChange}
               type={showPassword ? "text" : "password"}
               endAdornment={
                 <InputAdornment position="end">
                   <IconButton
-                    aria-label={
-                      showPassword
-                        ? "hide the password"
-                        : "display the password"
-                    }
                     onClick={handleClickShowPassword}
                     onMouseDown={handleMouseDownPassword}
-                    onMouseUp={handleMouseUpPassword}
                     edge="end"
                   >
                     {showPassword ? <Visibility /> : <VisibilityOff />}
                   </IconButton>
                 </InputAdornment>
               }
+              startAdornment={
+                <InputAdornment position="start">
+                  <LockIcon sx={{ color: "#1976d2" }} />
+                </InputAdornment>
+              }
+              sx={{
+                borderRadius: "12px",
+                backgroundColor: "#f8f9fa",
+                "&:hover fieldset": {
+                  borderColor: "#1976d2 !important",
+                },
+              }}
               label="Password"
             />
           </FormControl>
 
           <Button
             type="submit"
-            variant="outlined"
+            variant="contained"
+            fullWidth
+            disabled={loading}
             sx={{
-              backgroundColor: "#007bff",
-              color: "white",
-              height: "40px",
-              width: "100px",
+              py: 1.5,
+              borderRadius: "12px",
+              fontSize: "1rem",
+              fontWeight: 600,
+              textTransform: "none",
+              bgcolor: "#1976d2",
+              boxShadow: "0 4px 6px rgba(50, 50, 93, 0.11)",
+              transition: "all 0.3s ease",
               "&:hover": {
-                backgroundColor: "#0066cc",
-              },
-              "&.Mui-disabled": {
-                backgroundColor: "#007bff",
-                color: "white",
+                bgcolor: "#1565c0",
+                transform: "translateY(-2px)",
+                boxShadow: "0 7px 14px rgba(50, 50, 93, 0.2)",
               },
             }}
-            disabled={loading}
           >
-            {loading ? <CircularProgress size={24} color="white" /> : "Submit"}
+            {loading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              "Sign In"
+            )}
           </Button>
         </form>
       </div>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={5000}
+        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert
+          severity={snackbar.severity}
+          onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };
