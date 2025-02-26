@@ -592,7 +592,7 @@ export default function AppointmentTable() {
       const payload = {
         token: newData.token,
         appointment_id: newData.appointment_id,
-        name: `${newData.firstName} ${newData.lastName}`.trim(),
+        name: `${newData.firstName} ${newData.lastName}`.trim().toUpperCase(),
         checkin: newData.checkin,
         paid: newData.paid,
         status: newData.status,
@@ -601,7 +601,7 @@ export default function AppointmentTable() {
         phone_number: newData.phone_number,
         location: newData.location,
         gender: newData.sex || null,
-        guardian: newData.guardian,
+        guardian: `${newData.guardian}`.toUpperCase(),
         appointment_type: newData.appointment_type,
       };
 
@@ -718,7 +718,6 @@ export default function AppointmentTable() {
     setIsUpdating(true);
     try {
       await updateAppointmentApi(pendingRow);
-      await getAppointments();
       handleOpenSnackbar("Appointment updated successfully");
 
       // Update local state
