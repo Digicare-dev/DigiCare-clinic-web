@@ -8,16 +8,19 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
-import { Typography, Divider } from "@mui/material";
+import { Typography, Divider, Skeleton } from "@mui/material";
 
 const QueueContainer = ({
+  loading,
   patients,
   setPatients,
   currentPosition,
   handleNextPatient,
   handleLatePatient,
   shufflePosition,
-  fetchPatientsData, // Added prop for refetch
+  fetchPatientsData,
+  fetchPatientsDataWithoutLoader,
+  fetchCurrentPositionDataWithoutLoader,
 }) => {
   const [droppedItem, setDroppedItem] = useState(null);
   const sortedPatients = [...patients]
@@ -88,7 +91,25 @@ const QueueContainer = ({
 
   return (
     <div className="queue-container">
-      {sortedPatients.length === 0 ? (
+      {loading ? (
+        // Loading skeleton
+        <div className="skeleton-container">
+          {[...Array(5)].map((_, index) => (
+            <div key={index} className="skeleton-item">
+              <Skeleton
+                variant="rectangular"
+                width="100%"
+                height={100}
+                sx={{
+                  borderRadius: 2,
+                  mb: 2,
+                  bgcolor: loading ? "grey.200" : "transparent",
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      ) : sortedPatients.length === 0 ? (
         <div className="empty-queue">
           <Typography variant="h6">Queue is currently empty</Typography>
         </div>
@@ -115,6 +136,12 @@ const QueueContainer = ({
                   paid={slot.paid}
                   status={slot.status}
                   checkin={slot.checkin}
+                  fetchPatientsDataWithoutLoader={
+                    fetchPatientsDataWithoutLoader
+                  }
+                  fetchCurrentPositionDataWithoutLoader={
+                    fetchCurrentPositionDataWithoutLoader
+                  }
                 />
               )
             )}
@@ -159,6 +186,12 @@ const QueueContainer = ({
                           fetchPatientsData();
                         }}
                         isDraggable={true}
+                        fetchPatientsDataWithoutLoader={
+                          fetchPatientsDataWithoutLoader
+                        }
+                        fetchCurrentPositionDataWithoutLoader={
+                          fetchCurrentPositionDataWithoutLoader
+                        }
                       />
                     )
                   )}

@@ -142,7 +142,7 @@ export default function AppointmentTable({ fetchPatientsData }) {
 
   const [paginationModel, setPaginationModel] = React.useState({
     page: 0,
-    pageSize: 25,
+    pageSize: 50,
   });
 
   const [snackbar, setSnackbar] = React.useState({
@@ -802,6 +802,8 @@ export default function AppointmentTable({ fetchPatientsData }) {
         height: "80vh",
         width: "95%",
         padding: "8px",
+        minWidth: "600px",
+        maxWidth: "95%",
       }}
     >
       <Button onClick={handleOpen} variant="contained" sx={{ mb: 2 }}>
@@ -837,7 +839,7 @@ export default function AppointmentTable({ fetchPatientsData }) {
           sortModel={[{ field: "token", sort: "asc" }]}
           loading={loading}
           sx={{
-            height: 600,
+            // height: 600,
             "& .MuiDataGrid-columnHeaders": {
               backgroundColor: "#f5f5f5",
               borderBottom: "2px solid #e0e0e0",
@@ -861,7 +863,7 @@ export default function AppointmentTable({ fetchPatientsData }) {
               maxWidth: "100% !important",
             },
           }}
-          density="compact"
+          // density="compact"
         />
       </div>
 

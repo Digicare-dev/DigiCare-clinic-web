@@ -25,6 +25,8 @@ export default function Home({
   shufflePosition,
   loading,
   fetchPatientsData,
+  fetchPatientsDataWithoutLoader,
+  fetchCurrentPositionDataWithoutLoader,
 }) {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const currentPatient = patients.find((p) => p.position === currentPosition);
@@ -48,25 +50,12 @@ export default function Home({
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "1fr 300px", // Fixed width for stats card
+        gridTemplateColumns: isMobile ? "1fr" : "1fr 300px",
         gap: "10px",
         height: "100%",
       }}
     >
-      {loading ? (
-        <div className="queue-container">
-          {[...Array(6)].map((_, index) => (
-            <ListItem key={index}>
-              <Skeleton
-                variant="text"
-                width="100%"
-                height={100}
-                sx={{ margin: "-20px" }}
-              />
-            </ListItem>
-          ))}
-        </div>
-      ) : patients.length === 0 ? (
+      {!loading && patients.length === 0 ? (
         <div
           style={{
             display: "flex",
@@ -83,8 +72,8 @@ export default function Home({
           style={{ display: "flex", flexDirection: "column", flexGrow: "3" }}
         >
           {!isMobile && <DoctorHeader doctorName="Dr. Amit Mittal" />}{" "}
-          {/* Add the DoctorHeader component */}
           <QueueContainer
+            loading={loading}
             patients={patients}
             currentPosition={currentPosition}
             setCurrentPosition={setCurrentPosition}
@@ -93,6 +82,10 @@ export default function Home({
             handleLatePatient={handleLatePatient}
             shufflePosition={shufflePosition}
             fetchPatientsData={fetchPatientsData}
+            fetchPatientsDataWithoutLoader={fetchPatientsDataWithoutLoader}
+            fetchCurrentPositionDataWithoutLoader={
+              fetchCurrentPositionDataWithoutLoader
+            }
           />
         </div>
       )}

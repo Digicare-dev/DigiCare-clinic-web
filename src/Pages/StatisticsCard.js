@@ -60,7 +60,16 @@ export default function StatisticsCard({ patients, currentPatient, loading }) {
         {loading ? (
           [...Array(5)].map((_, index) => (
             <ListItem key={index}>
-              <Skeleton variant="text" width="80%" height={60} margin={0} />
+              <Skeleton
+                variant="rectangular"
+                width="100%"
+                height={70}
+                sx={{
+                  borderRadius: 2,
+                  mb: 2,
+                  bgcolor: loading ? "grey.200" : "transparent",
+                }}
+              />
             </ListItem>
           ))
         ) : (

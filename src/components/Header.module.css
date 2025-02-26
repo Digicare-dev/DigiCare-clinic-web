@@ -24,8 +24,10 @@ header {
 @media (max-width: 768px) {
   header {
     display: flex;
-    justify-content: center;
+    justify-content: space-between; /* Ensure space between logo and logout button */
+    padding: 0 10px; /* Reduce padding for mobile */
   }
+
   .logout-button {
     padding-right: 10px;
     width: fit-content;
