@@ -8,25 +8,19 @@ import {
   ListItemText,
   Box,
 } from "@mui/material";
+import { NavLink, useLocation } from "react-router-dom";
 
-import { NavLink } from "react-router-dom";
-
+// Icons
 import HomeIcon from "@mui/icons-material/Home";
 import AddIcon from "@mui/icons-material/Add";
-import MedicalInformationIcon from "@mui/icons-material/MedicalInformation";
 import HelpIcon from "@mui/icons-material/Help";
 
 const drawerWidth = 240;
 
 export default function Sidebar() {
+  const location = useLocation();
   const menuItems = [
     { text: "Home", path: "/", icon: HomeIcon },
-    // { text: "Add Appointment", path: "/add-appointment", icon: AddIcon },
-    // {
-    //   text: "Patient Details",
-    //   path: "/patient-details",
-    //   icon: MedicalInformationIcon,
-    // },
     { text: "Appointments", path: "/appointments", icon: AddIcon },
     { text: "Help", path: "/help", icon: HelpIcon },
   ];
@@ -48,38 +42,31 @@ export default function Sidebar() {
     >
       <Box sx={{ overflow: "auto" }}>
         <List>
-          {menuItems.map((item) => (
-            <ListItem
-              button
-              key={item.text}
-              component={NavLink}
-              to={item.path}
-              sx={{
-                "&.active": {
-                  backgroundColor: "#ddd",
-                  color: "#007bff",
-                  fontWeight: "bold",
-                },
-                "&:hover": {
-                  // color: "black",
-                  color: "#007bff",
-
-                  backgroundColor: "#f5f5f5",
-                },
-                color: "black",
-              }}
-              className={({ isActive }) => (isActive ? "active" : "inactive")}
-            >
-              <ListItemIcon
+          {menuItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <ListItem
+                key={item.text}
+                component={NavLink}
+                to={item.path}
                 sx={{
-                  color: ({ isActive }) => (isActive ? "#007bff" : "inherit"), // Change icon color when active
+                  cursor: "pointer",
+                  backgroundColor: isActive ? "#ddd" : "inherit",
+                  color: isActive ? "#007bff" : "black",
+                  fontWeight: isActive ? "bold" : "normal",
+                  "&:hover": {
+                    color: "#007bff",
+                    backgroundColor: "#f5f5f5",
+                  },
                 }}
               >
-                <item.icon />
-              </ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItem>
-          ))}
+                <ListItemIcon sx={{ color: isActive ? "#007bff" : "inherit" }}>
+                  <item.icon />
+                </ListItemIcon>
+                <ListItemText primary={item.text} />
+              </ListItem>
+            );
+          })}
         </List>
       </Box>
     </Drawer>

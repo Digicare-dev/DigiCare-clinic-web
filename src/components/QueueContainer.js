@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import PatientItem from "./PatientItem";
 import "./QueueContainer.css";
 import { DndContext, closestCenter } from "@dnd-kit/core";
@@ -22,69 +22,67 @@ const QueueContainer = ({
   fetchPatientsDataWithoutLoader,
   fetchCurrentPositionDataWithoutLoader,
 }) => {
-  const [droppedItem, setDroppedItem] = useState(null);
+  const [currentGroup, setCurrentGroup] = useState([]);
+  const [upcomingGroup, setUpcomingGroup] = useState([]);
   const sortedPatients = [...patients]
     .filter((p) => p.status === "pending")
     .sort((a, b) => a.position - b.position);
 
-  // Calculate max position to show
-  const positions = sortedPatients.map((p) => p.position);
-  const maxPosition = Math.max(...positions, currentPosition + 4);
+  // Calculate all slots whenever patients change
+  useEffect(() => {
+    const sortedPatients = [...patients]
+      .filter((p) => p.status === "pending")
+      .sort((a, b) => a.position - b.position);
 
-  // Create array of all positions with empty slots
-  const allSlots = Array.from({ length: maxPosition }, (_, i) => {
-    const position = i + 1;
-    const patient = sortedPatients.find((p) => p.position === position);
-    return patient || { position, isEmpty: true };
-  });
+    const positions = sortedPatients.map((p) => p.position);
+    const maxPosition = Math.max(...positions, currentPosition + 4);
+    const allSlots = Array.from({ length: maxPosition }, (_, i) => {
+      const position = i + 1;
+      const patient = sortedPatients.find((p) => p.position === position);
+      return patient || { position, isEmpty: true };
+    });
 
-  // Split into current and upcoming groups
-  const currentGroupEnd = Math.min(currentPosition + 4, maxPosition);
-  const currentGroup = allSlots.slice(currentPosition - 1, currentGroupEnd);
-  const upcomingGroup = allSlots.slice(currentGroupEnd);
+    const currentEnd = Math.min(currentPosition + 4, maxPosition);
+    setCurrentGroup(allSlots.slice(currentPosition - 1, currentEnd));
+    setUpcomingGroup(allSlots.slice(currentEnd));
+  }, [patients, currentPosition]); // Added patients and currentPosition as dependencies
 
-  // QueueContainer.js
   const handleDragEnd = async (event) => {
     const { active, over } = event;
-
     if (!over || active.id === over.id) return;
 
     try {
-      const draggedAppointmentId = active.id;
-      const targetAppointmentId = over.id;
-
-      const draggedPatient = patients.find(
-        (p) => p.appointment.appointment_id === draggedAppointmentId
+      const activePatient = patients.find(
+        (p) => p.appointment.appointment_id === active.id
+      );
+      const overPatient = patients.find(
+        (p) => p.appointment.appointment_id === over.id
       );
 
-      const targetPatient = patients.find(
-        (p) => p.appointment.appointment_id === targetAppointmentId
-      );
+      // setPatients((prev) => {
+      //   const newPatients = prev.map((p) => {
+      //     if (p.appointment.appointment_id === active.id) {
+      //       return { ...p, position: overPatient.position };
+      //     }
+      //     if (
+      //       p.position >= overPatient.position &&
+      //       p.appointment.appointment_id !== active.id
+      //     ) {
+      //       return { ...p, position: p.position + 1 };
+      //     }
+      //     return p;
+      //   });
+      //   return newPatients.sort((a, b) => a.position - b.position);
+      // });
 
-      if (!draggedPatient || !targetPatient) return;
-
-      const payload = {
-        appointment_id: draggedAppointmentId,
-        new_position: targetPatient.position,
-      };
-
-      await shufflePosition(payload);
-      await fetchPatientsData();
-
-      // Optimistic update
-      setPatients((prev) => {
-        const newPatients = [...prev];
-        const draggedIndex = newPatients.findIndex(
-          (p) => p.appointment.appointment_id === draggedAppointmentId
-        );
-        const targetIndex = newPatients.findIndex(
-          (p) => p.appointment.appointment_id === targetAppointmentId
-        );
-
-        return arrayMove(newPatients, draggedIndex, targetIndex);
+      // API call
+      await shufflePosition({
+        appointment_id: active.id,
+        new_position: overPatient.position,
       });
     } catch (error) {
       console.error("Drag failed:", error);
+      // Revert on error
       fetchPatientsData();
     }
   };
@@ -92,7 +90,6 @@ const QueueContainer = ({
   return (
     <div className="queue-container">
       {loading ? (
-        // Loading skeleton
         <div className="skeleton-container">
           {[...Array(5)].map((_, index) => (
             <div key={index} className="skeleton-item">
@@ -103,7 +100,7 @@ const QueueContainer = ({
                 sx={{
                   borderRadius: 2,
                   mb: 2,
-                  bgcolor: loading ? "grey.200" : "transparent",
+                  bgcolor: "grey.200",
                 }}
               />
             </div>
@@ -126,12 +123,8 @@ const QueueContainer = ({
                   key={slot.appointment.appointment_id}
                   {...slot}
                   currentPosition={currentPosition}
-                  handleNextPatient={async (id) => {
-                    await handleNextPatient(id);
-                  }}
-                  handleLatePatient={async (id) => {
-                    await handleLatePatient(id);
-                  }}
+                  handleNextPatient={handleNextPatient}
+                  handleLatePatient={handleLatePatient}
                   isDraggable={false}
                   paid={slot.paid}
                   status={slot.status}
@@ -177,14 +170,8 @@ const QueueContainer = ({
                         key={`${slot.appointment.appointment_id}-${slot.position}`}
                         {...slot}
                         currentPosition={currentPosition}
-                        handleNextPatient={async (id) => {
-                          await handleNextPatient(id);
-                          fetchPatientsData();
-                        }}
-                        handleLatePatient={async (id) => {
-                          await handleLatePatient(id);
-                          fetchPatientsData();
-                        }}
+                        handleNextPatient={handleNextPatient}
+                        handleLatePatient={handleLatePatient}
                         isDraggable={true}
                         fetchPatientsDataWithoutLoader={
                           fetchPatientsDataWithoutLoader

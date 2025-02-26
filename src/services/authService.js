@@ -1,5 +1,5 @@
 import axios from "axios";
-
+import { cancelAllRequests } from "../utils/axiosInstance";
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 // Function to handle user login
@@ -35,24 +35,20 @@ export const login = async (username, password) => {
 
 export const logout = async () => {
   try {
-    // Send a POST request to the login API
-    const response = await axios.post(
+    cancelAllRequests();
+    await axios.post(
       `${API_BASE_URL}/api/logout`,
       {},
       {
         withCredentials: true,
       }
     );
-    if (response.status === 205) {
-      localStorage.removeItem("user");
-      return;
-    }
-    return response.data; // Return the response data if needed
   } catch (error) {
-    console.error(
-      "Login failed:",
-      error.response ? error.response.data : error
-    );
-    throw error; // Rethrow error for further handling
+    if (!axios.isCancel(error)) {
+      console.error("Logout error:", error);
+    }
+  } finally {
+    localStorage.removeItem("user");
+    window.location.replace("/login");
   }
 };

@@ -18,12 +18,12 @@ import {
 } from "@mui/material";
 import { addAppointment, fetchAppointments } from "../services/api";
 
-export default function AddAppointmentMobile() {
+export default function AddAppointmentMobile({ patients }) {
   const user = JSON.parse(localStorage.getItem("user"));
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [suggestedToken, setSuggestedToken] = useState(1);
+  const [suggestedToken, setSuggestedToken] = useState("loading...");
   const [openSnackbar, setOpenSnackbar] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -42,24 +42,24 @@ export default function AddAppointmentMobile() {
     status: "pending",
   });
 
-  const fetchSuggestedToken = async () => {
-    try {
-      const data = await fetchAppointments(
-        user.checkupcabindata[0].id,
-        user.checkupcabindata[0].cabin_slots[0]
-      );
-      const maxToken =
-        data.length > 0 ? Math.max(...data.map((d) => d.token)) : 0;
-      setSuggestedToken(maxToken + 1);
-      setFormData((prev) => ({ ...prev, token: maxToken + 1 }));
-    } catch (error) {
-      console.error("Error fetching appointments:", error);
+  const fetchSuggestedToken = () => {
+    if (patients.length > 0) {
+      try {
+        const maxToken =
+          patients.length > 0
+            ? Math.max(...patients.map((p) => p.appointment.token))
+            : 0;
+        setSuggestedToken(maxToken + 1);
+        setFormData((prev) => ({ ...prev, token: maxToken + 1 }));
+      } catch (error) {
+        console.error("Error fetching appointments:", error);
+      }
     }
   };
 
   useEffect(() => {
     fetchSuggestedToken();
-  }, []);
+  }, [patients]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
