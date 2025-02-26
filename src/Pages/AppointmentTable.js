@@ -990,20 +990,22 @@ export default function AppointmentTable() {
             />
 
             <TextField
-              label="Age"
-              name="age"
-              type="number"
-              value={newAppointment.age}
-              onChange={handleInputChange}
-            />
-
-            <TextField
               label="Mobile"
               name="phone_number"
               value={newAppointment.phone_number}
               onChange={handleInputChange}
               slotProps={{ input: { maxLength: 10 } }}
               fullWidth
+              helperText="Enter mobile number to enable additional fields"
+            />
+
+            <TextField
+              label="Age"
+              name="age"
+              type="number"
+              value={newAppointment.age}
+              onChange={handleInputChange}
+              disabled={!newAppointment.phone_number}
             />
 
             <FormControl component="fieldset">
@@ -1012,6 +1014,7 @@ export default function AppointmentTable() {
                 exclusive
                 onChange={handleSexChange}
                 color="primary"
+                disabled={!newAppointment.phone_number}
               >
                 <ToggleButton value="M" color="primary">
                   Male
@@ -1035,6 +1038,7 @@ export default function AppointmentTable() {
               name="guardian"
               value={newAppointment.guardian}
               onChange={handleInputChange}
+              disabled={!newAppointment.phone_number}
             />
 
             {/* Place TextField moved here */}

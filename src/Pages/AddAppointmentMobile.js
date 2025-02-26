@@ -221,20 +221,22 @@ export default function AddAppointmentMobile({ patients }) {
         <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
           <TextField
             fullWidth
+            label="Mobile"
+            name="phone_number"
+            value={formData.phone_number}
+            onChange={handleInputChange}
+            inputProps={{ maxLength: 10 }}
+            helperText="Will enable fields"
+          />
+          <TextField
+            fullWidth
             label="Age"
             name="age"
             type="number"
             value={formData.age}
             onChange={handleInputChange}
             InputProps={{ inputProps: { min: 0, max: 120 } }}
-          />
-          <TextField
-            fullWidth
-            label="Mobile"
-            name="phone_number"
-            value={formData.phone_number}
-            onChange={handleInputChange}
-            inputProps={{ maxLength: 10 }}
+            disabled={!formData.phone_number}
           />
         </Box>
 
@@ -246,6 +248,7 @@ export default function AddAppointmentMobile({ patients }) {
           color="primary"
           fullWidth
           sx={{ mb: 2 }}
+          disabled={!formData.phone_number}
         >
           <ToggleButton value="M">Male</ToggleButton>
           <ToggleButton value="F">Female</ToggleButton>
@@ -260,6 +263,7 @@ export default function AddAppointmentMobile({ patients }) {
             name="guardian"
             value={formData.guardian}
             onChange={handleInputChange}
+            disabled={!formData.phone_number}
           />
           <TextField
             fullWidth
@@ -267,6 +271,7 @@ export default function AddAppointmentMobile({ patients }) {
             name="location"
             value={formData.location}
             onChange={handleInputChange}
+            disabled={!formData.phone_number}
           />
         </Box>
 
