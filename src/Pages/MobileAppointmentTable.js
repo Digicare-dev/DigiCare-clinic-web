@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -12,10 +12,12 @@ import {
   Chip,
   useMediaQuery,
   Box,
+  TextField,
+  InputAdornment,
 } from "@mui/material";
 import { fetchAppointments } from "../services/api";
 import "./MobileAppointmentTable.css";
-
+import SearchIcon from "@mui/icons-material/Search";
 import { CheckCircle, Cancel } from "@mui/icons-material"; // Add icons
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
@@ -40,6 +42,7 @@ const generateDisplayRows = (actualRows) => {
         checkin: false,
         paid: false,
         status: "empty",
+        guardian: "",
       }
     );
   });
@@ -50,7 +53,17 @@ const MobileAppointmentTable = () => {
   const [error, setError] = useState("");
   const [appointments, setAppointments] = useState([]);
   const user = JSON.parse(localStorage.getItem("user"));
+  const [searchQuery, setSearchQuery] = useState("");
+
   const [eventSource, setEventSource] = useState(null);
+
+  const filteredAppointments = useMemo(() => {
+    if (!searchQuery) return appointments;
+    const query = searchQuery.toLowerCase();
+    return appointments.filter((apt) =>
+      apt.patientName.toLowerCase().includes(query)
+    );
+  }, [appointments, searchQuery]);
 
   useEffect(() => {
     if (!user?.checkupcabindata?.[0]?.id) return;
@@ -89,6 +102,7 @@ const MobileAppointmentTable = () => {
               patientName: parsedData.appointment.name,
               service: parsedData.appointment.appointment_type,
               status: parsedData.appointment.status,
+              guardian: parsedData?.patient?.guardian || "",
               isPlaceholder: false,
             };
 
@@ -142,6 +156,7 @@ const MobileAppointmentTable = () => {
         checkin: item.checkin || false,
         paid: item.paid || false,
         status: item.status === "done_checkup" ? "done" : item.status,
+        guardian: item?.patient?.guardian || "N/A",
         isPlaceholder: false,
       }));
 
@@ -157,7 +172,7 @@ const MobileAppointmentTable = () => {
     fetchAppointmentsData();
   }, []);
 
-  const displayedRows = generateDisplayRows(appointments);
+  const displayedRows = generateDisplayRows(filteredAppointments);
 
   if (loading) {
     return (
@@ -180,6 +195,21 @@ const MobileAppointmentTable = () => {
 
   return (
     <Box p={1} sx={{ paddingBottom: "50px" }}>
+      <TextField
+        fullWidth
+        variant="outlined"
+        placeholder="Search patients..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        sx={{ mb: 1 }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon />
+            </InputAdornment>
+          ),
+        }}
+      />
       <Box
         sx={{
           height: "80vh", // Adjust the height as needed
@@ -192,7 +222,8 @@ const MobileAppointmentTable = () => {
               <TableRow>
                 <TableCell>Token</TableCell>
                 <TableCell>Patient</TableCell>
-                <TableCell align="center">Checked In</TableCell>
+                <TableCell>Guardian</TableCell>
+                <TableCell align="center">Check-In</TableCell>
                 <TableCell align="center">Payment</TableCell>{" "}
                 <TableCell align="center">Status</TableCell>
               </TableRow>
@@ -212,6 +243,9 @@ const MobileAppointmentTable = () => {
                     ) : (
                       row.patientName
                     )}
+                  </TableCell>
+                  <TableCell>
+                    {row.isPlaceholder ? "-" : row.guardian || "N/A"}
                   </TableCell>
                   {/* Check-in Status */}
                   <TableCell align="center">
