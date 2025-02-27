@@ -10,18 +10,26 @@ import {
   Typography,
   CircularProgress,
   Chip,
-  useMediaQuery,
   Box,
   TextField,
   InputAdornment,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Checkbox,
+  FormControlLabel,
 } from "@mui/material";
-import { fetchAppointments } from "../services/api";
+import { fetchAppointments, updateAppointmentDetails } from "../services/api";
 import "./MobileAppointmentTable.css";
 import SearchIcon from "@mui/icons-material/Search";
-import { CheckCircle, Cancel } from "@mui/icons-material"; // Add icons
+import { CheckCircle, Cancel, Edit } from "@mui/icons-material";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
+// Function to generate display rows
 const generateDisplayRows = (actualRows) => {
   if (actualRows.length === 0) return [];
 
@@ -32,7 +40,6 @@ const generateDisplayRows = (actualRows) => {
   return Array.from({ length: maxToken - minToken + 1 }, (_, i) => {
     const token = minToken + i;
     const existing = actualRows.find((row) => row.token === token);
-
     return (
       existing || {
         id: token,
@@ -43,9 +50,24 @@ const generateDisplayRows = (actualRows) => {
         paid: false,
         status: "empty",
         guardian: "",
+        appointment_id: "",
       }
     );
   });
+};
+
+// Function to get status color
+const getStatusColor = (status) => {
+  switch (status) {
+    case "done":
+      return "success";
+    case "cancelled":
+      return "error";
+    case "pending":
+      return "info";
+    default:
+      return "default";
+  }
 };
 
 const MobileAppointmentTable = () => {
@@ -54,8 +76,9 @@ const MobileAppointmentTable = () => {
   const [appointments, setAppointments] = useState([]);
   const user = JSON.parse(localStorage.getItem("user"));
   const [searchQuery, setSearchQuery] = useState("");
-
-  const [eventSource, setEventSource] = useState(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const filteredAppointments = useMemo(() => {
     if (!searchQuery) return appointments;
@@ -65,81 +88,58 @@ const MobileAppointmentTable = () => {
     );
   }, [appointments, searchQuery]);
 
-  useEffect(() => {
-    if (!user?.checkupcabindata?.[0]?.id) return;
+  const handleEditClick = (appointment) => {
+    setSelectedAppointment(appointment);
+    setEditModalOpen(true);
+  };
 
-    const doctorId = user.checkupcabindata[0].id;
-    const slotTime = user.checkupcabindata[0].cabin_slots[0];
+  const handleEditModalClose = () => {
+    setEditModalOpen(false);
+    setSelectedAppointment(null);
+  };
 
-    // Format date for SSE URL
-    const date = new Date(slotTime);
-    const formattedDate = date
-      .toISOString()
-      .replace(".000", "")
-      .replace("T", " ")
-      .replace("Z", "+00:00");
-    const encodedDate = encodeURIComponent(formattedDate);
+  const handleUpdateAppointment = async () => {
+    if (!selectedAppointment) return;
 
-    const sseUrl = `${API_BASE_URL}/doctorinfo/queue_updates/${doctorId}/${encodedDate}`;
+    setIsUpdating(true);
+    try {
+      const payload = {
+        token: selectedAppointment.token,
+        appointment_id: selectedAppointment.appointment_id,
+        checkin: selectedAppointment.checkin,
+        paid: selectedAppointment.paid,
+      };
 
-    const newEventSource = new EventSource(sseUrl);
-    setEventSource(newEventSource);
+      // Call the API to update the appointment
+      await updateAppointmentDetails(payload);
 
-    newEventSource.onmessage = (event) => {
-      try {
-        const parsedData = JSON.parse(event.data);
+      // Update local state
+      setAppointments((prev) =>
+        prev.map((apt) =>
+          apt.token === selectedAppointment.token ? selectedAppointment : apt
+        )
+      );
 
-        if (parsedData.appointment) {
-          // Update appointments state optimistically
-          setAppointments((prev) => {
-            const existingIndex = prev.findIndex(
-              (a) => a.token === parsedData.appointment.token
-            );
-
-            const updatedAppointment = {
-              id: parsedData.appointment.token,
-              token: parsedData.appointment.token,
-              patientName: parsedData.appointment.name,
-              service: parsedData.appointment.appointment_type,
-              status: parsedData.appointment.status,
-              guardian: parsedData?.patient?.guardian || "",
-              isPlaceholder: false,
-            };
-
-            if (existingIndex !== -1) {
-              const newApps = [...prev];
-              newApps[existingIndex] = updatedAppointment;
-              return newApps;
-            }
-            return [...prev, updatedAppointment];
-          });
-        }
-      } catch (error) {
-        console.error("Error parsing SSE data:", error);
-      }
-    };
-
-    newEventSource.onerror = (error) => {
-      console.error("SSE error:", error);
-      newEventSource.close();
-    };
-
-    return () => {
-      newEventSource.close();
-    };
-  }, []);
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "done":
-        return "success";
-      case "cancelled":
-        return "error";
-      case "pending":
-        return "info";
-      default:
-        return "default";
+      handleEditModalClose();
+    } catch (error) {
+      console.error("Failed to update appointment:", error);
+    } finally {
+      setIsUpdating(false);
     }
+  };
+
+  const handleCheckinChange = (event) => {
+    setSelectedAppointment((prev) => ({
+      ...prev,
+      checkin: event.target.checked,
+    }));
+  };
+
+  const handlePaymentChange = (event) => {
+    setSelectedAppointment((prev) => ({
+      ...prev,
+      paid: event.target.checked,
+    }));
   };
 
   const fetchAppointmentsData = async () => {
@@ -158,6 +158,7 @@ const MobileAppointmentTable = () => {
         status: item.status === "done_checkup" ? "done" : item.status,
         guardian: item?.patient?.guardian || "N/A",
         isPlaceholder: false,
+        appointment_id: item.appointment_id,
       }));
 
       setAppointments(formatted);
@@ -170,6 +171,73 @@ const MobileAppointmentTable = () => {
 
   useEffect(() => {
     fetchAppointmentsData();
+
+    // Set up SSE connection
+    if (!user?.checkupcabindata?.[0]?.id) return;
+
+    const doctorId = user.checkupcabindata[0].id;
+    const slotTime = user.checkupcabindata[0].cabin_slots[0];
+
+    // Format date for SSE URL
+    const date = new Date(slotTime);
+    const formattedDate = date
+      .toISOString()
+      .replace(".000", "")
+      .replace("T", " ")
+      .replace("Z", "+00:00");
+    const encodedDate = encodeURIComponent(formattedDate);
+
+    const sseUrl = `${API_BASE_URL}/doctorinfo/queue_updates/${doctorId}/${encodedDate}`;
+
+    const eventSource = new EventSource(sseUrl);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const parsedData = JSON.parse(event.data);
+
+        if (parsedData.appointment) {
+          // Update appointments state optimistically
+          setAppointments((prev) => {
+            const existingIndex = prev.findIndex(
+              (a) => a.token === parsedData.appointment.token
+            );
+
+            const updatedAppointment = {
+              id: parsedData.appointment.token,
+              token: parsedData.appointment.token,
+              patientName: parsedData.appointment.name,
+              checkin: parsedData.appointment.checkin || false,
+              paid: parsedData.appointment.paid || false,
+              status:
+                parsedData.appointment.status === "done_checkup"
+                  ? "done"
+                  : parsedData.appointment.status,
+              guardian: parsedData?.patient?.guardian || "N/A",
+              isPlaceholder: false,
+              appointment_id: parsedData.appointment.appointment_id,
+            };
+
+            if (existingIndex !== -1) {
+              const newApps = [...prev];
+              newApps[existingIndex] = updatedAppointment;
+              return newApps;
+            }
+            return [...prev, updatedAppointment];
+          });
+        }
+      } catch (error) {
+        console.error("Error parsing SSE data:", error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error("SSE error:", error);
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
   }, []);
 
   const displayedRows = generateDisplayRows(filteredAppointments);
@@ -212,8 +280,8 @@ const MobileAppointmentTable = () => {
       />
       <Box
         sx={{
-          height: "calc(90vh - 180px)", // Adjust the height as needed
-          overflowY: "auto", // Enable vertical scrolling
+          height: "calc(90vh - 180px)",
+          overflowY: "auto",
           pb: 4,
         }}
       >
@@ -225,8 +293,9 @@ const MobileAppointmentTable = () => {
                 <TableCell>Patient</TableCell>
                 <TableCell>Guardian</TableCell>
                 <TableCell align="center">Check-In</TableCell>
-                <TableCell align="center">Payment</TableCell>{" "}
+                <TableCell align="center">Payment</TableCell>
                 <TableCell align="center">Status</TableCell>
+                <TableCell align="center">Action</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -248,7 +317,6 @@ const MobileAppointmentTable = () => {
                   <TableCell>
                     {row.isPlaceholder ? "-" : row.guardian || "N/A"}
                   </TableCell>
-                  {/* Check-in Status */}
                   <TableCell align="center">
                     {row.isPlaceholder ? (
                       "-"
@@ -258,7 +326,6 @@ const MobileAppointmentTable = () => {
                       <Cancel fontSize="small" color="error" />
                     )}
                   </TableCell>
-                  {/* Payment Status */}
                   <TableCell align="center">
                     {row.isPlaceholder ? (
                       "-"
@@ -277,7 +344,7 @@ const MobileAppointmentTable = () => {
                         variant="outlined"
                       />
                     )}
-                  </TableCell>{" "}
+                  </TableCell>
                   <TableCell align="center">
                     <Chip
                       label={row.status}
@@ -286,12 +353,64 @@ const MobileAppointmentTable = () => {
                       color={getStatusColor(row.status)}
                     />
                   </TableCell>
+                  <TableCell align="center">
+                    {!row.isPlaceholder && (
+                      <IconButton
+                        size="small"
+                        onClick={() => handleEditClick(row)}
+                      >
+                        <Edit fontSize="small" />
+                      </IconButton>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </TableContainer>
       </Box>
+
+      {/* Edit Modal */}
+      <Dialog open={editModalOpen} onClose={handleEditModalClose}>
+        <DialogTitle>Edit Appointment</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={selectedAppointment?.checkin || false}
+                  onChange={handleCheckinChange}
+                />
+              }
+              label="Check-in"
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={selectedAppointment?.paid || false}
+                  onChange={handlePaymentChange}
+                />
+              }
+              label="Payment"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleEditModalClose}>Cancel</Button>
+          <Button
+            onClick={handleUpdateAppointment}
+            color="primary"
+            variant="contained"
+            disabled={isUpdating}
+          >
+            {isUpdating ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              "Update"
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
