@@ -319,7 +319,6 @@ const MobileAppointmentTable = () => {
                 <TableCell align="center">Check-In</TableCell>
                 <TableCell align="center">Payment</TableCell>
                 <TableCell align="center">Status</TableCell>
-                <TableCell align="center">Action</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -384,7 +383,6 @@ const MobileAppointmentTable = () => {
                       color={getStatusColor(row.status)}
                     />
                   </TableCell>
-                  {/* Remove the Action Column */}
                 </TableRow>
               ))}
             </TableBody>
