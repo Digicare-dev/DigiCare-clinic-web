@@ -86,6 +86,12 @@ export default function AddAppointmentMobile({ patients }) {
       return;
     }
 
+    if (!formData.firstName.trim() || !formData.lastName.trim()) {
+      setError("First name and last name are required");
+      setLoading(false);
+      return;
+    }
+
     try {
       const payload = {
         cabinId: user.checkupcabindata[0].id,
@@ -122,7 +128,7 @@ export default function AddAppointmentMobile({ patients }) {
       });
 
       // Refresh token suggestion
-      await fetchSuggestedToken();
+      fetchSuggestedToken();
       setError("");
       setOpenSnackbar(true);
     } catch (error) {
@@ -154,6 +160,11 @@ export default function AddAppointmentMobile({ patients }) {
           paddingBottom: "350px", // Space for fixed button
         }}
       >
+        {error && (
+          <Typography color="error" sx={{ mb: 2 }}>
+            {error}
+          </Typography>
+        )}
         {/* Token Input */}
         <TextField
           fullWidth
@@ -300,12 +311,6 @@ export default function AddAppointmentMobile({ patients }) {
             <MenuItem value="Routine">Routine</MenuItem>
           </Select>
         </FormControl>
-
-        {error && (
-          <Typography color="error" sx={{ mb: 2 }}>
-            {error}
-          </Typography>
-        )}
       </form>
 
       <Snackbar
@@ -330,6 +335,7 @@ export default function AddAppointmentMobile({ patients }) {
         }}
       >
         <Button
+          // type="submit"
           onClick={handleSubmit}
           fullWidth
           variant="contained"
