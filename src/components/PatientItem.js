@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import "./PatientItem.css";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -11,6 +11,7 @@ import {
   CircularProgress,
   Tooltip,
   Chip,
+  IconButton,
 } from "@mui/material";
 import {
   Paid,
@@ -18,9 +19,10 @@ import {
   PendingActions,
   AccessTime,
   MedicalServices,
+  Lock,
+  LockOpen,
 } from "@mui/icons-material";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
-import { fetchCurrentPosition } from "../services/api";
 
 const PatientItem = ({
   position,
@@ -33,27 +35,17 @@ const PatientItem = ({
   paid,
   checkin,
   status,
-  fetchPatientsDataWithoutLoader,
-  fetchCurrentPositionDataWithoutLoader,
 }) => {
   const [confirmAction, setConfirmAction] = useState(null);
   const [loadingType, setLoadingType] = useState(null);
-  const [disable, setDisable] = useState(false);
+  const [isLocked, setIsLocked] = useState(true);
+  const [confirmUnlock, setConfirmUnlock] = useState(false);
+
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
       id: appointment.appointment_id,
+      enabled: !isLocked,
     });
-
-  // useEffect(() => {
-  //   const interval = setInterval(async () => {
-  //     setDisable(true);
-  //     await fetchPatientsDataWithoutLoader();
-  //     await fetchCurrentPositionDataWithoutLoader();
-  //     setDisable(false);
-  //   }, 20000);
-
-  //   return () => clearInterval(interval); // Cleanup on unmount
-  // }, []);
 
   const handleConfirm = async () => {
     if (!confirmAction) return;
@@ -70,7 +62,16 @@ const PatientItem = ({
     } finally {
       setConfirmAction(null);
       setLoadingType(null);
+      setIsLocked(true);
     }
+  };
+
+  const handleUnlock = () => {
+    setConfirmUnlock(true);
+  };
+
+  const handleLock = () => {
+    setIsLocked(true);
   };
 
   const style = {
@@ -94,15 +95,22 @@ const PatientItem = ({
     >
       <div className="patient-content">
         <div className="patient-info">
+          <Tooltip title={isLocked ? "Unlock to move" : "Lock position"}>
+            <IconButton
+              onClick={isLocked ? handleUnlock : handleLock}
+              sx={{ position: "absolute", left: 8, top: 8 }}
+            >
+              {isLocked ? (
+                <Lock fontSize="small" />
+              ) : (
+                <LockOpen fontSize="small" />
+              )}
+            </IconButton>
+          </Tooltip>
           <div className="token-badge">
             <MedicalServices fontSize="small" />
             <div className="token-details">
               <span>Token {appointment.token}</span>
-              {/* <Tooltip title={`Appointment ID: ${appointment.appointment_id}`}>
-                <span className="appointment-id">
-                  ID: {appointment.appointment_id.slice(0, 6)}...
-                </span>
-              </Tooltip> */}
             </div>
           </div>
 
@@ -196,7 +204,7 @@ const PatientItem = ({
             </div>
           </div>
         </div>
-
+        {/* Action Buttons */}
         {type === "current" && (
           <div className="action-buttons">
             <MuiButton
@@ -209,7 +217,7 @@ const PatientItem = ({
                   <CircularProgress size={20} color="inherit" />
                 )
               }
-              sx={{ minWidth: 120 }} // Add fixed width
+              sx={{ minWidth: 120 }}
             >
               {loadingType !== "late" && "Mark Late"}
             </MuiButton>
@@ -223,19 +231,63 @@ const PatientItem = ({
                   <CircularProgress size={20} color="inherit" />
                 )
               }
-              sx={{ minWidth: 120 }} // Add fixed width
+              sx={{ minWidth: 120 }}
             >
-              {loadingType !== "next" && "Next Patient"}
+              {loadingType !== "next" && "Done Checkup"}
             </MuiButton>
           </div>
         )}
-
-        {isDraggable && type === "upcoming" && (
-          <div className="drag-handle" {...attributes} {...listeners}>
-            <DragHandleIcon />
+        {/* "Done Checkup" Button for Non-Current Patients */}
+        {type !== "current" && (
+          <div className="action-buttons">
+            <MuiButton
+              variant="contained"
+              color="success"
+              onClick={() => setConfirmAction("next")}
+              disabled={!!loadingType}
+              startIcon={
+                loadingType === "next" && (
+                  <CircularProgress size={20} color="inherit" />
+                )
+              }
+              sx={{
+                minWidth: 120,
+                marginLeft: "auto", // Align to the right
+              }}
+            >
+              {loadingType !== "next" && "Done Checkup"}
+            </MuiButton>
           </div>
         )}
+        {
+          <div // currently accepting the dragging in top 5
+            className="drag-handle"
+            {...attributes}
+            {...(isLocked ? {} : listeners)}
+          >
+            <DragHandleIcon />
+          </div>
+        }
       </div>
+
+      <Dialog open={confirmUnlock} onClose={() => setConfirmUnlock(false)}>
+        <DialogTitle>Confirm Unlock</DialogTitle>
+        <DialogContent>
+          Are you sure you want to unlock this patient's position?
+        </DialogContent>
+        <DialogActions>
+          <MuiButton onClick={() => setConfirmUnlock(false)}>Cancel</MuiButton>
+          <MuiButton
+            onClick={() => {
+              setIsLocked(false);
+              setConfirmUnlock(false);
+            }}
+            color="primary"
+          >
+            Confirm Unlock
+          </MuiButton>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={!!confirmAction} onClose={() => setConfirmAction(null)}>
         <DialogTitle>Confirm Action</DialogTitle>

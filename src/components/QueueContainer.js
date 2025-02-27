@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import PatientItem from "./PatientItem";
 import "./QueueContainer.css";
 import { DndContext, closestCenter } from "@dnd-kit/core";
@@ -8,7 +8,17 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
-import { Typography, Divider, Skeleton, Button } from "@mui/material";
+import {
+  Typography,
+  Divider,
+  Skeleton,
+  Button,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Dialog,
+  CircularProgress,
+} from "@mui/material";
 
 const QueueContainer = ({
   loading,
@@ -25,6 +35,11 @@ const QueueContainer = ({
   const [currentGroup, setCurrentGroup] = useState([]);
   const [upcomingGroup, setUpcomingGroup] = useState([]);
   const [queueStarted, setQueueStarted] = useState(false); // Track if queue is started
+  const [confirmDrag, setConfirmDrag] = useState(false);
+  const [dragActiveId, setDragActiveId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
+  const originalPatientsRef = useRef([]);
+  const [isShifting, setIsShifting] = useState(false);
 
   const sortedPatients = [...patients]
     .filter((p) => p.status === "pending")
@@ -53,40 +68,41 @@ const QueueContainer = ({
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
+    originalPatientsRef.current = [...patients];
+
+    const activePatient = patients.find(
+      (p) => p.appointment.appointment_id === active.id
+    );
+    const overPatient = patients.find(
+      (p) => p.appointment.appointment_id === over.id
+    );
+
+    setConfirmDrag(true);
+    setDragActiveId(active.id);
+    setDragOverId(over.id);
+  };
+
+  const handleConfirmDrag = async () => {
     try {
-      const activePatient = patients.find(
-        (p) => p.appointment.appointment_id === active.id
-      );
-      const overPatient = patients.find(
-        (p) => p.appointment.appointment_id === over.id
-      );
-
-      // setPatients((prev) => {
-      //   const newPatients = prev.map((p) => {
-      //     if (p.appointment.appointment_id === active.id) {
-      //       return { ...p, position: overPatient.position };
-      //     }
-      //     if (
-      //       p.position >= overPatient.position &&
-      //       p.appointment.appointment_id !== active.id
-      //     ) {
-      //       return { ...p, position: p.position + 1 };
-      //     }
-      //     return p;
-      //   });
-      //   return newPatients.sort((a, b) => a.position - b.position);
-      // });
-
-      // API call
+      setLock(false);
+      setIsShifting(true);
       await shufflePosition({
-        appointment_id: active.id,
-        new_position: overPatient.position,
+        appointment_id: dragActiveId,
+        new_position: patients.find(
+          (p) => p.appointment.appointment_id === dragOverId
+        ).position,
       });
+      setLock(true);
+      setIsShifting(false);
+      setConfirmDrag(false);
     } catch (error) {
       console.error("Drag failed:", error);
-      // Revert on error
-      fetchPatientsData();
+      setPatients(originalPatientsRef.current);
     }
+  };
+
+  const handleCancelDrag = () => {
+    setConfirmDrag(false);
   };
 
   const handleStartQueue = async () => {
@@ -208,6 +224,23 @@ const QueueContainer = ({
           )}
         </>
       )}
+
+      <Dialog open={confirmDrag} onClose={handleCancelDrag}>
+        <DialogTitle>Confirm Position Change</DialogTitle>
+        <DialogContent>
+          Are you sure you want to move this patient to the new position?
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelDrag}>Cancel</Button>
+          <Button onClick={handleConfirmDrag} color="primary">
+            {isShifting ? (
+              <CircularProgress size={24} color="white" />
+            ) : (
+              "Confirm"
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };
