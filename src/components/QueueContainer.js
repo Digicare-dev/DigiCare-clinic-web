@@ -34,7 +34,7 @@ const QueueContainer = ({
 }) => {
   const [currentGroup, setCurrentGroup] = useState([]);
   const [upcomingGroup, setUpcomingGroup] = useState([]);
-  const [queueStarted, setQueueStarted] = useState(false); // Track if queue is started
+  const [lock, setLock] = useState(true);
   const [confirmDrag, setConfirmDrag] = useState(false);
   const [dragActiveId, setDragActiveId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
@@ -45,7 +45,6 @@ const QueueContainer = ({
     .filter((p) => p.status === "pending")
     .sort((a, b) => a.position - b.position);
 
-  // Calculate all slots whenever patients change
   useEffect(() => {
     const sortedPatients = [...patients]
       .filter((p) => p.status === "pending")
@@ -62,7 +61,7 @@ const QueueContainer = ({
     const currentEnd = Math.min(currentPosition + 4, maxPosition);
     setCurrentGroup(allSlots.slice(currentPosition - 1, currentEnd));
     setUpcomingGroup(allSlots.slice(currentEnd));
-  }, [patients, currentPosition]); // Added patients and currentPosition as dependencies
+  }, [patients, currentPosition]);
 
   const handleDragEnd = async (event) => {
     const { active, over } = event;
@@ -105,28 +104,8 @@ const QueueContainer = ({
     setConfirmDrag(false);
   };
 
-  const handleStartQueue = async () => {
-    try {
-      //  await startQueueApi();
-      //  fetchPatientsData();
-      setQueueStarted(true);
-    } catch (error) {
-      console.error("Failed to start queue:", error);
-    }
-  };
   return (
     <div className="queue-container">
-      {!queueStarted && (
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleStartQueue}
-          sx={{ mb: 2 }}
-        >
-          Start Queue
-        </Button>
-      )}
-
       {loading ? (
         <div className="skeleton-container">
           {[...Array(5)].map((_, index) => (
@@ -139,10 +118,6 @@ const QueueContainer = ({
               />
             </div>
           ))}
-        </div>
-      ) : !queueStarted ? (
-        <div className="empty-queue">
-          <Typography variant="h6">Queue is currently empty</Typography>
         </div>
       ) : (
         <>
