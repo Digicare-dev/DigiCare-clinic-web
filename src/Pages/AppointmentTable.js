@@ -421,10 +421,23 @@ export default function AppointmentTable() {
     {
       field: "sex",
       headerName: "Gender",
+      editable: true,
+      valueFormatter: ({ value }) =>
+        genderOptions.find((opt) => opt.value === value)?.label || value,
       renderEditCell: (params) => (
-        <Autocomplete // ✅ Use proper MUI component
+        <Autocomplete
           options={genderOptions}
-          getOptionLabel={(option) => option.label} // ✅ Correct usage
+          getOptionLabel={(option) => option.label}
+          value={
+            genderOptions.find((opt) => opt.value === params.value) || null
+          }
+          onChange={(_, newValue) =>
+            params.api.setEditCellValue({
+              id: params.id,
+              field: params.field,
+              value: newValue?.value,
+            })
+          }
           renderInput={(params) => <TextField {...params} variant="outlined" />}
         />
       ),

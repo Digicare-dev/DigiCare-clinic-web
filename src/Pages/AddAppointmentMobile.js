@@ -262,6 +262,7 @@ export default function AddAppointmentMobile({ patients }) {
             label="Guardian"
             name="guardian"
             value={formData.guardian}
+            a
             onChange={handleInputChange}
             disabled={!formData.phone_number}
           />
