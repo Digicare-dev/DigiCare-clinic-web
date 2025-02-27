@@ -22,7 +22,11 @@ import {
   Checkbox,
   FormControlLabel,
 } from "@mui/material";
-import { fetchAppointments, updateAppointmentDetails } from "../services/api";
+import {
+  fetchAppointments,
+  updateAppointmentDetails,
+  removeAppointment,
+} from "../services/api";
 import "./MobileAppointmentTable.css";
 import SearchIcon from "@mui/icons-material/Search";
 import { CheckCircle, Cancel, Edit } from "@mui/icons-material";
@@ -79,6 +83,7 @@ const MobileAppointmentTable = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredAppointments = useMemo(() => {
     if (!searchQuery) return appointments;
@@ -242,6 +247,25 @@ const MobileAppointmentTable = () => {
 
   const displayedRows = generateDisplayRows(filteredAppointments);
 
+  const handleDeleteAppointment = async () => {
+    if (!selectedAppointment) return;
+
+    setIsDeleting(true);
+    try {
+      const payload = {
+        appointment_id: selectedAppointment.appointment_id,
+      };
+
+      await removeAppointment(payload); // Call the delete API
+
+      handleEditModalClose(); // Close the edit modal
+    } catch (error) {
+      console.error("Failed to delete appointment:", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" p={3}>
@@ -303,6 +327,13 @@ const MobileAppointmentTable = () => {
                 <TableRow
                   key={row.token}
                   className={row.isPlaceholder ? "placeholder-row" : ""}
+                  onClick={() => !row.isPlaceholder && handleEditClick(row)}
+                  onDoubleClick={() =>
+                    !row.isPlaceholder && handleEditClick(row)
+                  }
+                  role="button"
+                  tabIndex={0}
+                  style={{ cursor: row.isPlaceholder ? "default" : "pointer" }}
                 >
                   <TableCell>#{row.token}</TableCell>
                   <TableCell>
@@ -353,16 +384,7 @@ const MobileAppointmentTable = () => {
                       color={getStatusColor(row.status)}
                     />
                   </TableCell>
-                  <TableCell align="center">
-                    {!row.isPlaceholder && (
-                      <IconButton
-                        size="small"
-                        onClick={() => handleEditClick(row)}
-                      >
-                        <Edit fontSize="small" />
-                      </IconButton>
-                    )}
-                  </TableCell>
+                  {/* Remove the Action Column */}
                 </TableRow>
               ))}
             </TableBody>
@@ -420,6 +442,18 @@ const MobileAppointmentTable = () => {
 
         <DialogActions>
           <Button onClick={handleEditModalClose}>Cancel</Button>
+          <Button
+            onClick={handleDeleteAppointment}
+            color="error"
+            variant="contained"
+            disabled={isDeleting}
+          >
+            {isDeleting ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              "Delete"
+            )}
+          </Button>
           <Button
             onClick={handleUpdateAppointment}
             color="primary"
