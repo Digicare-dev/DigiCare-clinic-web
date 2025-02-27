@@ -15,7 +15,7 @@ import logo from "../assets/DigiCare__logo.png";
 import LogoutIcon from "@mui/icons-material/Logout"; // Import logout icon
 import "./Header.module.css";
 
-function Header() {
+function Header({ closeEventSource }) {
   const isMobile = window.innerWidth <= 768;
   const [open, setOpen] = useState(false);
   const { setUser } = useContext(AuthContext);
@@ -33,7 +33,6 @@ function Header() {
     setUser(null);
     logout();
     handleClose();
-    navigate("/login");
   };
 
   return (

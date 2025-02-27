@@ -203,7 +203,7 @@ const PatientItem = ({
               variant="contained"
               color="error"
               onClick={() => setConfirmAction("late")}
-              disabled={loadingType}
+              disabled={!!loadingType}
               startIcon={
                 loadingType === "late" && (
                   <CircularProgress size={20} color="inherit" />
@@ -217,7 +217,7 @@ const PatientItem = ({
               variant="contained"
               color="success"
               onClick={() => setConfirmAction("next")}
-              disabled={loadingType}
+              disabled={!!loadingType}
               startIcon={
                 loadingType === "next" && (
                   <CircularProgress size={20} color="inherit" />
@@ -245,14 +245,14 @@ const PatientItem = ({
         <DialogActions>
           <MuiButton
             onClick={() => setConfirmAction(null)}
-            disabled={loadingType}
+            disabled={!!loadingType}
           >
             Cancel
           </MuiButton>
           <MuiButton
             onClick={handleConfirm}
             color="primary"
-            disabled={loadingType}
+            disabled={!!loadingType}
             startIcon={
               loadingType && <CircularProgress size={20} color="inherit" />
             }

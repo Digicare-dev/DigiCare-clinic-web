@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useEffect } from "react";
 import "./AppointmentTable.css";
 import {
   DataGrid,
@@ -27,6 +28,7 @@ import {
   InputLabel,
   FormControl,
   CircularProgress,
+  Autocomplete,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Tooltip from "@mui/material/Tooltip";
@@ -104,7 +106,9 @@ function generateDisplayRows(actualRows) {
   });
 }
 
-export default function AppointmentTable({ fetchPatientsData }) {
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
+export default function AppointmentTable() {
   const user = JSON.parse(localStorage.getItem("user"));
 
   const [rows, setRows] = React.useState([]);
@@ -129,6 +133,13 @@ export default function AppointmentTable({ fetchPatientsData }) {
     guardian: "",
     appointment_type: "New",
   });
+
+  const genderOptions = [
+    { value: "M", label: "Male" },
+    { value: "F", label: "Female" },
+    { value: "O", label: "Other" },
+  ];
+
   const [suggestedToken, setSuggestedToken] = React.useState();
   const [editConfirmationOpen, setEditConfirmationOpen] = React.useState(false);
   const [pendingRow, setPendingRow] = React.useState(null);
@@ -161,49 +172,72 @@ export default function AppointmentTable({ fetchPatientsData }) {
 
   const displayedRows = React.useMemo(() => generateDisplayRows(rows), [rows]);
 
-  // React.useEffect(() => {
-  //   const eventSource = new EventSource(
-  //     `YOUR_API_ENDPOINT/${user.checkupcabindata[0].id}/${user.checkupcabindata[0].cabin_slots[0]}`
-  //   );
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (!user) return;
 
-  //   eventSource.onmessage = (event) => {
-  //     const data = JSON.parse(event.data);
-  //     const formattedData = data.map((item) => {
-  //       const [firstName, ...lastNameParts] = item.name.split(" ");
-  //       return {
-  //         id: item.token,
-  //         token: item.token,
-  //         appointment_id: item.appointment_id,
-  //         firstName: firstName || "",
-  //         lastName: lastNameParts.join(" ") || "",
-  //         checkin: item.checkin,
-  //         paid: item.paid,
-  //         status: item.status,
-  //         disease: item.disease !== null ? item.disease : "",
-  //         age: item.patient ? item.patient.age : "",
-  //         phone_number: item.patient ? item.patient.phone_number : "",
-  //         location: item.patient ? item.patient.location : "",
-  //         sex: item.patient?.gender || "",
-  //         guardian: item.patient ? item.patient.guardian : "",
-  //         appointment_type:
-  //           item.appointment_type?.charAt(0).toUpperCase() +
-  //           item.appointment_type?.slice(1).toLowerCase(),
-  //       };
-  //     });
+    const doctorId = user.checkupcabindata[0].id;
+    const slotTime = user.checkupcabindata[0].cabin_slots[0];
+    const date = new Date(slotTime);
+    const formattedDate = date
+      .toISOString()
+      .replace(".000", "")
+      .replace("T", " ")
+      .replace("Z", "+00:00");
+    const encodedDate = encodeURIComponent(formattedDate);
+    const sseUrl = `${API_BASE_URL}/doctorinfo/queue_updates/${doctorId}/${encodedDate}`;
 
-  //     setRows(formattedData);
-  //     setLoading(false);
-  //   };
+    const eventSource = new EventSource(sseUrl);
 
-  //   eventSource.onerror = (error) => {
-  //     console.error("EventSource failed:", error);
-  //     eventSource.close();
-  //   };
+    eventSource.onmessage = async (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.appointment) {
+          setRows((prevRows) => {
+            // Handle null patient data safely
+            const patientData = data.appointment.patient || {};
 
-  //   return () => {
-  //     eventSource.close();
-  //   };
-  // }, []);
+            const formattedAppointment = {
+              id: data.appointment.token,
+              token: data.appointment.token,
+              appointment_id: data.appointment.appointment_id,
+              firstName: data.appointment.name.split(" ")[0] || "",
+              lastName:
+                data.appointment.name.split(" ").slice(1).join(" ") || "",
+              checkin: data.appointment.checkin,
+              paid: data.appointment.paid,
+              status: data.appointment.status,
+              disease: data.appointment.disease || "",
+              age: patientData.age || "",
+              phone_number: patientData.phone_number || "",
+              location: patientData.location || "",
+              sex: patientData.gender || "",
+              guardian: patientData.guardian || "",
+              appointment_type: data.appointment.appointment_type,
+            };
+
+            const existingIndex = prevRows.findIndex(
+              (r) => r.appointment_id === data.appointment.appointment_id
+            );
+
+            if (existingIndex !== -1) {
+              const newRows = [...prevRows];
+              newRows[existingIndex] = formattedAppointment;
+              return newRows;
+            }
+
+            return [...prevRows, formattedAppointment].sort(
+              (a, b) => a.token - b.token
+            );
+          });
+        }
+      } catch (error) {
+        // console.error("Error processing appointment update:", error);
+      }
+    };
+
+    return () => eventSource.close();
+  }, []);
 
   const getAppointments = async () => {
     setLoading(true);
@@ -387,31 +421,24 @@ export default function AppointmentTable({ fetchPatientsData }) {
     {
       field: "sex",
       headerName: "Gender",
-      width: 80,
-      type: "singleSelect",
-      valueOptions: [{ value: "", label: " " }, "M", "F", "O"], // Add empty option with space
       editable: true,
-      renderCell: (params) =>
-        params.row.isPlaceholder ? (
-          <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
-        ) : (
-          <span style={{ color: "#1976d2", fontWeight: 600 }}>
-            {params.value === "M" && "Male"} {params.value === "F" && "Female"}
-            {params.value === "O" && "Other"} {!params.value && ""}
-          </span>
-        ),
+      valueFormatter: ({ value }) =>
+        genderOptions.find((opt) => opt.value === value)?.label || value,
       renderEditCell: (params) => (
-        <GridEditSingleSelectCell
-          {...params}
-          getOptionLabel={(option) =>
-            option === "M"
-              ? "Male"
-              : option === "F"
-              ? "Female"
-              : option === "O"
-              ? "Other"
-              : "Select..."
+        <Autocomplete
+          options={genderOptions}
+          getOptionLabel={(option) => option.label}
+          value={
+            genderOptions.find((opt) => opt.value === params.value) || null
           }
+          onChange={(_, newValue) =>
+            params.api.setEditCellValue({
+              id: params.id,
+              field: params.field,
+              value: newValue?.value,
+            })
+          }
+          renderInput={(params) => <TextField {...params} variant="outlined" />}
         />
       ),
     },
@@ -560,7 +587,6 @@ export default function AppointmentTable({ fetchPatientsData }) {
       if (newEntry.sex) payload.gender = newEntry.sex || null;
 
       await addAppointment(payload);
-      await fetchPatientsData();
 
       const itemsPerPage = paginationModel.pageSize;
       const newPage = Math.floor((newEntry.token - 1) / itemsPerPage);
@@ -579,7 +605,7 @@ export default function AppointmentTable({ fetchPatientsData }) {
       const payload = {
         token: newData.token,
         appointment_id: newData.appointment_id,
-        name: `${newData.firstName} ${newData.lastName}`.trim(),
+        name: `${newData.firstName} ${newData.lastName}`.trim().toUpperCase(),
         checkin: newData.checkin,
         paid: newData.paid,
         status: newData.status,
@@ -588,12 +614,11 @@ export default function AppointmentTable({ fetchPatientsData }) {
         phone_number: newData.phone_number,
         location: newData.location,
         gender: newData.sex || null,
-        guardian: newData.guardian,
+        guardian: `${newData.guardian}`.toUpperCase(),
         appointment_type: newData.appointment_type,
       };
 
       await updateAppointmentDetails(payload);
-      await fetchPatientsData();
     } catch (error) {
       console.error("Failed to update appointment:", error);
       throw error;
@@ -628,17 +653,17 @@ export default function AppointmentTable({ fetchPatientsData }) {
       id: parseInt(newAppointment.token),
       token: parseInt(newAppointment.token),
       appointment_id: newAppointment.appointment_id,
-      firstName: trimmedFirstName,
-      lastName: trimmedLastName,
+      firstName: trimmedFirstName.toUpperCase(),
+      lastName: trimmedLastName.toUpperCase(),
       checkin: newAppointment.checkin,
       paid: newAppointment.paid,
       status: newAppointment.status,
       disease: newAppointment.disease,
       age: newAppointment.age,
       phone_number: newAppointment.phone_number,
-      location: newAppointment.location,
+      location: newAppointment.location.toUpperCase(),
       sex: newAppointment.sex,
-      guardian: newAppointment.guardian,
+      guardian: newAppointment.guardian.toUpperCase(),
       appointment_type: newAppointment.appointment_type,
     };
 
@@ -706,7 +731,6 @@ export default function AppointmentTable({ fetchPatientsData }) {
     setIsUpdating(true);
     try {
       await updateAppointmentApi(pendingRow);
-      await getAppointments();
       handleOpenSnackbar("Appointment updated successfully");
 
       // Update local state
@@ -769,7 +793,6 @@ export default function AppointmentTable({ fetchPatientsData }) {
         setRows(updatedRows);
         setCancelConfirmationOpen(false);
         handleOpenSnackbar("Appointment cancelled successfully");
-        await fetchPatientsData();
       }
     } catch (error) {
       handleOpenSnackbar("Failed to cancel appointment", "error");
@@ -980,20 +1003,22 @@ export default function AppointmentTable({ fetchPatientsData }) {
             />
 
             <TextField
-              label="Age"
-              name="age"
-              type="number"
-              value={newAppointment.age}
-              onChange={handleInputChange}
-            />
-
-            <TextField
               label="Mobile"
               name="phone_number"
               value={newAppointment.phone_number}
               onChange={handleInputChange}
               slotProps={{ input: { maxLength: 10 } }}
               fullWidth
+              helperText="Enter mobile number to enable additional fields"
+            />
+
+            <TextField
+              label="Age"
+              name="age"
+              type="number"
+              value={newAppointment.age}
+              onChange={handleInputChange}
+              disabled={!newAppointment.phone_number}
             />
 
             <FormControl component="fieldset">
@@ -1002,6 +1027,7 @@ export default function AppointmentTable({ fetchPatientsData }) {
                 exclusive
                 onChange={handleSexChange}
                 color="primary"
+                disabled={!newAppointment.phone_number}
               >
                 <ToggleButton value="M" color="primary">
                   Male
@@ -1025,6 +1051,7 @@ export default function AppointmentTable({ fetchPatientsData }) {
               name="guardian"
               value={newAppointment.guardian}
               onChange={handleInputChange}
+              disabled={!newAppointment.phone_number}
             />
 
             {/* Place TextField moved here */}

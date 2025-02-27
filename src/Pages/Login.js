@@ -1,4 +1,4 @@
-import React, { useState, useContext, useRef, useEffect } from "react";
+import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { login as loginService } from "../services/authService";
@@ -6,26 +6,28 @@ import {
   TextField,
   Button,
   CircularProgress,
-  Typography,
   FormControl,
   OutlinedInput,
   InputLabel,
   InputAdornment,
   IconButton,
-  useMediaQuery,
+  Typography,
 } from "@mui/material";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import LockIcon from "@mui/icons-material/Lock";
 import { Snackbar, Alert } from "@mui/material";
+import { Navigate } from "react-router-dom";
+
 import "./Login.css";
 
 const Login = () => {
-  const isMobile = useMediaQuery("(max-width:768px)");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { setUser } = useContext(AuthContext);
+  const { user, setUser } = useContext(AuthContext);
+  const navigate = useNavigate();
+
   const [credential, setCredential] = useState({
     username: "",
     password: "",
@@ -35,22 +37,12 @@ const Login = () => {
     message: "",
     severity: "error",
   });
-  const timeoutRef = useRef(null);
 
-  useEffect(() => {
-    return () => {
-      // Clear timeout when component unmounts
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
-
-  const navigate = useNavigate();
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
 
   const handleClickShowPassword = () => setShowPassword((show) => !show);
-
-  const handleMouseDownPassword = (event) => {
-    event.preventDefault();
-  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -62,36 +54,29 @@ const Login = () => {
     setLoading(true);
     try {
       const data = await loginService(credential.username, credential.password);
-      if (data) {
-        localStorage.setItem("user", JSON.stringify(data));
-        setUser(data);
-        navigate("/");
-      }
+      localStorage.setItem("user", JSON.stringify(data));
+      setUser(data);
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      navigate("/", { state: { freshLogin: true } }, { replace: true });
     } catch (error) {
-      // Clear any existing timeout
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-
-      // Set new timeout
-      timeoutRef.current = setTimeout(() => {
-        setSnackbar((prev) => ({ ...prev, open: false }));
-      }, 5000);
-
       let errorMessage = "Login failed. Please try again.";
 
       if (error.response) {
         switch (error.response.status) {
           case 401:
-            errorMessage = "Invalid username or password";
+            errorMessage = "Invalid credentials";
             break;
           case 403:
-            errorMessage = "Account locked. Contact support";
+            errorMessage = "Account locked";
             break;
           case 500:
-            errorMessage = "Server error. Please try again later";
+            errorMessage = "Server error";
             break;
         }
       } else if (error.message.includes("Network Error")) {
-        errorMessage = "Network error. Check your connection";
+        errorMessage = "Network error";
       }
 
       setSnackbar({
@@ -107,11 +92,6 @@ const Login = () => {
   return (
     <div className="login-page-background">
       <div className="desktop-content">
-        {/* <img
-          src="login-illustration.svg"
-          alt="Secure login"
-          className="login-illustration"
-        /> */}
         <Typography
           variant="h3"
           sx={{
@@ -151,7 +131,7 @@ const Login = () => {
             sx={{
               mb: 3,
               "& .MuiOutlinedInput-root": {
-                borderRadius: "12px",
+                borderRadius: "8px",
                 backgroundColor: "#f8f9fa",
               },
             }}
@@ -180,7 +160,7 @@ const Login = () => {
                 <InputAdornment position="end">
                   <IconButton
                     onClick={handleClickShowPassword}
-                    onMouseDown={handleMouseDownPassword}
+                    onMouseDown={(e) => e.preventDefault()}
                     edge="end"
                   >
                     {showPassword ? <Visibility /> : <VisibilityOff />}
@@ -193,7 +173,7 @@ const Login = () => {
                 </InputAdornment>
               }
               sx={{
-                borderRadius: "12px",
+                borderRadius: "8px",
                 backgroundColor: "#f8f9fa",
                 "&:hover fieldset": {
                   borderColor: "#1976d2 !important",
@@ -208,19 +188,16 @@ const Login = () => {
             variant="contained"
             fullWidth
             disabled={loading}
+            className="custom-button"
             sx={{
               py: 1.5,
-              borderRadius: "12px",
+              borderRadius: "8px",
               fontSize: "1rem",
               fontWeight: 600,
               textTransform: "none",
               bgcolor: "#1976d2",
-              boxShadow: "0 4px 6px rgba(50, 50, 93, 0.11)",
-              transition: "all 0.3s ease",
               "&:hover": {
                 bgcolor: "#1565c0",
-                transform: "translateY(-2px)",
-                boxShadow: "0 7px 14px rgba(50, 50, 93, 0.2)",
               },
             }}
           >

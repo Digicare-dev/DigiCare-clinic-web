@@ -16,6 +16,7 @@ import AppointmentTable from "./Pages/AppointmentTable";
 import { EventSource } from "eventsource";
 import AddAppointmentMobile from "./Pages/AddAppointmentMobile";
 import MobileAppointmentTable from "./Pages/MobileAppointmentTable";
+import { Navigate } from "react-router-dom";
 
 import {
   fetchPatients,
@@ -37,12 +38,101 @@ const App = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      setLoading(true);
-      fetchPatientsData();
-      fetchCurrentPositionData();
-    }
-  }, [user, window.location.pathname]);
+    const fetchInitialData = async () => {
+      // Only fetch if user exists and has required data
+      if (user?.checkupcabindata?.[0]?.id) {
+        setLoading(true);
+        try {
+          setPatients([]);
+          setCurrentPosition(null);
+
+          await fetchPatientsData();
+          await fetchCurrentPositionData();
+        } catch (error) {
+          console.error("Initial data fetch error:", error);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    // Use a timeout to ensure localStorage is populated
+    const timeoutId = setTimeout(fetchInitialData, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [user?.checkupcabindata?.[0]?.id]);
+
+  let eventSource;
+
+  useEffect(() => {
+    if (!user?.checkupcabindata?.[0]?.id || loading) return;
+
+    const doctorId = user.checkupcabindata[0].id;
+    const slotTime = user.checkupcabindata[0].cabin_slots[0];
+    const date = new Date(slotTime);
+    const formattedDate = date
+      .toISOString()
+      .replace(".000", "")
+      .replace("T", " ")
+      .replace("Z", "+00:00");
+    const encodedDate = encodeURIComponent(formattedDate);
+    const sseUrl = `${API_BASE_URL}/doctorinfo/queue_updates/${doctorId}/${encodedDate}`;
+
+    eventSource = new EventSource(sseUrl);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const parsedData = JSON.parse(event.data);
+
+        // console.log("SSE Data:", parsedData);
+
+        if (parsedData.queue) {
+          // Assuming the update is the whole patients array
+          setPatients((prevPatients) => {
+            // Find if the patient already exists
+            const existingIndex = prevPatients.findIndex(
+              (p) =>
+                p.appointment.appointment_id ===
+                parsedData.queue.appointment.appointment_id
+            );
+
+            // Create updated patient object with defaults
+            const updatedPatient = {
+              ...parsedData.queue,
+              paid: parsedData.queue.paid || false,
+              checkin: parsedData.queue.checkin || false,
+              status: parsedData.queue.status || "pending",
+              position: parsedData.queue.position,
+            };
+
+            const newPatients = [...prevPatients];
+            if (existingIndex !== -1) {
+              newPatients[existingIndex] = updatedPatient;
+            } else {
+              newPatients.push(updatedPatient);
+            }
+            return newPatients.sort((a, b) => a.position - b.position);
+          });
+        } else if (parsedData.cabinslot) {
+          setCurrentPosition(parsedData.cabinslot.current_number);
+        }
+      } catch (error) {
+        // console.error("Error parsing SSE data:", error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      // console.error("EventSource failed:", error);
+      eventSource.close();
+    };
+
+    return () => {
+      if (eventSource) {
+        eventSource.close();
+        // console.log("SSE connection cleaned up");
+      }
+    };
+  }, [user?.checkupcabindata, loading]);
 
   useEffect(() => {
     if (patients.length > 0 && currentPosition !== null) {
@@ -67,6 +157,7 @@ const App = () => {
       }));
 
       processedData.sort((a, b) => a.position - b.position);
+      // console.log(processedData);
       setPatients(processedData);
     } catch (error) {
       console.error("Error fetching patients:", error);
@@ -145,22 +236,18 @@ const App = () => {
 
   const handleNextPatient = async (id) => {
     const result = await markPatientAsDone(id);
-    await fetchPatientsDataWithoutLoader();
-    await fetchCurrentPositionDataWithoutLoader();
     return result;
   };
 
   const handleLatePatient = async (id, pos) => {
     const result = await markPatientAsLate(id);
-    await fetchPatientsDataWithoutLoader();
-    await fetchCurrentPositionDataWithoutLoader();
+    // await fetchPatientsDataWithoutLoader();
+    // await fetchCurrentPositionDataWithoutLoader();
     return result;
   };
 
   const shufflePosition = async (payload) => {
     await shufflePatientPosition(payload);
-    await fetchPatientsData();
-    await fetchCurrentPositionData();
   };
 
   const addNewAppointment = async (pid, disease, appointmentType) => {
@@ -190,7 +277,10 @@ const App = () => {
             sx={{ flexGrow: 1, padding: "6px", height: "100%", width: "100%" }}
           >
             <Routes>
-              <Route path="/login" element={<Login />} />
+              <Route
+                path="/login"
+                element={user ? <Navigate to="/" replace /> : <Login />}
+              />
               <Route
                 path="/"
                 element={
@@ -246,12 +336,7 @@ const App = () => {
                 path="/appointments"
                 element={
                   <PrivateRoute>
-                    {
-                      <AppointmentTable
-                        key={window.location.pathname}
-                        fetchPatientsData={fetchPatientsData}
-                      />
-                    }
+                    {<AppointmentTable fetchPatientsData={fetchPatientsData} />}
                   </PrivateRoute>
                 }
               />
@@ -279,6 +364,7 @@ const App = () => {
                   </PrivateRoute>
                 }
               />
+              <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
           </Box>
         </Box>
