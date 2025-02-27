@@ -106,14 +106,14 @@ const MobileAppointmentTable = () => {
       const payload = {
         token: selectedAppointment.token,
         appointment_id: selectedAppointment.appointment_id,
+        name: `${selectedAppointment.patientName}`.toUpperCase(), // New field
+        guardian: `${selectedAppointment.guardian}`.toUpperCase(), // New field
         checkin: selectedAppointment.checkin,
         paid: selectedAppointment.paid,
       };
 
-      // Call the API to update the appointment
       await updateAppointmentDetails(payload);
 
-      // Update local state
       setAppointments((prev) =>
         prev.map((apt) =>
           apt.token === selectedAppointment.token ? selectedAppointment : apt
@@ -374,27 +374,50 @@ const MobileAppointmentTable = () => {
       <Dialog open={editModalOpen} onClose={handleEditModalClose}>
         <DialogTitle>Edit Appointment</DialogTitle>
         <DialogContent>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={selectedAppointment?.checkin || false}
-                  onChange={handleCheckinChange}
-                />
-              }
-              label="Check-in"
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={selectedAppointment?.paid || false}
-                  onChange={handlePaymentChange}
-                />
-              }
-              label="Payment"
-            />
-          </Box>
+          <TextField
+            fullWidth
+            label="Patient Name"
+            value={selectedAppointment?.patientName || ""}
+            onChange={(e) =>
+              setSelectedAppointment((prev) => ({
+                ...prev,
+                patientName: e.target.value,
+              }))
+            }
+            margin="dense"
+          />
+          <TextField
+            fullWidth
+            label="Guardian"
+            value={selectedAppointment?.guardian || ""}
+            onChange={(e) =>
+              setSelectedAppointment((prev) => ({
+                ...prev,
+                guardian: e.target.value,
+              }))
+            }
+            margin="dense"
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={selectedAppointment?.checkin || false}
+                onChange={handleCheckinChange}
+              />
+            }
+            label="Checked In"
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={selectedAppointment?.paid || false}
+                onChange={handlePaymentChange}
+              />
+            }
+            label="Payment Done"
+          />
         </DialogContent>
+
         <DialogActions>
           <Button onClick={handleEditModalClose}>Cancel</Button>
           <Button

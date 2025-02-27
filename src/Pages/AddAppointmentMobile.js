@@ -96,18 +96,17 @@ export default function AddAppointmentMobile({ patients }) {
       const payload = {
         cabinId: user.checkupcabindata[0].id,
         slot: user.checkupcabindata[0].cabin_slots[0],
-        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        name: `${formData.firstName} ${formData.lastName}`.trim().toUpperCase(),
         token: formData.token,
         paid: formData.paid,
         checkin: formData.checkin,
         age: formData.age,
         phone_number: formData.phone_number,
-        location: formData.location,
+        location: `${formData.location}`.toUpperCase(),
         gender: formData.sex,
-        guardian: formData.guardian,
+        guardian: `${formData.guardian}`.toUpperCase(),
         disease: formData.disease,
         appointment_type: formData.appointment_type,
-        username: user.username,
       };
 
       await addAppointment(payload);
@@ -185,7 +184,7 @@ export default function AddAppointmentMobile({ patients }) {
             fullWidth
             label="First Name"
             name="firstName"
-            value={formData.firstName}
+            value={formData.firstName.toUpperCase()}
             onChange={handleInputChange}
             required
           />
@@ -193,7 +192,7 @@ export default function AddAppointmentMobile({ patients }) {
             fullWidth
             label="Last Name"
             name="lastName"
-            value={formData.lastName}
+            value={formData.lastName.toUpperCase()}
             onChange={handleInputChange}
             required
           />
@@ -272,7 +271,7 @@ export default function AddAppointmentMobile({ patients }) {
             fullWidth
             label="Guardian"
             name="guardian"
-            value={formData.guardian}
+            value={formData.guardian.toUpperCase()}
             a
             onChange={handleInputChange}
             disabled={!formData.phone_number}
@@ -281,7 +280,7 @@ export default function AddAppointmentMobile({ patients }) {
             fullWidth
             label="Location"
             name="location"
-            value={formData.location}
+            value={formData.location.toUpperCase()}
             onChange={handleInputChange}
             disabled={!formData.phone_number}
           />

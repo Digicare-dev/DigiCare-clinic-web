@@ -8,7 +8,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
-import { Typography, Divider, Skeleton } from "@mui/material";
+import { Typography, Divider, Skeleton, Button } from "@mui/material";
 
 const QueueContainer = ({
   loading,
@@ -24,6 +24,8 @@ const QueueContainer = ({
 }) => {
   const [currentGroup, setCurrentGroup] = useState([]);
   const [upcomingGroup, setUpcomingGroup] = useState([]);
+  const [queueStarted, setQueueStarted] = useState(false); // Track if queue is started
+
   const sortedPatients = [...patients]
     .filter((p) => p.status === "pending")
     .sort((a, b) => a.position - b.position);
@@ -87,8 +89,28 @@ const QueueContainer = ({
     }
   };
 
+  const handleStartQueue = async () => {
+    try {
+      //  await startQueueApi();
+      //  fetchPatientsData();
+      setQueueStarted(true);
+    } catch (error) {
+      console.error("Failed to start queue:", error);
+    }
+  };
   return (
     <div className="queue-container">
+      {!queueStarted && (
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleStartQueue}
+          sx={{ mb: 2 }}
+        >
+          Start Queue
+        </Button>
+      )}
+
       {loading ? (
         <div className="skeleton-container">
           {[...Array(5)].map((_, index) => (
@@ -97,21 +119,18 @@ const QueueContainer = ({
                 variant="rectangular"
                 width="100%"
                 height={100}
-                sx={{
-                  borderRadius: 2,
-                  mb: 2,
-                  bgcolor: "grey.200",
-                }}
+                sx={{ borderRadius: 2, mb: 2, bgcolor: "grey.200" }}
               />
             </div>
           ))}
         </div>
-      ) : sortedPatients.length === 0 ? (
+      ) : !queueStarted ? (
         <div className="empty-queue">
           <Typography variant="h6">Queue is currently empty</Typography>
         </div>
       ) : (
         <>
+          {/* Current Patients */}
           <div className="current-group">
             {currentGroup.map((slot) =>
               slot.isEmpty ? (
@@ -140,6 +159,7 @@ const QueueContainer = ({
             )}
           </div>
 
+          {/* Upcoming Patients */}
           {upcomingGroup.length > 0 && (
             <>
               <Divider sx={{ my: 2 }}>
