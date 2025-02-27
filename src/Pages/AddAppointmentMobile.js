@@ -313,7 +313,6 @@ export default function AddAppointmentMobile({ patients }) {
             label="Guardian"
             name="guardian"
             value={formData.guardian.toUpperCase()}
-            a
             onChange={handleInputChange}
             disabled={!formData.phone_number}
           />
