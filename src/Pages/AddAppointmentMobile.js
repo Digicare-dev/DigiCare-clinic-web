@@ -23,7 +23,7 @@ export default function AddAppointmentMobile({ patients }) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [suggestedToken, setSuggestedToken] = useState("loading...");
+  const [suggestedToken, setSuggestedToken] = useState(1);
   const [openSnackbar, setOpenSnackbar] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -41,13 +41,14 @@ export default function AddAppointmentMobile({ patients }) {
     paid: false,
     status: "pending",
     mode: "",
-    fees: "",
+    fees: 0,
   });
 
   const fetchSuggestedToken = () => {
     if (patients.length > 0) {
       try {
-        const maxToken =
+        let maxToken = 0;
+        maxToken =
           patients.length > 0
             ? Math.max(...patients.map((p) => p.appointment.token))
             : 0;
@@ -80,7 +81,7 @@ export default function AddAppointmentMobile({ patients }) {
       ...prev,
       paid,
       mode: paid ? "cash" : "",
-      fees: paid ? "250" : "",
+      fees: paid ? 250 : 0,
     }));
   };
 
@@ -139,7 +140,7 @@ export default function AddAppointmentMobile({ patients }) {
         checkin: false,
         paid: false,
         mode: "",
-        fees: "",
+        fees: 0,
       });
 
       // Refresh token suggestion
