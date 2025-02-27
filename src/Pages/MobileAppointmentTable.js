@@ -194,7 +194,7 @@ const MobileAppointmentTable = () => {
   }
 
   return (
-    <Box p={1} sx={{ paddingBottom: "50px" }}>
+    <Box p={1} sx={{ paddingBottom: "100px" }}>
       <TextField
         fullWidth
         variant="outlined"
@@ -212,8 +212,9 @@ const MobileAppointmentTable = () => {
       />
       <Box
         sx={{
-          height: "80vh", // Adjust the height as needed
+          height: "calc(90vh - 180px)", // Adjust the height as needed
           overflowY: "auto", // Enable vertical scrolling
+          pb: 4,
         }}
       >
         <TableContainer component={Paper}>
