@@ -40,6 +40,8 @@ export default function AddAppointmentMobile({ patients }) {
     checkin: false,
     paid: false,
     status: "pending",
+    mode: "",
+    fees: "",
   });
 
   const fetchSuggestedToken = () => {
@@ -70,6 +72,16 @@ export default function AddAppointmentMobile({ patients }) {
     if (newSex !== null) {
       setFormData((prev) => ({ ...prev, sex: newSex }));
     }
+  };
+
+  const handlePaidCheckboxChange = (e) => {
+    const paid = e.target.checked;
+    setFormData((prev) => ({
+      ...prev,
+      paid,
+      mode: paid ? "cash" : "",
+      fees: paid ? "250" : "",
+    }));
   };
 
   const validateToken = (token) => {
@@ -107,6 +119,8 @@ export default function AddAppointmentMobile({ patients }) {
         guardian: `${formData.guardian}`.toUpperCase(),
         disease: formData.disease,
         appointment_type: formData.appointment_type,
+        mode: formData.mode,
+        fees: formData.fees,
       };
 
       await addAppointment(payload);
@@ -124,6 +138,8 @@ export default function AddAppointmentMobile({ patients }) {
         guardian: "",
         checkin: false,
         paid: false,
+        mode: "",
+        fees: "",
       });
 
       // Refresh token suggestion
@@ -218,14 +234,39 @@ export default function AddAppointmentMobile({ patients }) {
             control={
               <Checkbox
                 checked={formData.paid}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, paid: e.target.checked }))
-                }
+                onChange={handlePaidCheckboxChange}
               />
             }
             label="Payment"
           />
         </Box>
+
+        {formData.paid && (
+          <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+            <FormControl fullWidth>
+              <InputLabel>Payment Mode</InputLabel>
+              <Select
+                name="mode"
+                value={formData.mode}
+                onChange={handleInputChange}
+                label="Payment Mode"
+              >
+                <MenuItem value="cash">Cash</MenuItem>
+                <MenuItem value="online">Online</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              fullWidth
+              label="Fees"
+              name="fees"
+              type="number"
+              value={formData.fees}
+              onChange={handleInputChange}
+              InputProps={{ inputProps: { min: 0 } }}
+              placeholder="250"
+            />
+          </Box>
+        )}
 
         {/* Age & Mobile Row */}
         <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
