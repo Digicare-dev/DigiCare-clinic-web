@@ -21,6 +21,12 @@ import {
   Button,
   Checkbox,
   FormControlLabel,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 import {
   fetchAppointments,
@@ -111,10 +117,18 @@ const MobileAppointmentTable = () => {
       const payload = {
         token: selectedAppointment.token,
         appointment_id: selectedAppointment.appointment_id,
-        name: `${selectedAppointment.patientName}`.toUpperCase(), // New field
-        guardian: `${selectedAppointment.guardian}`.toUpperCase(), // New field
+        name: `${selectedAppointment.patientName}`.toUpperCase(),
+        guardian: `${selectedAppointment.guardian}`.toUpperCase(),
         checkin: selectedAppointment.checkin,
         paid: selectedAppointment.paid,
+        mode: selectedAppointment.mode || "",
+        fees_paid: selectedAppointment.fees_paid || 0,
+        disease: selectedAppointment.disease || null,
+        appointment_type: selectedAppointment.appointment_type || "New",
+        phone_number: selectedAppointment.phone_number || "",
+        age: selectedAppointment.age || "",
+        gender: selectedAppointment.sex || "",
+        location: selectedAppointment.location || "",
       };
 
       await updateAppointmentDetails(payload);
@@ -141,10 +155,23 @@ const MobileAppointmentTable = () => {
   };
 
   const handlePaymentChange = (event) => {
+    const checked = event.target.checked;
+
     setSelectedAppointment((prev) => ({
       ...prev,
-      paid: event.target.checked,
+      paid: checked,
+      mode: checked ? prev.mode || "cash" : "",
+      fees_paid: checked ? prev.fees_paid || 250 : 0,
     }));
+  };
+
+  const handleSexChange = (event, newSex) => {
+    if (newSex !== null) {
+      setSelectedAppointment((prev) => ({
+        ...prev,
+        sex: newSex,
+      }));
+    }
   };
 
   const fetchAppointmentsData = async () => {
@@ -164,6 +191,14 @@ const MobileAppointmentTable = () => {
         guardian: item?.patient?.guardian || "N/A",
         isPlaceholder: false,
         appointment_id: item.appointment_id,
+        mode: item.mode || "",
+        fees_paid: item.fees_paid || 0,
+        disease: item.disease || null,
+        appointment_type: item.appointment_type || "New",
+        phone_number: item.phone_number || "",
+        age: item.age || "",
+        sex: item.sex || "",
+        location: item.location || "",
       }));
 
       setAppointments(formatted);
@@ -220,6 +255,13 @@ const MobileAppointmentTable = () => {
               guardian: parsedData?.patient?.guardian || "N/A",
               isPlaceholder: false,
               appointment_id: parsedData.appointment.appointment_id,
+              disease: parsedData.appointment.disease || null,
+              appointment_type:
+                parsedData.appointment.appointment_type || "New",
+              phone_number: parsedData.appointment.phone_number || "",
+              age: parsedData.appointment.age || "",
+              sex: parsedData.appointment.sex || "",
+              location: parsedData.appointment.location || "",
             };
 
             if (existingIndex !== -1) {
@@ -236,7 +278,7 @@ const MobileAppointmentTable = () => {
     };
 
     eventSource.onerror = (error) => {
-      console.error("SSE error:", error);
+      // console.error("SSE error:", error);
       eventSource.close();
     };
 
@@ -389,11 +431,11 @@ const MobileAppointmentTable = () => {
           </Table>
         </TableContainer>
       </Box>
-
       {/* Edit Modal */}
       <Dialog open={editModalOpen} onClose={handleEditModalClose}>
         <DialogTitle>Edit Appointment</DialogTitle>
         <DialogContent>
+          {/* Patient Name */}
           <TextField
             fullWidth
             label="Patient Name"
@@ -406,6 +448,94 @@ const MobileAppointmentTable = () => {
             }
             margin="dense"
           />
+
+          {/* Check-in and Payment Row */}
+          <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={selectedAppointment?.checkin || false}
+                  onChange={handleCheckinChange}
+                />
+              }
+              label="Checked In"
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={selectedAppointment?.paid || false}
+                  onChange={handlePaymentChange}
+                />
+              }
+              label="Payment"
+            />
+          </Box>
+
+          {/* Payment Mode and Fees Paid Row */}
+          {selectedAppointment?.paid && (
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <FormControl fullWidth>
+                <InputLabel>Payment Mode</InputLabel>
+                <Select
+                  value={selectedAppointment?.mode || "cash"}
+                  onChange={(e) =>
+                    setSelectedAppointment((prev) => ({
+                      ...prev,
+                      mode: e.target.value,
+                    }))
+                  }
+                  label="Payment Mode"
+                >
+                  <MenuItem value="cash">Cash</MenuItem>
+                  <MenuItem value="online">Online</MenuItem>
+                </Select>
+              </FormControl>
+              <TextField
+                fullWidth
+                label="Fees Paid"
+                type="number"
+                value={selectedAppointment?.fees_paid || 0}
+                onChange={(e) =>
+                  setSelectedAppointment((prev) => ({
+                    ...prev,
+                    fees_paid: Number(e.target.value),
+                  }))
+                }
+              />
+            </Box>
+          )}
+
+          {/* Mobile and Age Row */}
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <TextField
+              fullWidth
+              label="Mobile"
+              slotProps={{ input: { maxLength: 10 } }}
+              value={selectedAppointment?.phone_number || ""}
+              onChange={(e) => {
+                if (e.target.value.length > 10) {
+                  return;
+                }
+                setSelectedAppointment((prev) => ({
+                  ...prev,
+                  phone_number: e.target.value,
+                }));
+              }}
+              margin="dense"
+            />
+            <TextField
+              fullWidth
+              label="Age"
+              value={selectedAppointment?.age || ""}
+              onChange={(e) =>
+                setSelectedAppointment((prev) => ({
+                  ...prev,
+                  age: e.target.value,
+                }))
+              }
+              margin="dense"
+            />
+          </Box>
           <TextField
             fullWidth
             label="Guardian"
@@ -418,23 +548,75 @@ const MobileAppointmentTable = () => {
             }
             margin="dense"
           />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={selectedAppointment?.checkin || false}
-                onChange={handleCheckinChange}
-              />
+
+          {/* Gender Toggle Group */}
+          <ToggleButtonGroup
+            value={selectedAppointment?.sex || ""}
+            exclusive
+            onChange={handleSexChange}
+            color="primary"
+            fullWidth
+            sx={{ mb: 1.5 }}
+          >
+            <ToggleButton value="M">Male</ToggleButton>
+            <ToggleButton value="F">Female</ToggleButton>
+            <ToggleButton value="O">Other</ToggleButton>
+          </ToggleButtonGroup>
+
+          {/* Location and Appointment Type Row */}
+          <Box
+            sx={{
+              display: "flex",
+              gap: 1,
+              mb: 1,
+              alignItems: "center",
+            }}
+          >
+            <TextField
+              fullWidth
+              label="Location"
+              value={selectedAppointment?.location || ""}
+              onChange={(e) =>
+                setSelectedAppointment((prev) => ({
+                  ...prev,
+                  location: e.target.value,
+                }))
+              }
+              margin="dense"
+              sx={{ marginBottom: "0" }}
+            />
+            <FormControl fullWidth>
+              <InputLabel sx={{ mt: 1 }}>Appointment Type</InputLabel>
+              <Select
+                value={selectedAppointment?.appointment_type || "New"}
+                onChange={(e) =>
+                  setSelectedAppointment((prev) => ({
+                    ...prev,
+                    appointment_type: e.target.value,
+                  }))
+                }
+                label="Appointment Type"
+                sx={{ mt: 1 }}
+              >
+                <MenuItem value="New">New</MenuItem>
+                <MenuItem value="Follow-up">Follow-up</MenuItem>
+                <MenuItem value="Emergency">Emergency</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+
+          {/* Disease */}
+          <TextField
+            fullWidth
+            label="Disease"
+            value={selectedAppointment?.disease || ""}
+            onChange={(e) =>
+              setSelectedAppointment((prev) => ({
+                ...prev,
+                disease: e.target.value,
+              }))
             }
-            label="Checked In"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={selectedAppointment?.paid || false}
-                onChange={handlePaymentChange}
-              />
-            }
-            label="Payment Done"
+            margin="dense"
           />
         </DialogContent>
 
@@ -465,7 +647,7 @@ const MobileAppointmentTable = () => {
             )}
           </Button>
         </DialogActions>
-      </Dialog>
+      </Dialog>{" "}
     </Box>
   );
 };

@@ -891,7 +891,7 @@ export default function AppointmentTable() {
   };
 
   const isCellEditable = (params) => {
-    return params.row.status === "pending";
+    return true;
   };
 
   const getRowClassName = (params) => {
