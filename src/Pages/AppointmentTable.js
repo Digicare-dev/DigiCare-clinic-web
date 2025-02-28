@@ -141,7 +141,7 @@ export default function AppointmentTable() {
     () =>
       rows
         .filter((row) => row.paid)
-        .reduce((sum, row) => sum + (row.fees || 0), 0),
+        .reduce((sum, row) => sum + (row.fees_paid || 0), 0),
     [rows]
   );
 
@@ -173,7 +173,7 @@ export default function AppointmentTable() {
     () =>
       rows
         .filter((row) => row.paid && row.mode === "cash")
-        .reduce((sum, row) => sum + (row.fees || 0), 0),
+        .reduce((sum, row) => sum + (row.fees_paid || 0), 0),
     [rows]
   );
 
@@ -181,7 +181,7 @@ export default function AppointmentTable() {
     () =>
       rows
         .filter((row) => row.paid && row.mode === "online")
-        .reduce((sum, row) => sum + (row.fees || 0), 0),
+        .reduce((sum, row) => sum + (row.fees_paid || 0), 0),
     [rows]
   );
 
@@ -266,7 +266,7 @@ export default function AppointmentTable() {
               guardian: patientData.guardian || "",
               appointment_type: data.appointment.appointment_type,
               mode: data.mode || "",
-              fees: data.fees || 0,
+              fees_paid: data.fees_paid || 0,
             };
 
             const existingIndex = prevRows.findIndex(
@@ -321,7 +321,7 @@ export default function AppointmentTable() {
               item.appointment_type?.charAt(0).toUpperCase() +
               item.appointment_type?.slice(1).toLowerCase(),
             mode: item.mode || "",
-            fees: item.fees || 0,
+            fees_paid: item.fees_paid || 0,
           };
         });
 
@@ -366,7 +366,7 @@ export default function AppointmentTable() {
       checkin: false,
       paid: false,
       mode: "cash",
-      fees: 0,
+      fee_paids: 0,
       status: "pending",
       disease: "",
       age: "",
@@ -580,7 +580,7 @@ export default function AppointmentTable() {
         ),
     },
     {
-      field: "fees",
+      field: "fees_paid",
       headerName: "Fees",
       width: 100,
       editable: true,
@@ -632,8 +632,6 @@ export default function AppointmentTable() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
 
-    console.log(name, value);
-
     if (name === "phone_number" && value.length > 10) {
       return;
     }
@@ -674,7 +672,7 @@ export default function AppointmentTable() {
       if (newEntry.sex) payload.gender = newEntry.sex || null;
 
       await addAppointment(payload);
-
+      await getAppointments();
       const itemsPerPage = paginationModel.pageSize;
       const newPage = Math.floor((newEntry.token - 1) / itemsPerPage);
 
@@ -704,7 +702,7 @@ export default function AppointmentTable() {
         guardian: `${newData.guardian}`.toUpperCase(),
         appointment_type: newData.appointment_type,
         mode: newData.mode,
-        fees_paid: newData.fees,
+        fees_paid: newData.fees_paid,
       };
 
       await updateAppointmentDetails(payload);
@@ -754,7 +752,7 @@ export default function AppointmentTable() {
       sex: newAppointment.sex,
       guardian: newAppointment.guardian.toUpperCase(),
       appointment_type: newAppointment.appointment_type,
-      fees_paid: newAppointment.fees,
+      fees_paid: newAppointment.fees_paid,
       mode: newAppointment.mode,
     };
 
@@ -909,10 +907,6 @@ export default function AppointmentTable() {
     }
     return "data-row";
   };
-
-  useEffect(() => {
-    console.log(newAppointment);
-  }, [newAppointment]);
 
   return (
     <div
@@ -1255,7 +1249,7 @@ export default function AppointmentTable() {
                         ...prev,
                         paid: e.target.checked,
                         mode: e.target.checked ? "cash" : "",
-                        fees: e.target.checked ? 250 : 0,
+                        fees_paid: e.target.checked ? 250 : 0,
                       }))
                     }
                   />
@@ -1281,9 +1275,9 @@ export default function AppointmentTable() {
                 <TextField
                   fullWidth
                   label="Fees"
-                  name="fees"
+                  name="fees_paid"
                   type="number"
-                  value={newAppointment.fees}
+                  value={newAppointment.fees_paid}
                   onChange={handleInputChange}
                   InputProps={{ inputProps: { min: 0 } }}
                 />
