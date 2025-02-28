@@ -134,6 +134,57 @@ export default function AppointmentTable() {
     appointment_type: "New",
   });
 
+  const [showCollectionDetails, setShowCollectionDetails] =
+    React.useState(false);
+
+  const totalCollection = React.useMemo(
+    () =>
+      rows
+        .filter((row) => row.paid)
+        .reduce((sum, row) => sum + (row.fees || 0), 0),
+    [rows]
+  );
+
+  const totalPatients = React.useMemo(
+    () => rows.filter((row) => !row.isPlaceholder).length,
+    [rows]
+  );
+
+  const totalCheckedIn = React.useMemo(
+    () => rows.filter((row) => row.checkin && !row.isPlaceholder).length,
+    [rows]
+  );
+
+  const totalPending = React.useMemo(
+    () =>
+      rows.filter((row) => row.status === "pending" && !row.isPlaceholder)
+        .length,
+    [rows]
+  );
+
+  const totalCompleted = React.useMemo(
+    () =>
+      rows.filter((row) => row.status === "done_checkup" && !row.isPlaceholder)
+        .length,
+    [rows]
+  );
+
+  const cashTotal = React.useMemo(
+    () =>
+      rows
+        .filter((row) => row.paid && row.mode === "cash")
+        .reduce((sum, row) => sum + (row.fees || 0), 0),
+    [rows]
+  );
+
+  const onlineTotal = React.useMemo(
+    () =>
+      rows
+        .filter((row) => row.paid && row.mode === "online")
+        .reduce((sum, row) => sum + (row.fees || 0), 0),
+    [rows]
+  );
+
   const genderOptions = [
     { value: "M", label: "Male" },
     { value: "F", label: "Female" },
@@ -214,6 +265,8 @@ export default function AppointmentTable() {
               sex: patientData.gender || "",
               guardian: patientData.guardian || "",
               appointment_type: data.appointment.appointment_type,
+              mode: data.mode || "",
+              fees: data.fees || 0,
             };
 
             const existingIndex = prevRows.findIndex(
@@ -267,6 +320,8 @@ export default function AppointmentTable() {
             appointment_type:
               item.appointment_type?.charAt(0).toUpperCase() +
               item.appointment_type?.slice(1).toLowerCase(),
+            mode: item.mode || "",
+            fees: item.fees || 0,
           };
         });
 
@@ -310,6 +365,8 @@ export default function AppointmentTable() {
       lastName: "",
       checkin: false,
       paid: false,
+      mode: "cash",
+      fees: 0,
       status: "pending",
       disease: "",
       age: "",
@@ -523,6 +580,32 @@ export default function AppointmentTable() {
         ),
     },
     {
+      field: "fees",
+      headerName: "Fees",
+      width: 100,
+      editable: true,
+      type: "number",
+      renderCell: (params) => {
+        if (params.row.isPlaceholder) return "N/A";
+        return params.value;
+      },
+    },
+    {
+      field: "mode",
+      headerName: "Payment Mode",
+      width: 130,
+      editable: true,
+      type: "singleSelect",
+      valueOptions: ["cash", "online"],
+      renderCell: (params) => {
+        if (params.row.isPlaceholder) return "N/A";
+        return params.value
+          ? params.value.charAt(0).toUpperCase() + params.value.slice(1)
+          : "";
+      },
+    },
+
+    {
       field: "action",
       headerName: "Action",
       width: 80,
@@ -548,6 +631,8 @@ export default function AppointmentTable() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+
+    console.log(name, value);
 
     if (name === "phone_number" && value.length > 10) {
       return;
@@ -575,6 +660,8 @@ export default function AppointmentTable() {
         token: newEntry.token,
         paid: newEntry.paid,
         checkin: newEntry.checkin,
+        mode: newEntry.mode,
+        fees_paid: newEntry.fees_paid,
       };
 
       if (newEntry.age) payload.age = newEntry.age;
@@ -616,6 +703,8 @@ export default function AppointmentTable() {
         gender: newData.sex || null,
         guardian: `${newData.guardian}`.toUpperCase(),
         appointment_type: newData.appointment_type,
+        mode: newData.mode,
+        fees_paid: newData.fees,
       };
 
       await updateAppointmentDetails(payload);
@@ -665,6 +754,8 @@ export default function AppointmentTable() {
       sex: newAppointment.sex,
       guardian: newAppointment.guardian.toUpperCase(),
       appointment_type: newAppointment.appointment_type,
+      fees_paid: newAppointment.fees,
+      mode: newAppointment.mode,
     };
 
     setRows((prev) => [...prev, newEntry].sort((a, b) => a.token - b.token));
@@ -819,6 +910,10 @@ export default function AppointmentTable() {
     return "data-row";
   };
 
+  useEffect(() => {
+    console.log(newAppointment);
+  }, [newAppointment]);
+
   return (
     <div
       style={{
@@ -829,9 +924,92 @@ export default function AppointmentTable() {
         maxWidth: "95%",
       }}
     >
-      <Button onClick={handleOpen} variant="contained" sx={{ mb: 2 }}>
-        New Appointment
-      </Button>
+      <Box sx={{ display: "flex", gap: 2, mb: 2, alignItems: "center" }}>
+        <Button onClick={handleOpen} variant="contained">
+          New Appointment
+        </Button>
+
+        <Button
+          variant="outlined"
+          onClick={() => setShowCollectionDetails(!showCollectionDetails)}
+          sx={{
+            ml: 2,
+            backgroundColor: showCollectionDetails ? "#f0f0f0" : "transparent",
+            "&:hover": { backgroundColor: "#f5f5f5" },
+          }}
+        >
+          <Typography variant="subtitle1" fontWeight="600">
+            Summary
+          </Typography>
+        </Button>
+      </Box>
+
+      {showCollectionDetails && (
+        <Box
+          sx={{
+            mb: 2,
+            p: 2,
+            border: "1px solid #e0e0e0",
+            borderRadius: 1,
+            backgroundColor: "#fafafa",
+            display: "flex",
+            gap: 4,
+            flexWrap: "wrap",
+          }}
+        >
+          {/* Payment Breakdown */}
+          <Box>
+            <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+              Payment Breakdown
+            </Typography>
+            <Typography variant="body1">
+              Total Collection: ₹{totalCollection}
+            </Typography>
+            <Typography variant="body1">Cash: ₹{cashTotal}</Typography>
+            <Typography variant="body1">Online: ₹{onlineTotal}</Typography>
+          </Box>
+
+          {/* Appointment Statistics */}
+          <Box>
+            <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+              Appointment Statistics
+            </Typography>
+            <Typography variant="body1">
+              Total Patients: {totalPatients}
+            </Typography>
+            <Typography variant="body1">
+              Checked-In: {totalCheckedIn}
+            </Typography>
+            <Typography variant="body1">Pending: {totalPending}</Typography>
+            <Typography variant="body1">Completed: {totalCompleted}</Typography>
+          </Box>
+
+          {/* Additional Metrics (Optional) */}
+          <Box>
+            <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+              Additional Metrics
+            </Typography>
+            <Typography variant="body1">
+              New Appointments:{" "}
+              {rows.filter((row) => row.appointment_type === "New").length}
+            </Typography>
+            <Typography variant="body1">
+              Follow-ups:{" "}
+              {
+                rows.filter((row) => row.appointment_type === "Follow-up")
+                  .length
+              }
+            </Typography>
+            <Typography variant="body1">
+              Emergencies:{" "}
+              {
+                rows.filter((row) => row.appointment_type === "Emergency")
+                  .length
+              }
+            </Typography>
+          </Box>
+        </Box>
+      )}
 
       <div
         style={{
@@ -970,7 +1148,6 @@ export default function AppointmentTable() {
               required
               helperText={`Suggested token: ${suggestedToken}`}
             />
-
             <FormControl fullWidth>
               <InputLabel>Appointment Type *</InputLabel>
               <Select
@@ -985,7 +1162,6 @@ export default function AppointmentTable() {
                 <MenuItem value="Routine">Routine</MenuItem>
               </Select>
             </FormControl>
-
             <TextField
               label="First Name"
               name="firstName"
@@ -993,7 +1169,6 @@ export default function AppointmentTable() {
               onChange={handleInputChange}
               required
             />
-
             <TextField
               label="Last Name"
               name="lastName"
@@ -1001,7 +1176,6 @@ export default function AppointmentTable() {
               onChange={handleInputChange}
               required
             />
-
             <TextField
               label="Mobile"
               name="phone_number"
@@ -1011,7 +1185,6 @@ export default function AppointmentTable() {
               fullWidth
               helperText="Enter mobile number to enable additional fields"
             />
-
             <TextField
               label="Age"
               name="age"
@@ -1020,7 +1193,6 @@ export default function AppointmentTable() {
               onChange={handleInputChange}
               disabled={!newAppointment.phone_number}
             />
-
             <FormControl component="fieldset">
               <ToggleButtonGroup
                 value={newAppointment.sex}
@@ -1038,14 +1210,12 @@ export default function AppointmentTable() {
                 <ToggleButton value="O">Other</ToggleButton>
               </ToggleButtonGroup>
             </FormControl>
-
             <TextField
               label="Disease"
               name="disease"
               value={newAppointment.disease}
               onChange={handleInputChange}
             />
-
             <TextField
               label="Guardian"
               name="guardian"
@@ -1053,7 +1223,6 @@ export default function AppointmentTable() {
               onChange={handleInputChange}
               disabled={!newAppointment.phone_number}
             />
-
             {/* Place TextField moved here */}
             <TextField
               label="Place"
@@ -1061,7 +1230,6 @@ export default function AppointmentTable() {
               value={newAppointment.location}
               onChange={handleInputChange}
             />
-
             <Box sx={{ display: "flex", alignItems: "center" }}>
               <FormControlLabel
                 control={
@@ -1086,6 +1254,8 @@ export default function AppointmentTable() {
                       setNewAppointment((prev) => ({
                         ...prev,
                         paid: e.target.checked,
+                        mode: e.target.checked ? "cash" : "",
+                        fees: e.target.checked ? 250 : 0,
                       }))
                     }
                   />
@@ -1093,7 +1263,32 @@ export default function AppointmentTable() {
                 label="Payment"
                 sx={{ display: "block", mb: 2 }}
               />
-            </Box>
+            </Box>{" "}
+            {newAppointment.paid && (
+              <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+                <FormControl fullWidth>
+                  <InputLabel>Payment Mode</InputLabel>
+                  <Select
+                    name="mode"
+                    value={newAppointment.mode}
+                    onChange={handleInputChange}
+                    label="Payment Mode"
+                  >
+                    <MenuItem value="cash">Cash</MenuItem>
+                    <MenuItem value="online">Online</MenuItem>
+                  </Select>
+                </FormControl>
+                <TextField
+                  fullWidth
+                  label="Fees"
+                  name="fees"
+                  type="number"
+                  value={newAppointment.fees}
+                  onChange={handleInputChange}
+                  InputProps={{ inputProps: { min: 0 } }}
+                />
+              </Box>
+            )}
           </div>
 
           <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end" }}>
