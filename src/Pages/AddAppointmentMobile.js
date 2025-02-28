@@ -41,7 +41,7 @@ export default function AddAppointmentMobile({ patients }) {
     paid: false,
     status: "pending",
     mode: "",
-    fees: 0,
+    fees_paid: 0,
   });
 
   const fetchSuggestedToken = () => {
@@ -81,7 +81,7 @@ export default function AddAppointmentMobile({ patients }) {
       ...prev,
       paid,
       mode: paid ? "cash" : "",
-      fees: paid ? 250 : 0,
+      fees_paid: paid ? 250 : 0,
     }));
   };
 
@@ -120,8 +120,8 @@ export default function AddAppointmentMobile({ patients }) {
         guardian: `${formData.guardian}`.toUpperCase(),
         disease: formData.disease,
         appointment_type: formData.appointment_type,
-        mode: formData.mode,
-        fees: formData.fees,
+        mode: formData.mode || "",
+        fees_paid: formData.fees_paid || 0,
       };
 
       await addAppointment(payload);
@@ -140,7 +140,7 @@ export default function AddAppointmentMobile({ patients }) {
         checkin: false,
         paid: false,
         mode: "",
-        fees: 0,
+        fees_paid: 0,
       });
 
       // Refresh token suggestion
@@ -259,9 +259,9 @@ export default function AddAppointmentMobile({ patients }) {
             <TextField
               fullWidth
               label="Fees"
-              name="fees"
+              name="fees_paid"
               type="number"
-              value={formData.fees}
+              value={formData.fees_paid}
               onChange={handleInputChange}
               InputProps={{ inputProps: { min: 0 } }}
               placeholder="250"

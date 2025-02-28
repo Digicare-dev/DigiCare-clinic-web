@@ -247,7 +247,6 @@ export default function AppointmentTable() {
           setRows((prevRows) => {
             // Handle null patient data safely
             const patientData = data.appointment.patient || {};
-
             const formattedAppointment = {
               id: data.appointment.token,
               token: data.appointment.token,
@@ -265,8 +264,8 @@ export default function AppointmentTable() {
               sex: patientData.gender || "",
               guardian: patientData.guardian || "",
               appointment_type: data.appointment.appointment_type,
-              mode: data.mode || "",
-              fees_paid: data.fees_paid || 0,
+              mode: data.appointment.mode || "",
+              fees_paid: data.appointment.fees_paid || 0,
             };
 
             const existingIndex = prevRows.findIndex(
