@@ -100,12 +100,7 @@ const MobileAppointmentTable = () => {
     );
   }, [appointments, searchQuery]);
 
-  useEffect(() => {
-    console.log(appointments);
-  }, [appointments]);
-
   const handleEditClick = (appointment) => {
-    console.log(appointment);
     setSelectedAppointment(appointment);
     setEditModalOpen(true);
   };
@@ -209,7 +204,6 @@ const MobileAppointmentTable = () => {
       setAppointments(formatted);
       setLoading(false);
     } catch (err) {
-      console.log(err);
       setError("Failed to load appointments");
       setLoading(false);
     }
