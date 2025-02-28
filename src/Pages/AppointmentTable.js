@@ -238,7 +238,7 @@ export default function AppointmentTable() {
     const encodedDate = encodeURIComponent(formattedDate);
     const sseUrl = `${API_BASE_URL}/doctorinfo/queue_updates/${doctorId}/${encodedDate}`;
 
-    const eventSource = new EventSource(sseUrl);
+    const eventSource = new EventSource(sseUrl, { withCredentials: true });
 
     eventSource.onmessage = async (event) => {
       try {

@@ -78,7 +78,7 @@ const App = () => {
     const encodedDate = encodeURIComponent(formattedDate);
     const sseUrl = `${API_BASE_URL}/doctorinfo/queue_updates/${doctorId}/${encodedDate}`;
 
-    eventSource = new EventSource(sseUrl);
+    eventSource = new EventSource(sseUrl, { withCredentials: true });
 
     eventSource.onmessage = (event) => {
       try {
