@@ -657,8 +657,8 @@ export default function AppointmentTable() {
         token: newEntry.token,
         paid: newEntry.paid,
         checkin: newEntry.checkin,
-        mode: newEntry.mode,
-        fees_paid: newEntry.fees_paid,
+        mode: newEntry.mode || "",
+        fees_paid: newEntry.fees_paid || 0,
       };
 
       if (newEntry.age) payload.age = newEntry.age;
@@ -700,8 +700,8 @@ export default function AppointmentTable() {
         gender: newData.sex || null,
         guardian: `${newData.guardian}`.toUpperCase(),
         appointment_type: newData.appointment_type,
-        mode: newData.mode,
-        fees_paid: newData.fees_paid,
+        mode: newData.mode || "",
+        fees_paid: newData.fees_paid || 0,
       };
 
       await updateAppointmentDetails(payload);
