@@ -38,14 +38,17 @@ const PatientItem = ({
 }) => {
   const [confirmAction, setConfirmAction] = useState(null);
   const [loadingType, setLoadingType] = useState(null);
-  const [isLocked, setIsLocked] = useState(true);
-  const [confirmUnlock, setConfirmUnlock] = useState(false);
 
-  const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({
-      id: appointment.appointment_id,
-      enabled: !isLocked,
-    });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: appointment.appointment_id,
+  });
 
   const handleConfirm = async () => {
     if (!confirmAction) return;
@@ -62,22 +65,15 @@ const PatientItem = ({
     } finally {
       setConfirmAction(null);
       setLoadingType(null);
-      setIsLocked(true);
     }
-  };
-
-  const handleUnlock = () => {
-    setConfirmUnlock(true);
-  };
-
-  const handleLock = () => {
-    setIsLocked(true);
   };
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: transition || "none",
     position: "relative",
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1000 : "auto",
   };
 
   const type =
@@ -92,21 +88,10 @@ const PatientItem = ({
       ref={setNodeRef}
       style={style}
       className={`patient-item ${type} ${late ? "late" : ""}`}
+      id={appointment.appointment_id}
     >
       <div className="patient-content">
         <div className="patient-info">
-          <Tooltip title={isLocked ? "Unlock to move" : "Lock position"}>
-            <IconButton
-              onClick={isLocked ? handleUnlock : handleLock}
-              sx={{ position: "absolute", left: 8, top: 8 }}
-            >
-              {isLocked ? (
-                <Lock fontSize="small" />
-              ) : (
-                <LockOpen fontSize="small" />
-              )}
-            </IconButton>
-          </Tooltip>
           <div className="token-badge">
             <MedicalServices fontSize="small" />
             <div className="token-details">
@@ -263,31 +248,12 @@ const PatientItem = ({
           <div // currently accepting the dragging in top 5
             className="drag-handle"
             {...attributes}
-            {...(isLocked ? {} : listeners)}
+            {...listeners}
           >
             <DragHandleIcon />
           </div>
         }
       </div>
-
-      <Dialog open={confirmUnlock} onClose={() => setConfirmUnlock(false)}>
-        <DialogTitle>Confirm Unlock</DialogTitle>
-        <DialogContent>
-          Are you sure you want to unlock this patient's position?
-        </DialogContent>
-        <DialogActions>
-          <MuiButton onClick={() => setConfirmUnlock(false)}>Cancel</MuiButton>
-          <MuiButton
-            onClick={() => {
-              setIsLocked(false);
-              setConfirmUnlock(false);
-            }}
-            color="primary"
-          >
-            Confirm Unlock
-          </MuiButton>
-        </DialogActions>
-      </Dialog>
 
       <Dialog open={!!confirmAction} onClose={() => setConfirmAction(null)}>
         <DialogTitle>Confirm Action</DialogTitle>

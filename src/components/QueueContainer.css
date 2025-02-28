@@ -212,3 +212,59 @@
     margin-left: -10px;
   }
 }
+
+/* Drop indicators */
+.drop-indicator {
+  position: relative;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.drop-indicator.top::before,
+.drop-indicator.bottom::after {
+  content: "";
+  position: absolute;
+  background: #1976d2;
+  left: 0;
+  right: 0;
+  height: 2px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.drop-indicator.top::before {
+  top: -1px;
+  box-shadow: 0 -2px 4px rgba(25, 118, 210, 0.2);
+}
+
+.drop-indicator.bottom::after {
+  bottom: -1px;
+  box-shadow: 0 2px 4px rgba(25, 118, 210, 0.2);
+}
+
+.drop-indicator.active.top::before,
+.drop-indicator.active.bottom::after {
+  opacity: 1;
+}
+
+/* Alternative drop line style */
+.drop-line {
+  position: absolute;
+  background: #1976d2;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 1000;
+}
+
+.drop-line.top {
+  top: -1px;
+}
+
+.drop-line.bottom {
+  bottom: -1px;
+}
+
+/* Dragging state */
+.patient-item.dragging {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}

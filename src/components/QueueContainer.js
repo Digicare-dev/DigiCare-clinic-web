@@ -9,8 +9,6 @@ import {
 } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import {
-  Typography,
-  Divider,
   Skeleton,
   Button,
   DialogActions,
@@ -28,39 +26,22 @@ const QueueContainer = ({
   handleNextPatient,
   handleLatePatient,
   shufflePosition,
-  fetchPatientsData,
   fetchPatientsDataWithoutLoader,
   fetchCurrentPositionDataWithoutLoader,
 }) => {
-  const [currentGroup, setCurrentGroup] = useState([]);
-  const [upcomingGroup, setUpcomingGroup] = useState([]);
-  const [lock, setLock] = useState(true);
+  const [mergedGroup, setMergedGroup] = useState([]);
   const [confirmDrag, setConfirmDrag] = useState(false);
   const [dragActiveId, setDragActiveId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
   const originalPatientsRef = useRef([]);
   const [isShifting, setIsShifting] = useState(false);
 
-  const sortedPatients = [...patients]
-    .filter((p) => p.status === "pending")
-    .sort((a, b) => a.position - b.position);
-
   useEffect(() => {
     const sortedPatients = [...patients]
       .filter((p) => p.status === "pending")
       .sort((a, b) => a.position - b.position);
 
-    const positions = sortedPatients.map((p) => p.position);
-    const maxPosition = Math.max(...positions, currentPosition + 4);
-    const allSlots = Array.from({ length: maxPosition }, (_, i) => {
-      const position = i + 1;
-      const patient = sortedPatients.find((p) => p.position === position);
-      return patient || { position, isEmpty: true };
-    });
-
-    const currentEnd = Math.min(currentPosition + 4, maxPosition);
-    setCurrentGroup(allSlots.slice(currentPosition - 1, currentEnd));
-    setUpcomingGroup(allSlots.slice(currentEnd));
+    setMergedGroup(sortedPatients);
   }, [patients, currentPosition]);
 
   const handleDragEnd = async (event) => {
@@ -69,13 +50,15 @@ const QueueContainer = ({
 
     originalPatientsRef.current = [...patients];
 
-    const activePatient = patients.find(
-      (p) => p.appointment.appointment_id === active.id
+    const activeIndex = mergedGroup.findIndex(
+      (p) => p.appointment?.appointment_id === active.id
     );
-    const overPatient = patients.find(
-      (p) => p.appointment.appointment_id === over.id
+    const overIndex = mergedGroup.findIndex(
+      (p) => p.appointment?.appointment_id === over.id
     );
 
+    const newMergedGroup = arrayMove(mergedGroup, activeIndex, overIndex);
+    setMergedGroup(newMergedGroup);
     setConfirmDrag(true);
     setDragActiveId(active.id);
     setDragOverId(over.id);
@@ -83,24 +66,25 @@ const QueueContainer = ({
 
   const handleConfirmDrag = async () => {
     try {
-      setLock(false);
       setIsShifting(true);
       await shufflePosition({
         appointment_id: dragActiveId,
-        new_position: patients.find(
-          (p) => p.appointment.appointment_id === dragOverId
-        ).position,
+        new_position: mergedGroup.find(
+          (p) => p.appointment?.appointment_id === dragOverId
+        )?.position,
       });
-      setLock(true);
+      await fetchPatientsDataWithoutLoader();
+      await fetchCurrentPositionDataWithoutLoader();
+    } catch (error) {
+      setPatients(originalPatientsRef.current);
+    } finally {
       setIsShifting(false);
       setConfirmDrag(false);
-    } catch (error) {
-      console.error("Drag failed:", error);
-      setPatients(originalPatientsRef.current);
     }
   };
 
   const handleCancelDrag = () => {
+    setPatients(originalPatientsRef.current);
     setConfirmDrag(false);
   };
 
@@ -120,84 +104,34 @@ const QueueContainer = ({
           ))}
         </div>
       ) : (
-        <>
-          {/* Current Patients */}
-          <div className="current-group">
-            {currentGroup.map((slot) =>
-              slot.isEmpty ? (
-                <div key={`empty-${slot.position}`} className="empty-slot">
-                  Available
-                </div>
-              ) : (
-                <PatientItem
-                  key={slot.appointment.appointment_id}
-                  {...slot}
-                  currentPosition={currentPosition}
-                  handleNextPatient={handleNextPatient}
-                  handleLatePatient={handleLatePatient}
-                  isDraggable={false}
-                  paid={slot.paid}
-                  status={slot.status}
-                  checkin={slot.checkin}
-                  fetchPatientsDataWithoutLoader={
-                    fetchPatientsDataWithoutLoader
-                  }
-                  fetchCurrentPositionDataWithoutLoader={
-                    fetchCurrentPositionDataWithoutLoader
-                  }
-                />
-              )
-            )}
-          </div>
-
-          {/* Upcoming Patients */}
-          {upcomingGroup.length > 0 && (
-            <>
-              <Divider sx={{ my: 2 }}>
-                <Typography variant="subtitle1">Upcoming Patients</Typography>
-              </Divider>
-
-              <DndContext
-                modifiers={[restrictToVerticalAxis]}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={upcomingGroup
-                    .filter((slot) => !slot.isEmpty)
-                    .map((p) => p.appointment.appointment_id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {upcomingGroup.map((slot) =>
-                    slot.isEmpty ? (
-                      <div
-                        key={`empty-${slot.position}`}
-                        className="empty-slot"
-                      >
-                        Available
-                      </div>
-                    ) : (
-                      <PatientItem
-                        key={`${slot.appointment.appointment_id}-${slot.position}`}
-                        {...slot}
-                        currentPosition={currentPosition}
-                        handleNextPatient={handleNextPatient}
-                        handleLatePatient={handleLatePatient}
-                        isDraggable={true}
-                        fetchPatientsDataWithoutLoader={
-                          fetchPatientsDataWithoutLoader
-                        }
-                        fetchCurrentPositionDataWithoutLoader={
-                          fetchCurrentPositionDataWithoutLoader
-                        }
-                      />
-                    )
-                  )}
-                </SortableContext>
-              </DndContext>
-            </>
-          )}
-        </>
+        <DndContext
+          modifiers={[restrictToVerticalAxis]}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={mergedGroup.map((p) => p.appointment.appointment_id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {mergedGroup.map((slot) => (
+              <PatientItem
+                key={slot.appointment.appointment_id}
+                {...slot}
+                currentPosition={currentPosition}
+                handleNextPatient={handleNextPatient}
+                handleLatePatient={handleLatePatient}
+                isDraggable={slot.position > currentPosition + 3}
+                paid={slot.paid}
+                status={slot.status}
+                checkin={slot.checkin}
+                fetchPatientsDataWithoutLoader={fetchPatientsDataWithoutLoader}
+                fetchCurrentPositionDataWithoutLoader={
+                  fetchCurrentPositionDataWithoutLoader
+                }
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
       )}
 
       <Dialog open={confirmDrag} onClose={handleCancelDrag}>
