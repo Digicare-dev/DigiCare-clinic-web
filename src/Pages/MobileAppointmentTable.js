@@ -36,6 +36,7 @@ import {
 import "./MobileAppointmentTable.css";
 import SearchIcon from "@mui/icons-material/Search";
 import { CheckCircle, Cancel, Edit } from "@mui/icons-material";
+import CloseIcon from "@mui/icons-material/Close";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
@@ -99,7 +100,12 @@ const MobileAppointmentTable = () => {
     );
   }, [appointments, searchQuery]);
 
+  useEffect(() => {
+    console.log(appointments);
+  }, [appointments]);
+
   const handleEditClick = (appointment) => {
+    console.log(appointment);
     setSelectedAppointment(appointment);
     setEditModalOpen(true);
   };
@@ -180,7 +186,6 @@ const MobileAppointmentTable = () => {
         user.checkupcabindata[0].id,
         user.checkupcabindata[0].cabin_slots[0]
       );
-
       const formatted = data.map((item) => ({
         id: item.token,
         token: item.token,
@@ -195,15 +200,16 @@ const MobileAppointmentTable = () => {
         fees_paid: item.fees_paid || 0,
         disease: item.disease || null,
         appointment_type: item.appointment_type || "New",
-        phone_number: item.phone_number || "",
-        age: item.age || "",
-        sex: item.sex || "",
-        location: item.location || "",
+        phone_number: item?.patient?.phone_number || "",
+        age: item?.patient?.age || "",
+        sex: item?.patient?.gender || "",
+        location: item?.patient?.location || "",
       }));
 
       setAppointments(formatted);
       setLoading(false);
     } catch (err) {
+      console.log(err);
       setError("Failed to load appointments");
       setLoading(false);
     }
@@ -433,7 +439,21 @@ const MobileAppointmentTable = () => {
       </Box>
       {/* Edit Modal */}
       <Dialog open={editModalOpen} onClose={handleEditModalClose}>
-        <DialogTitle>Edit Appointment</DialogTitle>
+        <DialogTitle sx={{ position: "relative", pr: 6 }}>
+          Edit Appointment
+          <IconButton
+            aria-label="close"
+            onClick={handleEditModalClose}
+            sx={{
+              position: "absolute",
+              right: 8,
+              top: 8,
+              color: (theme) => theme.palette.grey[500],
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>{" "}
         <DialogContent>
           {/* Patient Name */}
           <TextField
@@ -504,7 +524,6 @@ const MobileAppointmentTable = () => {
               />
             </Box>
           )}
-
           {/* Mobile and Age Row */}
           <Box sx={{ display: "flex", gap: 1 }}>
             <TextField
@@ -617,16 +636,16 @@ const MobileAppointmentTable = () => {
               }))
             }
             margin="dense"
+            sx={{ mb: 0 }}
           />
         </DialogContent>
-
         <DialogActions>
-          <Button onClick={handleEditModalClose}>Cancel</Button>
           <Button
             onClick={handleDeleteAppointment}
             color="error"
             variant="contained"
             disabled={isDeleting}
+            sx={{ mx: 1, mb: 2 }}
           >
             {isDeleting ? (
               <CircularProgress size={24} color="inherit" />
@@ -639,6 +658,7 @@ const MobileAppointmentTable = () => {
             color="primary"
             variant="contained"
             disabled={isUpdating}
+            sx={{ mx: 1, mb: 2 }}
           >
             {isUpdating ? (
               <CircularProgress size={24} color="inherit" />
