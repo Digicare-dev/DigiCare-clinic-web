@@ -14,14 +14,16 @@ import { NavLink, useLocation } from "react-router-dom";
 import HomeIcon from "@mui/icons-material/Home";
 import AddIcon from "@mui/icons-material/Add";
 import HelpIcon from "@mui/icons-material/Help";
+import MedicationIcon from "@mui/icons-material/Medication";
 
 const drawerWidth = 240;
 
 export default function Sidebar() {
   const location = useLocation();
   const menuItems = [
-    { text: "Home", path: "/", icon: HomeIcon },
-    { text: "Appointments", path: "/appointments", icon: AddIcon },
+    { text: "Queue Manager", path: "/", icon: HomeIcon },
+    { text: "Appointments Table", path: "/appointments", icon: AddIcon },
+    { text: "Prescription Pad", path: "/prescription", icon: MedicationIcon },
     { text: "Help", path: "/help", icon: HelpIcon },
   ];
 

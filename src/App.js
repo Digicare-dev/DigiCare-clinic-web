@@ -13,6 +13,7 @@ import PrivateRoute from "./components/PrivateRoute";
 import Help from "./Pages/Help";
 import RoleBasedRoute from "./components/RolebasedRoute";
 import AppointmentTable from "./Pages/AppointmentTable";
+import PrescriptionPage from "./Pages/PrescriptionPage";
 import { EventSource } from "eventsource";
 import AddAppointmentMobile from "./Pages/AddAppointmentMobile";
 import MobileAppointmentTable from "./Pages/MobileAppointmentTable";
@@ -337,6 +338,14 @@ const App = () => {
                 element={
                   <PrivateRoute>
                     {<AppointmentTable fetchPatientsData={fetchPatientsData} />}
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/prescription"
+                element={
+                  <PrivateRoute>
+                    <PrescriptionPage />
                   </PrivateRoute>
                 }
               />

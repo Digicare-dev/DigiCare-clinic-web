@@ -1,0 +1,89 @@
+.prescription-container {
+  height: 85vh;
+  overflow-y: auto;
+  width: 100%;
+  padding: 2rem 2rem;
+  background-color: #fff;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  margin: 1rem 0;
+}
+
+.header {
+  color: #1976d2;
+  text-align: center;
+  margin-bottom: 2rem !important;
+}
+
+.section-header {
+  color: #1565c0;
+  margin: 1.5rem 0 !important;
+}
+
+.add-button {
+  margin-top: 1rem !important;
+}
+
+.signature-container {
+  border: 1px solid #ddd;
+  padding: 1rem;
+  border-radius: 4px;
+}
+
+.signature-canvas {
+  border: 1px solid #ccc;
+  background-color: #f8f8f8;
+  margin-bottom: 1rem;
+}
+
+.signature-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 2rem !important;
+}
+
+.test-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  margin: 4px 0;
+}
+
+.remove-test-btn {
+  margin-left: 8px;
+  color: #d32f2f;
+}
+
+.MuiAutocomplete-popper {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.MuiAutocomplete-option {
+  padding: 8px 16px;
+}
+
+@media print {
+  .prescription-container {
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .action-buttons {
+    display: none;
+  }
+
+  .signature-canvas {
+    border: none;
+    background-color: transparent;
+  }
+}
