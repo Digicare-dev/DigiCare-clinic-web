@@ -324,13 +324,12 @@ const PrescriptionPage = () => {
     setNewTest(value);
   };
 
-  const addTest = () => {
-    if (newTest) {
+  const addTest = (value) => {
+    if (value && !prescription.tests.includes(value)) {
       setPrescription({
         ...prescription,
-        tests: [...prescription.tests, newTest],
+        tests: [...prescription.tests, value],
       });
-      setNewTest("");
     }
   };
 
@@ -396,16 +395,18 @@ const PrescriptionPage = () => {
 
   // Modify addNewComplaintRow to prevent auto-opening dropdown
   const addNewComplaintRow = () => {
-    setComplaints(prev => [...prev, { complaint: '', severity: '', duration: '', isEditing: false }]);
-    
-    // Don't try to focus immediately - wait for the component to render
+    const updatedComplaints = [...complaints];
+    updatedComplaints[updatedComplaints.length - 1].isEditing = false; // Close the current row
+    setComplaints(updatedComplaints); // Update state to close dropdown
+
     setTimeout(() => {
-      const newIndex = complaints.length;
-      const newElement = document.querySelector(`#complaint-${newIndex}`);
-      if (newElement && newElement.querySelector('input')) {
-        newElement.querySelector('input').focus();
-      }
-    }, 200); // Increase timeout to ensure DOM is updated
+        setComplaints(prev => [...prev, { complaint: '', severity: '', duration: '', isEditing: false }]);
+        const newIndex = complaints.length;
+        const newElement = document.querySelector(`#complaint-${newIndex}`);
+        if (newElement && newElement.querySelector('input')) {
+            newElement.querySelector('input').focus();
+        }
+    }, 200);
   };
 
   // Add these handler functions
@@ -480,31 +481,35 @@ const PrescriptionPage = () => {
 
   // Modify addNewDiagnosisRow to prevent auto-opening dropdown
   const addNewDiagnosisRow = () => {
-    setDiagnoses(prev => [...prev, { diagnosis: '', duration: '', isEditing: false }]);
-    
-    // Wait longer for the DOM to update
+    const updatedDiagnoses = [...diagnoses];
+    updatedDiagnoses[updatedDiagnoses.length - 1].isEditing = false; // Close the current row
+    setDiagnoses(updatedDiagnoses); // Update state to close dropdown
+
     setTimeout(() => {
-      const newIndex = diagnoses.length;
-      const element = document.querySelector(`#diagnosis-${newIndex}`);
-      if (element && element.querySelector('input')) {
-        element.querySelector('input').focus();
-      }
+        setDiagnoses(prev => [...prev, { diagnosis: '', duration: '', isEditing: false }]);
+        const newIndex = diagnoses.length;
+        const element = document.querySelector(`#diagnosis-${newIndex}`);
+        if (element && element.querySelector('input')) {
+            element.querySelector('input').focus();
+        }
     }, 200);
   };
 
   // Modify addNewMedicationRow to prevent auto-opening dropdown
   const addNewMedicationRow = () => {
-    setMedications(prev => [...prev, { 
-      medicine: '', dose: '', timing: '', frequency: '', duration: '', isEditing: false 
-    }]);
-    
-    // Wait longer for the DOM to update
+    const updatedMedications = [...medications];
+    updatedMedications[updatedMedications.length - 1].isEditing = false; // Close the current row
+    setMedications(updatedMedications); // Update state to close dropdown
+
     setTimeout(() => {
-      const newIndex = medications.length;
-      const element = document.querySelector(`#med-medicine-${newIndex}`);
-      if (element && element.querySelector('input')) {
-        element.querySelector('input').focus();
-      }
+        setMedications(prev => [...prev, { 
+            medicine: '', dose: '', timing: '', frequency: '', duration: '', isEditing: false 
+        }]);
+        const newIndex = medications.length;
+        const element = document.querySelector(`#med-medicine-${newIndex}`);
+        if (element && element.querySelector('input')) {
+            element.querySelector('input').focus();
+        }
     }, 200);
   };
 
@@ -1061,73 +1066,48 @@ const PrescriptionPage = () => {
                 Recommended Tests
               </Typography>
 
-              <Grid container spacing={1} alignItems="center">
-                <Grid item xs={9} sm={4} md={3}>
-                  <Autocomplete
-                    freeSolo
+              <Autocomplete
+                multiple
+                freeSolo
+                options={dummyTests}
+                value={prescription.tests}
+                onChange={(e, value) => {
+                  setPrescription({
+                    ...prescription,
+                    tests: value,
+                  });
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Test"
+                    placeholder="Type to search"
                     size="small"
-                    options={dummyTests}
-                    value={newTest}
-                    onChange={(e, value) => handleTestChange(value)}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Test"
-                        placeholder="Type to search"
-                        size="small"
-                      />
-                    )}
-                  />
-                </Grid>
-                <Grid item xs={3} sm={2} md={1}>
-                  <Button 
-                    variant="outlined" 
-                    onClick={addTest} 
                     fullWidth
-                    size="small"
-                  >
-                    Add
-                  </Button>
-                </Grid>
-                
-                <Grid item xs={12}>
-                  <Paper 
-                    elevation={0} 
-                    sx={{ 
-                      p: 0.5,
-                      mt: 0.5,
-                      backgroundColor: '#f8fafc', 
-                      borderRadius: '8px',
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: 1,
-                      minHeight: prescription.tests.length ? 'auto' : '24px'
-                    }}
-                  >
-                    {prescription.tests.map((test, index) => (
-                      <Chip
-                        key={index}
-                        label={test}
-                        onDelete={() => removeTest(index)}
-                        size="small"
-                        sx={{ 
-                          backgroundColor: '#fff',
-                          border: '1px solid #e2e8f0',
-                          '& .MuiChip-deleteIcon': {
-                            color: '#ef4444',
-                            '&:hover': { color: '#b91c1c' }
-                          }
-                        }}
-                      />
-                    ))}
-                    {!prescription.tests.length && 
-                      <Typography variant="caption" color="text.secondary" sx={{ p: 0 }}>
-                        No tests added yet
-                      </Typography>
-                    }
-                  </Paper>
-                </Grid>
-              </Grid>
+                    variant="outlined"
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <li {...props} style={{ display: 'inline-block', margin: '4px' }}>
+                    {option}
+                  </li>
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      variant="outlined"
+                      label={option}
+                      {...getTagProps({ index })}
+                      onDelete={() => {
+                        setPrescription({
+                          ...prescription,
+                          tests: prescription.tests.filter((test) => test !== option),
+                        });
+                      }}
+                    />
+                  ))
+                }
+              />
             </Grid>
 
             {/* Additional Information */}
