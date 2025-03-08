@@ -26,8 +26,6 @@ const QueueContainer = ({
   handleNextPatient,
   handleLatePatient,
   shufflePosition,
-  fetchPatientsDataWithoutLoader,
-  fetchCurrentPositionDataWithoutLoader,
 }) => {
   const [mergedGroup, setMergedGroup] = useState([]);
   const [confirmDrag, setConfirmDrag] = useState(false);
@@ -35,6 +33,10 @@ const QueueContainer = ({
   const [dragOverId, setDragOverId] = useState(null);
   const originalPatientsRef = useRef([]);
   const [isShifting, setIsShifting] = useState(false);
+
+  useEffect(() => {
+    console.log('QueueContainer received patients:', patients);
+  }, [patients]);
 
   useEffect(() => {
     const sortedPatients = [...patients]
@@ -65,22 +67,15 @@ const QueueContainer = ({
   };
 
   const handleConfirmDrag = async () => {
-    try {
-      setIsShifting(true);
-      await shufflePosition({
-        appointment_id: dragActiveId,
-        new_position: mergedGroup.find(
-          (p) => p.appointment?.appointment_id === dragOverId
-        )?.position,
-      });
-      await fetchPatientsDataWithoutLoader();
-      await fetchCurrentPositionDataWithoutLoader();
-    } catch (error) {
-      setPatients(originalPatientsRef.current);
-    } finally {
-      setIsShifting(false);
-      setConfirmDrag(false);
-    }
+    setIsShifting(true);
+    await shufflePosition({
+      appointment_id: dragActiveId,
+      new_position: mergedGroup.find(
+        (p) => p.appointment?.appointment_id === dragOverId
+      )?.position,
+    });
+    setIsShifting(false);
+    setConfirmDrag(false);
   };
 
   const handleCancelDrag = () => {
@@ -124,10 +119,6 @@ const QueueContainer = ({
                 paid={slot.paid}
                 status={slot.status}
                 checkin={slot.checkin}
-                fetchPatientsDataWithoutLoader={fetchPatientsDataWithoutLoader}
-                fetchCurrentPositionDataWithoutLoader={
-                  fetchCurrentPositionDataWithoutLoader
-                }
               />
             ))}
           </SortableContext>

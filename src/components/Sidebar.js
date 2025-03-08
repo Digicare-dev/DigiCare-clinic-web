@@ -15,15 +15,18 @@ import HomeIcon from "@mui/icons-material/Home";
 import AddIcon from "@mui/icons-material/Add";
 import HelpIcon from "@mui/icons-material/Help";
 import MedicationIcon from "@mui/icons-material/Medication";
+import DashboardIcon from "@mui/icons-material/Dashboard";
 
 const drawerWidth = 240;
 
 export default function Sidebar() {
   const location = useLocation();
   const menuItems = [
-    { text: "Queue Manager", path: "/", icon: HomeIcon },
+    { text: 'Dashboard', path: '/', icon: DashboardIcon },
+    { text: 'Queue Manager', path: '/queue', icon: HomeIcon },
     { text: "Appointments Table", path: "/appointments", icon: AddIcon },
     { text: "Prescription Pad", path: "/prescription", icon: MedicationIcon },
+    { text: "Past Appointments", path: "/past-appointments", icon: AddIcon },
     { text: "Help", path: "/help", icon: HelpIcon },
   ];
 

@@ -1,12 +1,7 @@
 import * as React from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import "./AppointmentTable.css";
-import {
-  DataGrid,
-  GridToolbar,
-  GridEditInputCell,
-  GridEditSingleSelectCell,
-} from "@mui/x-data-grid";
+import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import {
   Button,
   Modal,
@@ -29,17 +24,21 @@ import {
   FormControl,
   CircularProgress,
   Autocomplete,
+  IconButton,
+  Chip,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
+import CloseIcon from "@mui/icons-material/Close";
 import Tooltip from "@mui/material/Tooltip";
+import EditIcon from "@mui/icons-material/Edit";
 import {
   fetchAppointments,
   addAppointment,
   updateAppointmentDetails,
   removeAppointment,
 } from "../services/api";
-
 import CustomSnackbar from "../components/CustomSnackbar";
+import { getLatestCabinSlot } from '../utils/dateUtils';
 
 const modalStyle = {
   position: "absolute",
@@ -110,9 +109,10 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 export default function AppointmentTable() {
   const user = JSON.parse(localStorage.getItem("user"));
+  const [currentCabinSlot, setCurrentCabinSlot] = useState(null);
 
   const [rows, setRows] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(false);
   const [isAdding, setIsAdding] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const [error, setError] = React.useState("");
@@ -221,10 +221,19 @@ export default function AppointmentTable() {
     setSnackbar((prev) => ({ ...prev, open: false }));
   };
 
+  const [editModalOpen, setEditModalOpen] = React.useState(false);
+  const [selectedAppointment, setSelectedAppointment] = React.useState(null);
+
   const displayedRows = React.useMemo(() => generateDisplayRows(rows), [rows]);
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("user"));
+    if (user?.checkupcabindata?.[0]?.cabin_slots) {
+      const latestSlot = getLatestCabinSlot(user.checkupcabindata[0].cabin_slots);
+      setCurrentCabinSlot(latestSlot);
+    }
+  }, [user?.checkupcabindata]);
+
+  useEffect(() => {
     if (!user) return;
 
     const doctorId = user.checkupcabindata[0].id;
@@ -289,14 +298,16 @@ export default function AppointmentTable() {
     };
 
     return () => eventSource.close();
-  }, []);
+  }, [user]);
 
   const getAppointments = async () => {
+    if (!currentCabinSlot) return;
+    
     setLoading(true);
     try {
       const data = await fetchAppointments(
         user.checkupcabindata[0].id,
-        user.checkupcabindata[0].cabin_slots[0]
+        currentCabinSlot
       );
       if (data.length !== 0) {
         const formattedData = data.map((item) => {
@@ -335,9 +346,11 @@ export default function AppointmentTable() {
     }
   };
 
-  React.useEffect(() => {
-    getAppointments();
-  }, []);
+  useEffect(() => {
+    if (currentCabinSlot) {
+      getAppointments();
+    }
+  }, [currentCabinSlot]);
 
   React.useEffect(() => {
     if (rows.length > 0) {
@@ -397,38 +410,32 @@ export default function AppointmentTable() {
     {
       field: "firstName",
       headerName: "First Name",
-      width: 100,
-      editable: true,
-      renderCell: (params) => {
-        if (params.row.isPlaceholder)
-          return (
-            <span style={{ color: "#666", fontStyle: "italic" }}>
-              Empty Slot
-            </span>
-          );
-        return <span>{params.value || "N/A"}</span>;
-      },
+      width: 120,
+      editable: false,
+      renderCell: (params) =>
+        params.row.isPlaceholder ? (
+          <span style={{ color: "#666", fontStyle: "italic" }}>Empty Slot</span>
+        ) : (
+          <span>{params.value || "N/A"}</span>
+        ),
     },
     {
       field: "lastName",
       headerName: "Last Name",
-      width: 100,
-      editable: true,
-      renderCell: (params) => {
-        if (params.row.isPlaceholder)
-          return (
-            <span style={{ color: "#666", fontStyle: "italic" }}>
-              Empty Slot
-            </span>
-          );
-        return <span>{params.value || "N/A"}</span>;
-      },
+      width: 120,
+      editable: false,
+      renderCell: (params) =>
+        params.row.isPlaceholder ? (
+          <span style={{ color: "#666", fontStyle: "italic" }}>Empty Slot</span>
+        ) : (
+          <span>{params.value || "N/A"}</span>
+        ),
     },
     {
       field: "age",
       headerName: "Age",
       width: 70,
-      editable: true,
+      editable: false,
       renderCell: (params) =>
         params.row.isPlaceholder ? (
           <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
@@ -439,83 +446,8 @@ export default function AppointmentTable() {
     {
       field: "phone_number",
       headerName: "Mobile",
-      width: 120,
-      editable: true,
-      renderEditCell: (params) => (
-        <GridEditInputCell
-          {...params}
-          slotProps={{
-            input: {
-              maxLength: 10,
-              type: "tel",
-              pattern: "[0-9]{10}",
-              inputMode: "numeric",
-              style: { padding: "8px" },
-            },
-          }}
-        />
-      ),
-      renderCell: (params) =>
-        params.row.isPlaceholder ? (
-          <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
-        ) : (
-          params.value
-        ),
-    },
-    {
-      field: "location",
-      headerName: "Place",
-      width: 150,
-      editable: true,
-      renderCell: (params) =>
-        params.row.isPlaceholder ? (
-          <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
-        ) : (
-          params.value
-        ),
-    },
-    {
-      field: "sex",
-      headerName: "Gender",
-      editable: true,
-      valueFormatter: ({ value }) =>
-        genderOptions.find((opt) => opt.value === value)?.label || value,
-      renderEditCell: (params) => (
-        <Autocomplete
-          options={genderOptions}
-          getOptionLabel={(option) => option.label}
-          value={
-            genderOptions.find((opt) => opt.value === params.value) || null
-          }
-          onChange={(_, newValue) =>
-            params.api.setEditCellValue({
-              id: params.id,
-              field: params.field,
-              value: newValue?.value,
-            })
-          }
-          renderInput={(params) => <TextField {...params} variant="outlined" />}
-        />
-      ),
-    },
-    {
-      field: "checkin",
-      headerName: "Check-in",
-      width: 80,
-      type: "boolean",
-      editable: true,
-      renderCell: (params) =>
-        params.row.isPlaceholder ? (
-          <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
-        ) : (
-          <Checkbox checked={params?.value} disabled />
-        ),
-    },
-    {
-      field: "disease",
-      headerName: "Disease",
-      width: 150,
-      editable: true,
+      width: 130,
+      editable: false,
       renderCell: (params) =>
         params.row.isPlaceholder ? (
           <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
@@ -527,7 +459,7 @@ export default function AppointmentTable() {
       field: "guardian",
       headerName: "Guardian",
       width: 150,
-      editable: true,
+      editable: false,
       renderCell: (params) =>
         params.row.isPlaceholder ? (
           <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
@@ -536,16 +468,10 @@ export default function AppointmentTable() {
         ),
     },
     {
-      field: "appointment_type",
-      headerName: "Type",
-      width: 100,
-      type: "singleSelect",
-      valueOptions: ["New", "Follow-up", "Emergency", "Routine"],
-      editable: true,
-      valueFormatter: ({ value }) =>
-        value
-          ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
-          : "",
+      field: "location",
+      headerName: "Place",
+      width: 150,
+      editable: false,
       renderCell: (params) =>
         params.row.isPlaceholder ? (
           <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
@@ -554,11 +480,11 @@ export default function AppointmentTable() {
         ),
     },
     {
-      field: "paid",
-      headerName: "Payment",
-      width: 80,
+      field: "checkin",
+      headerName: "Present-in-Clinic",
+      width: 140,
       type: "boolean",
-      editable: true,
+      editable: false,
       renderCell: (params) =>
         params.row.isPlaceholder ? (
           <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
@@ -567,66 +493,49 @@ export default function AppointmentTable() {
         ),
     },
     {
-      field: "status",
-      headerName: "Status",
+      field: "paid",
+      headerName: "Payment",
       width: 100,
-      editable: true,
+      type: "boolean",
+      editable: false,
       renderCell: (params) =>
         params.row.isPlaceholder ? (
           <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
         ) : (
-          params.value
+          <Checkbox checked={params?.value} disabled />
+        ),
+    },
+    {
+      field: "mode",
+      headerName: "Mode",
+      width: 80,
+      editable: false,
+      renderCell: (params) =>
+        params.row.isPlaceholder ? (
+          <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
+        ) : (
+          <span style={{ textTransform: "capitalize" }}>{params.value}</span>
         ),
     },
     {
       field: "fees_paid",
       headerName: "Fees",
-      width: 100,
-      editable: true,
-      type: "number",
-      renderCell: (params) => {
-        if (params.row.isPlaceholder) return "N/A";
-        return params.value;
-      },
-    },
-    {
-      field: "mode",
-      headerName: "Payment Mode",
-      width: 130,
-      editable: true,
-      type: "singleSelect",
-      valueOptions: ["cash", "online"],
-      renderCell: (params) => {
-        if (params.row.isPlaceholder) return "N/A";
-        return params.value
-          ? params.value.charAt(0).toUpperCase() + params.value.slice(1)
-          : "";
-      },
-    },
-
-    {
-      field: "action",
-      headerName: "Action",
       width: 80,
-      renderCell: (params) => {
-        if (
-          params.row.status === "cancelled" ||
-          params.row.status === "done_checkup" ||
-          params.row.isPlaceholder
-        ) {
-          return null;
-        }
-        return (
-          <Tooltip title="Cancel Appointment">
-            <DeleteIcon
-              style={{ cursor: "pointer", color: "#d32f2f" }}
-              onClick={() => handleCancelAppointment(params.row)}
-            />
-          </Tooltip>
-        );
-      },
+      editable: false,
+      type: "number",
+      renderCell: (params) => (params.row.isPlaceholder ? "N/A" : params.value),
     },
   ];
+
+  const handleEditClick = (row) => {
+    setSelectedAppointment(row);
+    setEditModalOpen(true);
+  };
+
+  const handleEditModalClose = () => {
+    setEditModalOpen(false);
+    setSelectedAppointment(null);
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -652,7 +561,7 @@ export default function AppointmentTable() {
     try {
       const payload = {
         cabinId: user.checkupcabindata[0].id,
-        slot: user.checkupcabindata[0].cabin_slots[0],
+        slot: currentCabinSlot,
         name: `${newEntry.firstName} ${newEntry.lastName}`.trim(),
         token: newEntry.token,
         paid: newEntry.paid,
@@ -771,76 +680,304 @@ export default function AppointmentTable() {
       });
   };
 
-  const processRowUpdate = React.useCallback(
-    (newRow, originalRow) => {
-      return new Promise((resolve, reject) => {
-        if (newRow.sex && !["M", "F", "O"].includes(newRow.sex)) {
-          reject(new Error("Invalid gender value"));
-          return;
-        }
+  const processRowUpdate = React.useCallback(async (newRow) => {
+    try {
+      await updateAppointmentApi(newRow);
+      setRows((prev) =>
+        prev.map((row) => (row.id === newRow.id ? newRow : row))
+      );
+      handleOpenSnackbar("Appointment updated successfully");
+      return newRow;
+    } catch (error) {
+      handleOpenSnackbar("Failed to update appointment", "error");
+      throw error;
+    }
+  }, []);
 
-        // Validate mobile number format
+  const renderEditModal = () => (
+    <Dialog
+      open={editModalOpen}
+      onClose={handleEditModalClose}
+      fullWidth
+      maxWidth="md"
+    >
+      <DialogTitle sx={{ position: "relative", pr: 6 }}>
+        Edit Appointment
+        <IconButton
+          aria-label="close"
+          onClick={handleEditModalClose}
+          sx={{
+            position: "absolute",
+            right: 8,
+            top: 8,
+            color: (theme) => theme.palette.grey[500],
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent>
+        {selectedAppointment && (
+          <>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: 2,
+                mt: 2,
+              }}
+            >
+              <TextField
+                fullWidth
+                label="First Name"
+                value={selectedAppointment.firstName}
+                onChange={(e) =>
+                  setSelectedAppointment((prev) => ({
+                    ...prev,
+                    firstName: e.target.value,
+                  }))
+                }
+                margin="normal"
+              />
 
-        if (newRow.phone_number?.toString().length > 10) {
-          reject(new Error("Mobile number cannot exceed 10 digits"));
-          return;
-        }
+              <TextField
+                fullWidth
+                label="Last Name"
+                value={selectedAppointment.lastName}
+                onChange={(e) =>
+                  setSelectedAppointment((prev) => ({
+                    ...prev,
+                    lastName: e.target.value,
+                  }))
+                }
+                margin="normal"
+              />
 
-        if (newRow.phone_number && !/^\d+$/.test(newRow.phone_number)) {
-          return;
-        }
+              <TextField
+                fullWidth
+                label="Token"
+                type="number"
+                value={selectedAppointment.token}
+                InputProps={{ readOnly: true }}
+                margin="normal"
+              />
 
-        const changed = JSON.stringify(newRow) !== JSON.stringify(originalRow);
-        if (changed) {
-          setPendingRow(newRow);
-          setOriginalRow(originalRow);
-          setEditConfirmationOpen(true);
+              <TextField
+                fullWidth
+                label="Age"
+                type="number"
+                value={selectedAppointment.age}
+                onChange={(e) =>
+                  setSelectedAppointment((prev) => ({
+                    ...prev,
+                    age: e.target.value,
+                  }))
+                }
+                margin="normal"
+              />
 
-          setPendingRow((prev) => ({
-            ...prev,
-            resolve: (value) => {
-              resolve(value);
-              setEditConfirmationOpen(false);
-            },
-            reject: (error) => {
-              reject(error);
-              setEditConfirmationOpen(false);
-            },
-          }));
-        } else {
-          resolve(originalRow);
-        }
-      });
-    },
-    [rows]
+              <TextField
+                fullWidth
+                label="Mobile"
+                value={selectedAppointment.phone_number}
+                onChange={(e) =>
+                  setSelectedAppointment((prev) => ({
+                    ...prev,
+                    phone_number: e.target.value,
+                  }))
+                }
+                margin="normal"
+                inputProps={{ maxLength: 10 }}
+              />
+
+              <Autocomplete
+                options={genderOptions}
+                getOptionLabel={(option) => option.label}
+                value={
+                  genderOptions.find(
+                    (opt) => opt.value === selectedAppointment.sex
+                  ) || null
+                }
+                onChange={(_, newValue) =>
+                  setSelectedAppointment((prev) => ({
+                    ...prev,
+                    sex: newValue?.value || "",
+                  }))
+                }
+                renderInput={(params) => (
+                  <TextField {...params} label="Gender" margin="normal" />
+                )}
+              />
+
+              <TextField
+                fullWidth
+                label="Location"
+                value={selectedAppointment.location}
+                onChange={(e) =>
+                  setSelectedAppointment((prev) => ({
+                    ...prev,
+                    location: e.target.value,
+                  }))
+                }
+                margin="normal"
+              />
+
+              <TextField
+                fullWidth
+                label="Disease"
+                value={selectedAppointment.disease}
+                onChange={(e) =>
+                  setSelectedAppointment((prev) => ({
+                    ...prev,
+                    disease: e.target.value,
+                  }))
+                }
+                margin="normal"
+              />
+
+              <FormControl fullWidth margin="normal">
+                <InputLabel>Appointment Type</InputLabel>
+                <Select
+                  value={selectedAppointment.appointment_type}
+                  onChange={(e) =>
+                    setSelectedAppointment((prev) => ({
+                      ...prev,
+                      appointment_type: e.target.value,
+                    }))
+                  }
+                  label="Appointment Type"
+                >
+                  <MenuItem value="New">New</MenuItem>
+                  <MenuItem value="Follow-up">Follow-up</MenuItem>
+                  <MenuItem value="Emergency">Emergency</MenuItem>
+                </Select>
+              </FormControl>
+
+              <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={selectedAppointment.checkin}
+                      onChange={(e) =>
+                        setSelectedAppointment((prev) => ({
+                          ...prev,
+                          checkin: e.target.checked,
+                        }))
+                      }
+                    />
+                  }
+                  label="Check-in"
+                />
+
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={selectedAppointment.paid}
+                      onChange={(e) =>
+                        setSelectedAppointment((prev) => ({
+                          ...prev,
+                          paid: e.target.checked,
+                          mode: e.target.checked ? prev.mode || "cash" : "",
+                          fees_paid: e.target.checked
+                            ? prev.fees_paid || 250
+                            : 0,
+                        }))
+                      }
+                    />
+                  }
+                  label="Payment"
+                />
+              </Box>
+
+              {selectedAppointment.paid && (
+                <Box sx={{ display: "flex", gap: 2 }}>
+                  <FormControl fullWidth>
+                    <InputLabel>Payment Mode</InputLabel>
+                    <Select
+                      value={selectedAppointment.mode}
+                      onChange={(e) =>
+                        setSelectedAppointment((prev) => ({
+                          ...prev,
+                          mode: e.target.value,
+                        }))
+                      }
+                      label="Payment Mode"
+                    >
+                      <MenuItem value="cash">Cash</MenuItem>
+                      <MenuItem value="online">Online</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <TextField
+                    fullWidth
+                    label="Fees Paid"
+                    type="number"
+                    value={selectedAppointment.fees_paid}
+                    onChange={(e) =>
+                      setSelectedAppointment((prev) => ({
+                        ...prev,
+                        fees_paid: Number(e.target.value),
+                      }))
+                    }
+                  />
+                </Box>
+              )}
+            </Box>
+          </>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button
+          onClick={handleEditModalClose}
+          color="primary"
+          disabled={isUpdating}
+        >
+          Cancel
+        </Button>
+        <Button
+          onClick={handleConfirmEdit}
+          color="primary"
+          disabled={isUpdating}
+        >
+          {isUpdating ? <CircularProgress size={24} /> : "Save"}
+        </Button>
+        <Button
+          onClick={() => {
+            setRowToCancel(selectedAppointment);
+            setCancelConfirmationOpen(true);
+          }}
+          color="error"
+          disabled={isCanceling}
+        >
+          {isCanceling ? <CircularProgress size={24} /> : "Cancel Appointment"}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 
   const handleConfirmEdit = async () => {
     setIsUpdating(true);
     try {
-      await updateAppointmentApi(pendingRow);
-      handleOpenSnackbar("Appointment updated successfully");
+      // Call the update API with the selectedAppointment data
+      await updateAppointmentApi(selectedAppointment);
 
-      // Update local state
+      // Update the local state with the modified appointment
       setRows((prev) =>
         prev.map((row) =>
-          row.id === pendingRow.id
-            ? { ...pendingRow, id: pendingRow.token }
-            : row
+          row.id === selectedAppointment.id ? selectedAppointment : row
         )
       );
 
-      pendingRow.resolve(pendingRow);
+      // Show success message
+      handleOpenSnackbar("Appointment updated successfully");
+
+      // Close the edit modal
+      handleEditModalClose();
     } catch (error) {
-      // Revert changes on error
-      setRows((prev) =>
-        prev.map((row) => (row.id === originalRow.id ? originalRow : row))
-      );
-      pendingRow.reject(originalRow);
+      // Show error message
       handleOpenSnackbar("Failed to update appointment", "error");
+      console.error("Failed to update appointment:", error);
     } finally {
       setIsUpdating(false);
-      setEditConfirmationOpen(false);
     }
   };
 
@@ -880,6 +1017,7 @@ export default function AppointmentTable() {
         });
         setRows(updatedRows);
         setCancelConfirmationOpen(false);
+        handleEditModalClose();
         handleOpenSnackbar("Appointment cancelled successfully");
       }
     } catch (error) {
@@ -1012,36 +1150,27 @@ export default function AppointmentTable() {
           overflowX: "auto",
         }}
       >
+        {renderEditModal()}
+
         <DataGrid
-          onProcessRowUpdateError={(error) => {
-            alert(error.message);
-          }}
           rows={displayedRows}
-          columns={columnsWithPlaceholders}
-          isCellEditable={isCellEditable}
+          columns={columns}
           slots={{ toolbar: GridToolbar, noRowsOverlay: CustomNoRowsOverlay }}
-          editMode="row"
-          processRowUpdate={processRowUpdate}
-          experimentalFeatures={{ newEditingApi: true }}
           paginationModel={paginationModel}
           onPaginationModelChange={setPaginationModel}
           pageSizeOptions={[10, 25, 50]}
-          getRowClassName={(params) => {
-            const classes = getRowClassName(params);
-            return classes;
-          }}
+          getRowClassName={getRowClassName}
           sortModel={[{ field: "token", sort: "asc" }]}
           loading={loading}
+          onRowClick={(params) => {
+            if (!params.row.isPlaceholder) handleEditClick(params.row);
+          }}
           sx={{
-            // height: 600,
             "& .MuiDataGrid-columnHeaders": {
               backgroundColor: "#f5f5f5",
               borderBottom: "2px solid #e0e0e0",
               fontWeight: "bold",
               fontSize: "0.875rem",
-            },
-            "& .MuiDataGrid-columnHeaderTitle": {
-              fontWeight: 600,
             },
             "& .MuiDataGrid-cell:focus": { outline: "none" },
             "& .MuiDataGrid-columnHeader:focus": { outline: "none" },
@@ -1049,6 +1178,7 @@ export default function AppointmentTable() {
               borderBottom: "1px solid #f0f0f0",
               whiteSpace: "normal !important",
               wordWrap: "break-word",
+              cursor: "pointer",
             },
             "& .MuiDataGrid-columnHeader": {
               maxWidth: "100% !important",
