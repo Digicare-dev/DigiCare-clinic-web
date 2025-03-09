@@ -1,6 +1,5 @@
 header {
   background-color: rgba(255, 255, 255, 0.6);
-  padding-left: 16px;
   height: 70px;
   display: flex;
   align-items: center;
@@ -15,17 +14,25 @@ header {
 }
 
 .logout-button {
-  width: 100%;
   display: flex;
   justify-content: flex-end;
-  padding-right: 40px;
+  min-width: 150px;
+}
+
+/* Autocomplete dropdown styling */
+.MuiAutocomplete-popper {
+  z-index: 1500 !important;
+}
+
+.MuiAutocomplete-option {
+  padding: 8px 12px !important;
 }
 
 @media (max-width: 768px) {
   header {
     display: flex;
-    justify-content: space-between; /* Ensure space between logo and logout button */
-    padding: 0 10px; /* Reduce padding for mobile */
+    justify-content: space-between;
+    padding: 0 10px;
   }
 
   .logout-button {

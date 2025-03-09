@@ -19,13 +19,12 @@ import {
 } from "@mui/material";
 
 const QueueContainer = ({
-  loading,
   patients,
-  setPatients,
+  currentPatient,
   currentPosition,
-  handleNextPatient,
-  handleLatePatient,
-  shufflePosition,
+  onNextPatient,
+  onLatePatient,
+  onShufflePosition,
 }) => {
   const [mergedGroup, setMergedGroup] = useState([]);
   const [confirmDrag, setConfirmDrag] = useState(false);
@@ -48,96 +47,123 @@ const QueueContainer = ({
 
   const handleDragEnd = async (event) => {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
 
-    originalPatientsRef.current = [...patients];
+    if (active.id !== over.id) {
+      // Save original state for potential cancellation
+      originalPatientsRef.current = [...mergedGroup];
 
-    const activeIndex = mergedGroup.findIndex(
-      (p) => p.appointment?.appointment_id === active.id
-    );
-    const overIndex = mergedGroup.findIndex(
-      (p) => p.appointment?.appointment_id === over.id
-    );
+      const activeItem = mergedGroup.find((item) => item.appointment.appointment_id === active.id);
+      const overItem = mergedGroup.find((item) => item.appointment.appointment_id === over.id);
 
-    const newMergedGroup = arrayMove(mergedGroup, activeIndex, overIndex);
-    setMergedGroup(newMergedGroup);
+      // Set drag details for confirmation
+      setDragActiveId(activeItem);
+      setDragOverId(overItem);
     setConfirmDrag(true);
-    setDragActiveId(active.id);
-    setDragOverId(over.id);
+    }
   };
 
   const handleConfirmDrag = async () => {
+    try {
     setIsShifting(true);
-    await shufflePosition({
-      appointment_id: dragActiveId,
-      new_position: mergedGroup.find(
-        (p) => p.appointment?.appointment_id === dragOverId
-      )?.position,
-    });
-    setIsShifting(false);
+      // Local reordering for immediate UI update
+      const oldIndex = mergedGroup.findIndex(
+        (item) => item.appointment.appointment_id === dragActiveId.appointment.appointment_id
+      );
+      const newIndex = mergedGroup.findIndex(
+        (item) => item.appointment.appointment_id === dragOverId.appointment.appointment_id
+      );
+
+      // Create the new ordering
+      const newArrangement = arrayMove(mergedGroup, oldIndex, newIndex);
+      setMergedGroup(newArrangement);
+
+      // Update positions based on the new order
+      const payload = {
+        appointment_id: dragActiveId.appointment.appointment_id,
+        new_position: dragOverId.position,
+      };
+
+      // Call the API to update the position
+      await onShufflePosition(payload);
+      
     setConfirmDrag(false);
+    } catch (error) {
+      console.error("Error shifting position:", error);
+      // Revert to original order on error
+      setMergedGroup(originalPatientsRef.current);
+    } finally {
+      setIsShifting(false);
+    }
   };
 
   const handleCancelDrag = () => {
-    setPatients(originalPatientsRef.current);
+    // Revert to original order
+    setMergedGroup(originalPatientsRef.current);
     setConfirmDrag(false);
+  };
+
+  const handleNext = async (id) => {
+    try {
+      await onNextPatient(id);
+    } catch (error) {
+      console.error("Error marking patient as done:", error);
+    }
+  };
+
+  const handleLate = async (id) => {
+    try {
+      await onLatePatient(id);
+    } catch (error) {
+      console.error("Error marking patient as late:", error);
+    }
   };
 
   return (
     <div className="queue-container">
-      {loading ? (
-        <div className="skeleton-container">
-          {[...Array(5)].map((_, index) => (
-            <div key={index} className="skeleton-item">
-              <Skeleton
-                variant="rectangular"
-                width="100%"
-                height={100}
-                sx={{ borderRadius: 2, mb: 2, bgcolor: "grey.200" }}
-              />
-            </div>
-          ))}
-        </div>
-      ) : (
         <DndContext
-          modifiers={[restrictToVerticalAxis]}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
+        modifiers={[restrictToVerticalAxis]}
         >
           <SortableContext
             items={mergedGroup.map((p) => p.appointment.appointment_id)}
             strategy={verticalListSortingStrategy}
           >
-            {mergedGroup.map((slot) => (
+          <div className="patient-list">
+            {mergedGroup.map((patient) => (
               <PatientItem
-                key={slot.appointment.appointment_id}
-                {...slot}
+                key={patient.appointment.appointment_id}
+                patient={patient}
                 currentPosition={currentPosition}
-                handleNextPatient={handleNextPatient}
-                handleLatePatient={handleLatePatient}
-                isDraggable={slot.position > currentPosition + 3}
-                paid={slot.paid}
-                status={slot.status}
-                checkin={slot.checkin}
+                onNextPatient={handleNext}
+                onLatePatient={handleLate}
               />
             ))}
+          </div>
           </SortableContext>
         </DndContext>
-      )}
 
+      {/* Confirmation Dialog for Drag and Drop */}
       <Dialog open={confirmDrag} onClose={handleCancelDrag}>
         <DialogTitle>Confirm Position Change</DialogTitle>
         <DialogContent>
-          Are you sure you want to move this patient to the new position?
+          Do you want to move{" "}
+          <strong>
+            {dragActiveId?.appointment.patient?.name || "this patient"}
+          </strong>{" "}
+          to position {dragOverId?.position}?
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCancelDrag}>Cancel</Button>
-          <Button onClick={handleConfirmDrag} color="primary">
-            {isShifting ? (
-              <CircularProgress size={24} color="white" />
-            ) : (
-              "Confirm"
-            )}
+        <DialogActions> 
+          <Button onClick={handleCancelDrag} color="primary">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmDrag}
+            color="primary"
+            disabled={isShifting}
+            startIcon={isShifting ? <CircularProgress size={20} /> : null}
+          >
+            {isShifting ? "Updating..." : "Confirm"}
           </Button>
         </DialogActions>
       </Dialog>

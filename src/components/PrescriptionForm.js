@@ -222,9 +222,48 @@ const PrescriptionForm = ({
   };
 
   return (
-    <Paper sx={{ p: 3, mb: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h6">Prescription</Typography>
+    <Paper 
+      sx={{ 
+        p: { xs: 2, md: 4 }, 
+        mb: 3, 
+        bgcolor: '#f8f9fa',
+        '& .MuiPaper-root': {
+          mb: { xs: 4, md: 6 },
+          p: { xs: 3, md: 4 },
+        },
+        '& .section-header': {
+          mb: { xs: 3, md: 4 },
+        },
+        '& .MuiTableContainer-root': {
+          mt: 3,
+        },
+        '& .MuiTableRow-root': {
+          '& .MuiTableCell-root': {
+            py: 2,
+            px: { xs: 1, md: 2 },
+          },
+        },
+        '& .MuiTableHead-root': {
+          '& .MuiTableRow-root': {
+            '& .MuiTableCell-root': {
+              fontWeight: 'bold',
+              fontSize: '0.95rem',
+              py: 2,
+              backgroundColor: '#f5f5f5',
+            },
+          },
+        },
+      }}
+    >
+      {/* Title section with increased spacing */}
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        mb: { xs: 4, md: 5 },
+        borderBottom: '1px solid #eaeaea',
+        pb: 2
+      }}>
+        <Typography variant="h5" fontWeight="medium">Prescription</Typography>
         {appointment && (
           <Box>
             <Chip 

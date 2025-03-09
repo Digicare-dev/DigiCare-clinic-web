@@ -79,8 +79,7 @@ const App = () => {
     if (!user?.checkupcabindata?.[0]?.id || loading) return;
 
     const doctorId = user.checkupcabindata[0].id;
-    const slotTime = user.checkupcabindata[0].cabin_slots[0];
-    const date = new Date(slotTime);
+    const date = new Date(currentCabinSlot);
     const formattedDate = date
       .toISOString()
       .replace(".000", "")
@@ -165,19 +164,16 @@ const App = () => {
       );
       console.log('Raw patient data:', data);
 
-      const processedData = data.map((patient) => ({
-        appointment: patient.appointment,
-        paid: patient.paid || false,
-        checkin: patient.checkin || false,
-        status: patient.status || "pending",
-        position: patient.position
-      }));
-
-      console.log('Processed patient data:', processedData);
-      processedData.sort((a, b) => a.position - b.position);
-      setPatients(processedData);
+      if (Array.isArray(data)) {
+        data.sort((a, b) => a.position - b.position);
+        setPatients(data);
+      } else {
+        console.error('Received non-array patient data:', data);
+        setPatients([]);
+      }
     } catch (error) {
       console.error("Error fetching patients:", error);
+      setPatients([]);
     } finally {
       setLoading(false);
     }
@@ -235,9 +231,24 @@ const App = () => {
   return (
     <ThemeProvider theme={theme}>
       <Router>
-        <div className="App" style={{ height: "100vh", overflow: "hidden" }}>
-          {user !== null && <Header />}
-          <Box sx={{ display: "flex", height: "100%" }}>
+        <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+          {user !== null && (
+            <Header 
+              patients={patients || []} 
+              closeEventSource={() => {
+                if (eventSource) {
+                  eventSource.close();
+                }
+              }} 
+            />
+          )}
+          <Box
+            sx={{
+              display: "flex",
+              flex: 1,
+              overflow: "hidden",
+            }}
+          >
             {!isMobile && user !== null && <Sidebar />}
             <Box
               component="main"
@@ -312,7 +323,6 @@ const App = () => {
                   path="/appointment-details"
                   element={
                     <PrivateRoute>
-                      <appointment />
                       <AppointmentDetails />
                     </PrivateRoute>
                   }
@@ -369,12 +379,13 @@ const App = () => {
                     </PrivateRoute>
                   }
                 />
+                
                 <Route path="*" element={<Navigate to="/login" replace />} />
               </Routes>
             </Box>
           </Box>
           {user !== null && isMobile && <BottomNavigator />}
-        </div>
+        </Box>
       </Router>
     </ThemeProvider>
   );

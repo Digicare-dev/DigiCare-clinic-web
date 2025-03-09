@@ -8,7 +8,7 @@ import {
   FormControlLabel,
   Checkbox,
   Divider,
-  IconButton,
+  IconButton, 
   InputAdornment,
   Autocomplete,
   MenuItem,
@@ -20,6 +20,7 @@ import {
   TableRow,
   TableCell,
   Paper,
+  Box,
 } from "@mui/material";
 import {
   AddCircleOutline,
@@ -156,20 +157,29 @@ const durationSuggestions = [
   "> 1 year"
 ];
 
-const PrescriptionPage = () => {
+// Change from a page to a reusable component
+export const PrescriptionForm = ({ 
+  initialData = {}, 
+  onSubmit,
+  readOnly = false,
+  showPrintButton = true,
+  hidePatientDetails = false,
+  patientInfo = null
+}) => {
+  // Initialize state with initialData or default values
   const [prescription, setPrescription] = useState({
-    patientName: "",
-    age: "",
-    gender: "",
-    weight: "",
+    patientName: initialData.patientName || "",
+    age: initialData.age || "",
+    gender: initialData.gender || "",
+    weight: initialData.weight || "",
     vitals: {
-      bloodPressure: "",
-      heartRate: "",
-      temperature: "",
-      respiratoryRate: "",
-      spO2: "",
+      bloodPressure: initialData.vitals?.bloodPressure || "",
+      heartRate: initialData.vitals?.heartRate || "",
+      temperature: initialData.vitals?.temperature || "",
+      respiratoryRate: initialData.vitals?.respiratoryRate || "",
+      spO2: initialData.vitals?.spO2 || "",
     },
-    medications: [
+    medications: initialData.medications || [
       {
         drug: "",
         dosage: "",
@@ -178,21 +188,23 @@ const PrescriptionPage = () => {
         withFood: false,
       },
     ],
-    tests: [],
-    instructions: "",
-    followUp: "",
-    signature: "",
+    tests: initialData.tests || [],
+    instructions: initialData.instructions || "",
+    followUp: initialData.followUp || "",
+    signature: initialData.signature || "",
   });
 
   const [newTest, setNewTest] = useState("");
-  const [signature, setSignature] = useState("");
+  const [signature, setSignature] = useState(initialData.signature || "");
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
-  // Add this to your PrescriptionPage component state
-  const [complaints, setComplaints] = useState([
+  // Initialize complaints with initialData or default
+  const [complaints, setComplaints] = useState(
+    initialData.complaints || [
     { complaint: '', severity: '', duration: '', isEditing: false }
-  ]);
+    ]
+  );
 
   // Add these dummy data arrays near your other dummy data
   const commonDiagnosisList = [
@@ -264,14 +276,19 @@ const PrescriptionPage = () => {
     "Lifelong"
   ];
 
-  // Add these to your state declarations
-  const [diagnoses, setDiagnoses] = useState([
+  // Initialize diagnoses with initialData or default
+  const [diagnoses, setDiagnoses] = useState(
+    initialData.diagnoses || [
     { diagnosis: '', duration: '', isEditing: false }
-  ]);
+    ]
+  );
 
-  const [medications, setMedications] = useState([
+  // Initialize medications with initialData or default
+  const [medications, setMedications] = useState(
+    initialData.medications || [
     { medicine: '', dose: '', timing: '', frequency: '', duration: '', isEditing: false }
-  ]);
+    ]
+  );
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -292,12 +309,6 @@ const PrescriptionPage = () => {
     setPrescription({ ...prescription, medications: meds });
   };
 
-  // const handleMedicationChange = (field, value, index) => {
-  //   const meds = [...prescription.medications];
-  //   meds[index][field] = value;
-  //   setPrescription({ ...prescription, medications: meds });
-  // };
-
   const handleCheckboxChange = (index) => {
     const meds = [...prescription.medications];
     meds[index].withFood = !meds[index].withFood;
@@ -305,6 +316,8 @@ const PrescriptionPage = () => {
   };
 
   const addMedication = () => {
+    if (readOnly) return;
+    
     setPrescription({
       ...prescription,
       medications: [
@@ -315,6 +328,8 @@ const PrescriptionPage = () => {
   };
 
   const removeMedication = (index) => {
+    if (readOnly) return;
+    
     const meds = [...prescription.medications];
     meds.splice(index, 1);
     setPrescription({ ...prescription, medications: meds });
@@ -325,6 +340,8 @@ const PrescriptionPage = () => {
   };
 
   const addTest = (value) => {
+    if (readOnly) return;
+    
     if (value && !prescription.tests.includes(value)) {
       setPrescription({
         ...prescription,
@@ -334,6 +351,8 @@ const PrescriptionPage = () => {
   };
 
   const removeTest = (index) => {
+    if (readOnly) return;
+    
     const updatedTests = [...prescription.tests];
     updatedTests.splice(index, 1);
     setPrescription({ ...prescription, tests: updatedTests });
@@ -346,9 +365,23 @@ const PrescriptionPage = () => {
     });
   };
 
+  // Update handleSubmit to use the onSubmit prop
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log({ ...prescription, signature });
+    
+    // Prepare the complete data to send to parent component
+    const formData = {
+      ...prescription,
+      complaints,
+      diagnoses,
+      medications,
+      signature
+    };
+    
+    // Call the onSubmit function passed as prop
+    if (onSubmit) {
+      onSubmit(formData);
+    }
   };
 
   // Add this function near your other handlers
@@ -395,6 +428,8 @@ const PrescriptionPage = () => {
 
   // Modify addNewComplaintRow to prevent auto-opening dropdown
   const addNewComplaintRow = () => {
+    if (readOnly) return;
+    
     const updatedComplaints = [...complaints];
     updatedComplaints[updatedComplaints.length - 1].isEditing = false; // Close the current row
     setComplaints(updatedComplaints); // Update state to close dropdown
@@ -481,6 +516,8 @@ const PrescriptionPage = () => {
 
   // Modify addNewDiagnosisRow to prevent auto-opening dropdown
   const addNewDiagnosisRow = () => {
+    if (readOnly) return;
+    
     const updatedDiagnoses = [...diagnoses];
     updatedDiagnoses[updatedDiagnoses.length - 1].isEditing = false; // Close the current row
     setDiagnoses(updatedDiagnoses); // Update state to close dropdown
@@ -497,6 +534,8 @@ const PrescriptionPage = () => {
 
   // Modify addNewMedicationRow to prevent auto-opening dropdown
   const addNewMedicationRow = () => {
+    if (readOnly) return;
+    
     const updatedMedications = [...medications];
     updatedMedications[updatedMedications.length - 1].isEditing = false; // Close the current row
     setMedications(updatedMedications); // Update state to close dropdown
@@ -525,12 +564,11 @@ const PrescriptionPage = () => {
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <Container className="prescription-container" sx={{ pb: 3 }}>
         <form onSubmit={handleSubmit}>
+          <Box>
+            {!hidePatientDetails && (
+              <>
+                <Box sx={{ mb: 3 }}>
           <Grid container spacing={1}>
-            {/* Combined Patient Details and Vitals */}
-            <Grid item xs={12} sx={{ mb: 0.5 }}>
-              <Paper elevation={0} sx={{ p: 1, backgroundColor: '#f8fafc', borderRadius: '8px' }}>
-                <Grid container spacing={1}>
-                  {/* Patient Details Row */}
                   <Grid item xs={12} sm={5} md={6}>
                     <TextField
                       fullWidth
@@ -540,6 +578,7 @@ const PrescriptionPage = () => {
                       onChange={handleChange}
                       required
                       size="small"
+                        disabled={readOnly}
                     />
                   </Grid>
                   <Grid item xs={4} sm={2} md={2}>
@@ -587,7 +626,6 @@ const PrescriptionPage = () => {
                     />
                   </Grid>
                   
-                  {/* Vitals Row */}
                   <Grid item xs={6} sm={2.4} md={2.4}>
                     <TextField
                       fullWidth
@@ -689,28 +727,24 @@ const PrescriptionPage = () => {
                     />
                   </Grid>
                 </Grid>
-              </Paper>
-            </Grid>
+                </Box>
+                <Divider sx={{ mb: 3 }} />
+              </>
+            )}
 
-            {/* Add just one divider after patient information */}
-            <Grid item xs={12}>
-              <Divider sx={{ my: 0.5 }} />
-            </Grid>
-
-            {/* Complaints Section */}
-            <Grid item xs={12} sx={{ mt: 0 }}>
-              <Typography variant="h6" className="section-header" sx={{ mt: 0, mb: 0.5 }}>
+            <Grid item xs={12} sx={{ mt: 0, mb: 3 }}>
+              <Typography variant="h6" className="section-header" sx={{ mt: 0, mb: 2 }}>
                 Complaints
               </Typography>
               
-              <TableContainer component={Paper} className="compact-table" sx={{ mb: 0.5 }}>
-                <Table size="small">
+              <TableContainer component={Paper} className="compact-table" sx={{ mb: 0.5, border: '1px solid rgba(224, 224, 224, 1)' }}>
+                <Table size="small" sx={{ '& .MuiTableCell-root': { borderRight: '1px solid rgba(224, 224, 224, 1)' } }}>
                   <TableHead>
-                    <TableRow>
+                    <TableRow sx={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
                       <TableCell>Complaint</TableCell>
                       <TableCell>Severity</TableCell>
                       <TableCell>Duration</TableCell>
-                      <TableCell width="50px"></TableCell>
+                      <TableCell width="50px" sx={{ borderRight: 'none' }}></TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -725,6 +759,7 @@ const PrescriptionPage = () => {
                           }));
                           setComplaints(updatedComplaints);
                         }}
+                        sx={{ '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }, '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}
                       >
                         <TableCell>
                           <Autocomplete
@@ -812,19 +847,18 @@ const PrescriptionPage = () => {
               </TableContainer>
             </Grid>
 
-            {/* Diagnosis Table */}
-            <Grid item xs={12} sx={{ mt: 0 }}>
-              <Typography variant="h6" className="section-header" sx={{ mt: 0, mb: 0.5 }}>
+            <Grid item xs={12} sx={{ mt: 0, mb: 3 }}>
+              <Typography variant="h6" className="section-header" sx={{ mt: 0, mb: 2 }}>
                 Diagnosis
               </Typography>
               
-              <TableContainer component={Paper} className="compact-table" sx={{ mb: 0.5 }}>
-                <Table size="small">
+              <TableContainer component={Paper} className="compact-table" sx={{ mb: 0.5, border: '1px solid rgba(224, 224, 224, 1)' }}>
+                <Table size="small" sx={{ '& .MuiTableCell-root': { borderRight: '1px solid rgba(224, 224, 224, 1)' } }}>
                   <TableHead>
-                    <TableRow>
+                    <TableRow sx={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
                       <TableCell>Diagnosis</TableCell>
                       <TableCell>Duration</TableCell>
-                      <TableCell width="50px"></TableCell>
+                      <TableCell width="50px" sx={{ borderRight: 'none' }}></TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -839,6 +873,7 @@ const PrescriptionPage = () => {
                           }));
                           setDiagnoses(updatedDiagnoses);
                         }}
+                        sx={{ '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }, '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}
                       >
                         <TableCell>
                           <Autocomplete
@@ -906,22 +941,21 @@ const PrescriptionPage = () => {
               </TableContainer>
             </Grid>
 
-            {/* Medications Table */}
-            <Grid item xs={12} sx={{ mt: 0 }}>
-              <Typography variant="h6" className="section-header" sx={{ mt: 0, mb: 0.5 }}>
+            <Grid item xs={12} sx={{ mt: 0, mb: 3 }}>
+              <Typography variant="h6" className="section-header" sx={{ mt: 0, mb: 2 }}>
                 Medications
               </Typography>
               
-              <TableContainer component={Paper} className="compact-table" sx={{ mb: 0.5 }}>
-                <Table size="small">
+              <TableContainer component={Paper} className="compact-table" sx={{ mb: 0.5, border: '1px solid rgba(224, 224, 224, 1)' }}>
+                <Table size="small" sx={{ '& .MuiTableCell-root': { borderRight: '1px solid rgba(224, 224, 224, 1)' } }}>
                   <TableHead>
-                    <TableRow>
+                    <TableRow sx={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
                       <TableCell>Medicine</TableCell>
                       <TableCell>Dose</TableCell>
                       <TableCell>Timing</TableCell>
                       <TableCell>Frequency</TableCell>
                       <TableCell>Duration</TableCell>
-                      <TableCell width="50px"></TableCell>
+                      <TableCell width="50px" sx={{ borderRight: 'none' }}></TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -936,6 +970,7 @@ const PrescriptionPage = () => {
                           }));
                           setMedications(updatedMedications);
                         }}
+                        sx={{ '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }, '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}
                       >
                         <TableCell>
                           <Autocomplete
@@ -1060,9 +1095,8 @@ const PrescriptionPage = () => {
               </TableContainer>
             </Grid>
 
-            {/* Tests Section */}
-            <Grid item xs={12} sx={{ mt: 0 }}>
-              <Typography variant="h6" className="section-header" sx={{ mt: 0, mb: 0.5 }}>
+            <Grid item xs={12} sx={{ mt: 0, mb: 3 }}>
+              <Typography variant="h6" className="section-header" sx={{ mt: 0, mb: 2 }}>
                 Recommended Tests
               </Typography>
 
@@ -1110,9 +1144,8 @@ const PrescriptionPage = () => {
               />
             </Grid>
 
-            {/* Additional Information */}
-            <Grid item xs={12} sx={{ mt: 0 }}>
-              <Typography variant="h6" className="section-header" sx={{ mt: 0, mb: 0.5 }}>
+            <Grid item xs={12} sx={{ mt: 0, mb: 4 }}>
+              <Typography variant="h6" className="section-header" sx={{ mt: 0, mb: 2 }}>
                 Additional Information
               </Typography>
 
@@ -1129,22 +1162,16 @@ const PrescriptionPage = () => {
               />
             </Grid>
 
-            {/* Submit */}
-            <Grid item xs={12} className="action-buttons" sx={{ mt: 1, mb: 2 }}>
+            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
               <Button
                 type="submit"
                 variant="contained"
                 color="primary"
-                size="small"
-                sx={{ 
-                  px: 2,
-                  py: 0.5,
-                  boxShadow: '0 4px 6px rgba(37, 99, 235, 0.1)',
-                  fontWeight: 500
-                }}
+                sx={{ px: 3, py: 1 }}
               >
-                Save Prescription
+                {readOnly ? "Save" : "Submit"}
               </Button>
+              {showPrintButton && (
               <Button
                 variant="outlined"
                 color="primary"
@@ -1154,15 +1181,27 @@ const PrescriptionPage = () => {
               >
                 Print
               </Button>
+              )}
             </Grid>
             
-            {/* Add an empty spacer element to ensure scrollability */}
             <Grid item xs={12} sx={{ height: '120px' }}></Grid>
-          </Grid>
+          </Box>
         </form>
       </Container>
     </LocalizationProvider>
   );
+};
+
+// Create a wrapper component that can be used as a page
+const PrescriptionPage = () => {
+  const handleFormSubmit = (formData) => {
+    // Handle form submission for the page context
+    console.log("Form submitted:", formData);
+    // Here you would typically save the data to your backend
+    // or perform other actions specific to the page context
+  };
+
+  return <PrescriptionForm onSubmit={handleFormSubmit} />;
 };
 
 export default PrescriptionPage;

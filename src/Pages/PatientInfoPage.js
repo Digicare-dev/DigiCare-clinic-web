@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Container,
   Grid,
@@ -28,6 +28,7 @@ import {
   ListItemText,
   TextField,
   Tooltip,
+  Divider,
 } from '@mui/material';
 import {
   CalendarToday,
@@ -48,48 +49,79 @@ import {
   Edit,
   Add,
   FileUpload,
+  ArrowBack,
+  Paid as PaidIcon,
+  CheckCircle,
+  AttachMoney,
+  Person,
+  Healing,
+  AssignmentLate,
 } from '@mui/icons-material';
 
 const PatientInfoPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get patient data from location state or use default values
+  const patientId = location.state?.patientId || 'PT12345';
+  const appointmentId = location.state?.appointmentId || 'AP67890';
+  const patientInfo = location.state?.patientInfo || {
+    name: 'John Doe',
+    age: '45',
+    gender: 'Male',
+    phone: '+91 9876543210',
+    email: 'john.doe@example.com',
+    id: 'PT12345',
+    bloodGroup: 'O+',
+    allergies: ['None'],
+    chronicConditions: [],
+  };
+
+  const appointmentInfo = location.state?.appointmentInfo || {
+    date: new Date().toISOString().split('T')[0],
+    time: '10:00 AM',
+    doctor: 'Dr. Smith',
+    type: 'General Checkup',
+    status: 'In Progress',
+    id: 'AP67890',
+    reason: 'General Checkup',
+    department: 'General',
+    token: '1',
+    disease: '',
+    fees: 0,
+    paymentMode: 'cash',
+    paid: true,
+    checkin: true,
+  };
+
+  // Get vitals data from location state or use default values
+  const vitalsInfo = location.state?.vitalsInfo || {
+    bloodPressure: '120/80',
+    heartRate: '72',
+    temperature: '98.6',
+    respiratoryRate: '16',
+    spO2: '98',
+    height: '175',
+    weight: '70',
+  };
+
+  // Get complaints data from location state or use empty array
+  const complaintsData = location.state?.complaintsData || [];
+
+  // Get queue position information
+  const position = location.state?.position || 0;
+  const late = location.state?.late || false;
+  const status = location.state?.status || 'pending';
+
   const [openAttachmentDialog, setOpenAttachmentDialog] = useState(false);
   const [selectedAttachment, setSelectedAttachment] = useState(null);
   const [editingVitals, setEditingVitals] = useState(false);
-  const [vitals, setVitals] = useState({
-    bp: '120/80',
-    temp: '98.6°F',
-    pulse: '72 bpm',
-    weight: '75 kg',
-    spO2: '98%',
-    respiratoryRate: '16/min',
-  });
-
-  const patient = {
-    id: "P123456",
-    name: 'John Doe',
-    age: 35,
-    gender: 'Male',
-    bloodGroup: 'O+',
-    contact: '123-456-7890',
-    email: 'john.doe@example.com',
-    address: '123 Medical Center Drive, Healthcare City, HC 12345',
-    emergencyContact: '987-654-3210',
-    allergies: ['Penicillin', 'Peanuts'],
-    chronicConditions: ['Hypertension', 'Diabetes Type 2'],
-  };
-
-  const currentAppointment = {
-    id: "A789",
-    date: '2024-03-10',
-    time: '10:00 AM',
-    doctor: 'Dr. Smith',
-    department: 'Cardiology',
-    status: 'Ongoing',
-    reason: 'Regular Checkup',
-    appointmentType: 'Follow-up',
-    token: '45',
-    disease: 'Hypertension',
-  };
+  
+  // Update patient state to use the data from location
+  const [patient, setPatient] = useState(patientInfo);
+  const [currentAppointment, setCurrentAppointment] = useState(appointmentInfo);
+  const [vitals, setVitals] = useState(vitalsInfo);
+  const [complaints, setComplaints] = useState(complaintsData);
 
   const currentAttachments = [
     { id: 1, name: 'Blood Test Results.pdf', type: 'pdf', date: '2024-03-10', size: '1.2 MB' },
@@ -147,11 +179,11 @@ const PatientInfoPage = () => {
           age: patient.age,
           gender: patient.gender,
           weight: vitals.weight.split(' ')[0],
-          bloodPressure: vitals.bp,
-          heartRate: vitals.pulse.split(' ')[0],
-          temperature: vitals.temp.split('°')[0],
-          respiratoryRate: vitals.respiratoryRate.split('/')[0],
-          spO2: vitals.spO2.replace('%', ''),
+          bloodPressure: vitals.bloodPressure,
+          heartRate: vitals.heartRate,
+          temperature: vitals.temperature,
+          respiratoryRate: vitals.respiratoryRate,
+          spO2: vitals.spO2,
           allergies: patient.allergies,
           chronicConditions: patient.chronicConditions,
         }
@@ -164,7 +196,11 @@ const PatientInfoPage = () => {
       state: { 
         patientInfo: patient,
         appointmentInfo: currentAppointment,
-        vitalsInfo: vitals
+        vitalsInfo: vitals,
+        complaintsData: complaints,
+        position: position,
+        late: late,
+        status: status,
       } 
     });
   };
@@ -203,249 +239,324 @@ const PatientInfoPage = () => {
     }
   };
 
-  return (
-    <Container maxWidth="xl" sx={{ py: 3, pb:20 }}>
-      {/* 1. Patient Information - Horizontal Section at Top */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} sm={1}>
-            <Avatar
-              sx={{ width: 70, height: 70, bgcolor: 'primary.main', mx: 'auto' }}
-            >
-              {patient.name.split(' ').map(n => n[0]).join('')}
-            </Avatar>
-          </Grid>
-          
-          <Grid item xs={12} sm={3}>
-            <Typography variant="h5">{patient.name}</Typography>
-            <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
-              <Chip label={`ID: ${patient.id}`} size="small" />
-              <Chip label={`${patient.age} yrs`} size="small" />
-              <Chip label={patient.gender} size="small" />
-            </Box>
-          </Grid>
-          
-          <Grid item xs={12} sm={2}>
-            <Typography variant="subtitle2" color="text.secondary">Contact</Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Phone fontSize="small" color="action" />
-              <Typography variant="body2">{patient.contact}</Typography>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-              <Email fontSize="small" color="action" />
-              <Typography variant="body2">{patient.email}</Typography>
-            </Box>
-          </Grid>
-          
-          <Grid item xs={12} sm={2}>
-            <Typography variant="subtitle2" color="text.secondary">Medical</Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="body2">Blood Group: <Chip label={patient.bloodGroup} size="small" color="error" /></Typography>
-            </Box>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
-              {patient.allergies.map((allergy) => (
-                <Chip key={allergy} label={allergy} size="small" color="warning" sx={{ height: 20 }} />
-              ))}
-            </Box>
-          </Grid>
-          
-          <Grid item xs={12} sm={2}>
-            <Typography variant="subtitle2" color="text.secondary">Conditions</Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-              {patient.chronicConditions.map((condition) => (
-                <Chip key={condition} label={condition} size="small" color="info" sx={{ height: 20 }} />
-              ))}
-            </Box>
-          </Grid>
-          
-          <Grid item xs={12} sm={2}>
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-              <Tooltip title="Print Patient Info">
-                <IconButton><Print /></IconButton>
-              </Tooltip>
-              <Tooltip title="Share Patient Info">
-                <IconButton><Share /></IconButton>
-              </Tooltip>
-              <Tooltip title="Download Patient Info">
-                <IconButton><Download /></IconButton>
-              </Tooltip>
-            </Box>
-          </Grid>
-        </Grid>
-      </Paper>
+  // Add a function to handle going back
+  const handleGoBack = () => {
+    navigate(-1); // Navigate back to the previous page
+  };
 
-      {/* 2. Current Appointment Information with Editable Vitals */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>Current Appointment</Typography>
-        
-        <Grid container spacing={3}>
-          {/* Appointment Details */}
-          <Grid item xs={12} md={6}>
-            <Card variant="outlined" sx={{ mb: 2 }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="subtitle1" fontWeight="bold">Appointment Details</Typography>
-                  <Chip label={currentAppointment.status} color="primary" size="small" />
-                </Box>
-                
-                <Grid container spacing={2}>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">Date & Time</Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <CalendarToday fontSize="small" />
-                      <Typography>{currentAppointment.date}, {currentAppointment.time}</Typography>
-                    </Box>
-                  </Grid>
-                  
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">Doctor</Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <LocalHospital fontSize="small" />
-                      <Typography>{currentAppointment.doctor}</Typography>
-                    </Box>
-                  </Grid>
-                  
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">Department</Typography>
-                    <Typography>{currentAppointment.department}</Typography>
-                  </Grid>
-                  
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">Token</Typography>
-                    <Typography>#{currentAppointment.token}</Typography>
-                  </Grid>
-                  
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">Type</Typography>
-                    <Typography>{currentAppointment.appointmentType}</Typography>
-                  </Grid>
-                  
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">Reason</Typography>
-                    <Typography>{currentAppointment.disease}</Typography>
-                  </Grid>
-                </Grid>
-                
-                <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+  return (
+    <Container maxWidth="xl" sx={{ mt: 3, mb: 10 }}>
+      {/* Back button and page title */}
+      <Box sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+        <IconButton 
+          color="primary" 
+          onClick={handleGoBack}
+          sx={{ mr: 1 }}
+            >
+          <ArrowBack />
+        </IconButton>
+        <Typography variant="h5" component="h1">
+          Patient Information
+        </Typography>
+            </Box>
+
+      {/* Connected layout with consistent styling */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {/* Patient Header */}
+        <Paper elevation={2} sx={{ p: 2 }}>
+          <Box>
+            {/* Patient name and avatar */}
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              <Avatar 
+                sx={{ 
+                  bgcolor: 'primary.light', 
+                  color: 'primary.contrastText',
+                  width: 40,
+                  height: 40,
+                  mr: 2,
+                  fontSize: '1.2rem'
+                }}
+              >
+                {patient.name.charAt(0)}
+              </Avatar>
+              <Box>
+                <Typography 
+                  variant="h6" 
+                  component="h1" 
+                  sx={{ 
+                    fontWeight: 'medium', 
+                    color: 'text.primary',
+                    opacity: 0.9,
+                    letterSpacing: '0.01em'
+                  }}
+                >
+                  {patient.name}
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Patient ID: {patient.id || "Not specified"}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {patient.age} years, {patient.gender}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Blood: {patient.bloodGroup || "Not specified"}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Phone: {patient.phone || "Not specified"}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Allergies: {patient.allergies && patient.allergies.length > 0 && patient.allergies[0] !== "None" ? 
+                      patient.allergies.join(", ") : "None"}
+                  </Typography>
+            </Box>
+            </Box>
+            </Box>
+            </Box>
+        </Paper>
+
+        {/* Current Appointment with Vitals and Attachments */}
+        <Paper elevation={2} sx={{ p: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, justifyContent: 'space-between' }}>
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <LocalHospital color="primary" sx={{ mr: 1 }} />
+                <Typography variant="h6" component="h2">
+                  Current Appointment
+                </Typography>
+            </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ ml: 4 }}>
+                Token #{currentAppointment.token} • {currentAppointment.doctor} • {currentAppointment.type}
+              </Typography>
+            </Box>
                   <Button 
                     variant="contained" 
                     color="primary" 
-                    startIcon={<MedicalServices />}
-                    onClick={handleCreatePrescription}
-                  >
-                    Create Prescription
-                  </Button>
-                  
-                  <Button 
-                    variant="outlined" 
-                    color="secondary" 
-                    startIcon={<Assignment />}
+              size="medium"
                     onClick={handleOpenConsultation}
+              startIcon={<MedicalServices />}
+              sx={{ 
+                fontWeight: 'bold',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                position: 'relative',
+                overflow: 'hidden',
+                animation: 'pulse 2s infinite',
+                '@keyframes pulse': {
+                  '0%': {
+                    boxShadow: '0 0 0 0 rgba(25, 118, 210, 0.7)',
+                  },
+                  '70%': {
+                    boxShadow: '0 0 0 6px rgba(25, 118, 210, 0)',
+                  },
+                  '100%': {
+                    boxShadow: '0 0 0 0 rgba(25, 118, 210, 0)',
+                  }
+                },
+                '&:hover': {
+                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
+                },
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'linear-gradient(to right, transparent, rgba(255, 255, 255, 0.1), transparent)',
+                  transform: 'translateX(-100%)',
+                  transition: 'transform 0.6s',
+                },
+                '&:hover::after': {
+                  transform: 'translateX(100%)',
+                }
+              }}
                   >
                     Open Consultation File
                   </Button>
                 </Box>
-              </CardContent>
-            </Card>
-          </Grid>
+          <Divider sx={{ mb: 1.5 }} />
           
-          {/* Vitals - Editable */}
+          {/* Vitals and Attachments in a balanced layout */}
+          <Grid container spacing={2}>
+            {/* Vitals Section */}
           <Grid item xs={12} md={6}>
-            <Card variant="outlined">
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                  <Typography variant="subtitle1" fontWeight="bold">Vitals</Typography>
-                  <Button 
-                    startIcon={editingVitals ? null : <Edit />} 
-                    size="small"
-                    onClick={() => editingVitals ? handleSaveVitals() : setEditingVitals(true)}
-                    color={editingVitals ? "success" : "primary"}
-                  >
-                    {editingVitals ? "Save Changes" : "Edit Vitals"}
-                  </Button>
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, justifyContent: 'space-between' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Healing color="primary" sx={{ mr: 1, fontSize: '1.1rem' }} />
+                    <Typography variant="subtitle1" sx={{ fontSize: '0.95rem', fontWeight: 'medium' }}>
+                      Patient Vitals
+                    </Typography>
+                  </Box>
+                  <IconButton size="small" onClick={() => setEditingVitals(!editingVitals)} sx={{ p: 0.5 }}>
+                    <Edit fontSize="small" />
+                  </IconButton>
                 </Box>
                 
-                <Grid container spacing={2}>
-                  {Object.entries(vitals).map(([key, value]) => (
-                    <Grid item xs={6} sm={4} key={key}>
-                      <Typography variant="caption" color="text.secondary">
-                        {key === 'bp' ? 'Blood Pressure' : 
-                         key === 'temp' ? 'Temperature' :
-                         key === 'pulse' ? 'Heart Rate' :
-                         key === 'spO2' ? 'SpO2' :
-                         key === 'respiratoryRate' ? 'Respiratory Rate' : 
-                         key.charAt(0).toUpperCase() + key.slice(1)}
-                      </Typography>
                       {editingVitals ? (
+                  <Grid container spacing={1}>
+                    {Object.entries(vitals).map(([key, value], index) => (
+                      <Grid item xs={6} key={key}>
                         <TextField
                           fullWidth
                           size="small"
+                          label={key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                           value={value}
                           onChange={(e) => handleVitalChange(key, e.target.value)}
-                          variant="outlined"
-                          margin="dense"
+                          InputProps={{
+                            endAdornment: (
+                              <Typography variant="caption" color="text.secondary">
+                                {key === 'bloodPressure' ? 'mmHg' : 
+                                 key === 'heartRate' ? 'bpm' : 
+                                 key === 'temperature' ? '°F' : 
+                                 key === 'respiratoryRate' ? 'bpm' : 
+                                 key === 'spO2' ? '%' : 
+                                 key === 'weight' ? 'kg' : ''}
+                              </Typography>
+                            ),
+                          }}
                         />
-                      ) : (
-                        <Typography variant="h6">{value}</Typography>
-                      )}
+                      </Grid>
+                    ))}
+                    <Grid item xs={12}>
+                      <Button 
+                        variant="contained" 
+                        onClick={handleSaveVitals}
+                        size="small"
+                        sx={{ mt: 1 }}
+                      >
+                        Save Vitals
+                      </Button>
                     </Grid>
-                  ))}
-                </Grid>
-              </CardContent>
-            </Card>
           </Grid>
+                ) : (
+                  <Box sx={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(2, 1fr)', 
+                    gap: 2,
+                    mt: 1,
+                    p: 1.5,
+                    borderRadius: 1,
+                    bgcolor: 'rgba(0, 0, 0, 0.01)',
+                    border: '1px solid #eee'
+                  }}>
+                    {Object.entries(vitals).map(([key, value], index) => (
+                      <Box key={key} sx={{ display: 'flex', alignItems: 'baseline' }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ width: '50%', fontSize: '0.8rem' }}>
+                          {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:
+                        </Typography>
+                        <Typography variant="body1" sx={{ 
+                          fontWeight: key === 'bloodPressure' || key === 'heartRate' ? 'medium' : 'normal',
+                          color: key === 'bloodPressure' ? 'error.main' : 'text.primary'
+                        }}>
+                          {value} {key === 'bloodPressure' ? 'mmHg' : 
+                                  key === 'heartRate' ? 'bpm' : 
+                                  key === 'temperature' ? '°F' : 
+                                  key === 'respiratoryRate' ? 'bpm' : 
+                                  key === 'spO2' ? '%' : 
+                                  key === 'weight' ? 'kg' : ''}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                )}
+              </Box>
         </Grid>
-      </Paper>
 
-      {/* 3. Attachments Section with Add More Option */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6">Attachments</Typography>
-          <Button startIcon={<FileUpload />} color="primary">
-            Upload New Attachment
-          </Button>
+            {/* Attachments Section */}
+            <Grid item xs={12} md={6}>
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, justifyContent: 'space-between' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <FileCopy color="primary" sx={{ mr: 1, fontSize: '1.1rem' }} />
+                    <Typography variant="subtitle1" sx={{ fontSize: '0.95rem', fontWeight: 'medium' }}>
+                      Medical Documents
+                    </Typography>
+                  </Box>
+                  <Box 
+                    sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      cursor: 'pointer',
+                      '&:hover': { color: 'primary.main' }
+                    }}
+                    onClick={() => {/* handle upload */}}
+                  >
+                    <FileUpload fontSize="small" sx={{ mr: 0.5 }} />
+                    <Typography variant="body2">Upload</Typography>
+                  </Box>
         </Box>
         
-        {currentAttachments.length > 0 ? (
-          <Grid container spacing={2}>
-            {currentAttachments.map((attachment) => (
-              <Grid item xs={12} sm={6} md={4} key={attachment.id}>
-                <Card 
-                  variant="outlined" 
+                <Box sx={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: 1.5,
+                  mt: 1,
+                  height: '100%',
+                }}>
+                  {/* Blood Test Result */}
+                  <Box 
                   sx={{ 
+                      borderRadius: 1,
+                      border: '1px solid #eee',
+                      p: 1.5,
                     cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    '&:hover': { boxShadow: 3 }
+                      display: 'flex',
+                      alignItems: 'center',
+                      height: '100%',
+                      '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' }
                   }}
-                  onClick={() => handleOpenAttachment(attachment)}
+                    onClick={() => handleOpenAttachment(currentAttachments[0])}
                 >
-                  <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    {getAttachmentIcon(attachment.type)}
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="subtitle2" noWrap>{attachment.name}</Typography>
+                    <PictureAsPdf color="error" sx={{ mr: 1.5, fontSize: '1.5rem' }} />
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        Blood Test Report
+                      </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {attachment.date} • {attachment.size}
+                        CBC, Lipid Profile • {currentAttachments[0].date}
                       </Typography>
                     </Box>
-                    <IconButton size="small">
-                      <Download fontSize="small" />
-                    </IconButton>
-                  </CardContent>
-                </Card>
+                    <Download fontSize="small" color="action" sx={{ opacity: 0.6 }} />
+                  </Box>
+                  
+                  {/* ECG Report */}
+                  <Box 
+                    sx={{ 
+                      borderRadius: 1,
+                      border: '1px solid #eee',
+                      p: 1.5,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      height: '100%',
+                      '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' }
+                    }}
+                    onClick={() => handleOpenAttachment(currentAttachments[1])}
+                  >
+                    <Image color="primary" sx={{ mr: 1.5, fontSize: '1.5rem' }} />
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        ECG Report
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        12-Lead ECG • {currentAttachments[1].date}
+                      </Typography>
+                    </Box>
+                    <Download fontSize="small" color="action" sx={{ opacity: 0.6 }} />
+                  </Box>
+                </Box>
+              </Box>
               </Grid>
-            ))}
           </Grid>
-        ) : (
-          <Box sx={{ p: 3, textAlign: 'center', bgcolor: '#f5f5f5', borderRadius: 1 }}>
-            <Typography color="text.secondary">No attachments available</Typography>
-            <Button startIcon={<Add />} sx={{ mt: 1 }}>Add First Attachment</Button>
-          </Box>
-        )}
-      </Paper>
+        </Paper>
 
-      {/* 4. Past Appointments at the Bottom */}
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>Past Appointments</Typography>
+        {/* Past Appointments */}
+        <Paper sx={{ p: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <CalendarToday color="primary" sx={{ mr: 1, fontSize: '1.1rem' }} />
+            <Typography variant="h6">Past Appointments</Typography>
+          </Box>
         
         <TableContainer>
           <Table size="small">
@@ -498,6 +609,7 @@ const PatientInfoPage = () => {
           </Table>
         </TableContainer>
       </Paper>
+      </Box>
 
       {/* Attachment Preview Dialog */}
       <Dialog

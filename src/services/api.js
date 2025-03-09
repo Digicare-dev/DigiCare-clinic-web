@@ -147,3 +147,23 @@ export const removeAppointment = async (payload) => {
     throw error;
   }
 };
+
+// Search patients by name or phone
+export const searchPatients = async (cabinId, slot, searchTerm) => {
+  try {
+    // First fetch all appointments for the slot
+    const appointments = await fetchAppointments(cabinId, slot);
+    
+    // Then filter locally based on search term
+    if (!searchTerm) return appointments;
+    
+    const term = searchTerm.toLowerCase();
+    return appointments.filter(appointment => 
+      appointment.name.toLowerCase().includes(term) || 
+      (appointment.patient?.phone_number && appointment.patient.phone_number.includes(term))
+    );
+  } catch (error) {
+    console.error("Error searching patients:", error);
+    throw error;
+  }
+};

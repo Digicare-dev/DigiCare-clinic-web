@@ -1,326 +1,484 @@
-import React from "react";
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  Box,
-  Typography,
-  Button,
-  Tabs,
-  Tab,
-  Card,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Paper,
+  Typography,
+  Box,
   Grid,
-  CardContent,
   Chip,
-  Avatar,
+  Button,
+  TextField,
   Divider,
-} from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { useNavigate, useLocation } from "react-router-dom";
-// Import additional icons
-import AccessTimeIcon from "@mui/icons-material/AccessTime";
-import PaymentIcon from "@mui/icons-material/Payment";
-import LocalHospitalIcon from "@mui/icons-material/LocalHospital";
-import AttachmentIcon from "@mui/icons-material/Attachment";
-import { PageHeader } from '../components/common/PageHeader';
+  IconButton,
+  Avatar,
+  Card,
+  CardContent,
+} from '@mui/material';
+import {
+  CalendarToday,
+  AccessTime,
+  Person,
+  LocalHospital,
+  AttachMoney,
+  EventAvailable,
+  Notes,
+  Edit,
+  ArrowBack,
+  Assignment,
+  MedicalServices,
+  CheckCircle,
+  Cancel,
+  PriorityHigh,
+  LocationOn,
+  Phone,
+  SupervisorAccount,
+  Payment,
+  ReceiptLong,
+} from '@mui/icons-material';
 import { Layout } from '../components/Layout';
+import { PageHeader } from '../components/common/PageHeader';
 
-const dummyAppointment = {
-  id: 1234,
-  firstName: "John",
-  lastName: "Doe",
-  age: 30,
-  sex: "Male",
-  date: "2023-10-15T10:00:00Z",
-  status: "Completed",
-  fees_paid: 500,
-  mode: "Cash",
-  complaints: [
-    { complaint: "Fever", severity: "Moderate", duration: "3 days" },
-    { complaint: "Headache", severity: "Mild", duration: "2 days" },
-  ],
-  diagnosis: [
-    { diagnosis: "Viral fever", duration: "5 days" },
-    { diagnosis: "Migraine", duration: "2 days" },
-  ],
-  medications: [
-    {
-      name: "Paracetamol",
-      dosage: "500mg",
-      frequency: "Twice a day",
-      duration: "5 days",
-    },
-    {
-      name: "Ibuprofen",
-      dosage: "400mg",
-      frequency: "Once a day",
-      duration: "3 days",
-    },
-  ],
-  tests: "Complete blood count (CBC), Urine test.",
-  attachments: [
-    { name: "Blood Test Report.pdf", date: "2023-10-14" },
-    { name: "Urine Test Report.pdf", date: "2023-10-14" },
-  ],
-  vitals: {
-    pulse: "72 bpm",
-    bp: "120/80 mmHg",
-    height: "175 cm",
-    weight: "70 kg",
-    spo2: "98%",
-    sugar: "90 mg/dL",
-  },
-};
-
-
-export default function AppointmentDetails() {
-  const [activeTab, setActiveTab] = React.useState(0);
-  const navigate = useNavigate();
+const AppointmentDetails = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [appointmentInfo, setAppointmentInfo] = useState(null);
+  const [patientInfo, setPatientInfo] = useState(null);
+  const [isFromPastAppointments, setIsFromPastAppointments] = useState(false);
+  
+  useEffect(() => {
+    // Get data from location state or fetch from API if available
+    if (location.state) {
+      const { appointmentInfo, patientInfo, fromPastAppointments } = location.state;
+      
+      // Check if appointmentInfo exists
+      if (appointmentInfo) {
+        setAppointmentInfo(appointmentInfo);
+      } else {
+        console.error('No appointment information provided');
+      }
+      
+      // Check if patientInfo exists
+      if (patientInfo) {
+        setPatientInfo(patientInfo);
+      } else {
+        console.error('No patient information provided');
+        // Create a default patient info object to prevent errors
+        setPatientInfo({
+          id: 'unknown',
+          name: 'Unknown Patient',
+          age: '',
+          gender: '',
+          phone: '',
+          location: '',
+          guardianName: '',
+          email: '',
+        });
+      }
+      
+      setIsFromPastAppointments(fromPastAppointments || false);
+      
+      console.log('Received appointment data:', appointmentInfo);
+      console.log('Received patient data:', patientInfo);
+      console.log('From past appointments:', fromPastAppointments);
+    } else {
+      // If no state is passed, you could fetch appointment data
+      console.log('No state data received, would need to fetch appointment details');
+      // fetchAppointmentDetails(appointmentId);
+    }
+  }, [location]);
 
-  // Helper function to get status color
+  // If we don't have appointment data yet, show a loading state
+  if (!appointmentInfo) {
+    return (
+      <Layout>
+        <PageHeader title="Appointment Details" breadcrumbs={[
+          { text: 'Dashboard', href: '/' },
+          { text: 'Appointments', href: '/appointments' },
+          { text: 'Appointment Details' }
+        ]} />
+        <Box sx={{ p: 3, textAlign: 'center' }}>
+          Loading appointment details...
+        </Box>
+      </Layout>
+    );
+  }
+
+  // Get status color
   const getStatusColor = (status) => {
-    switch (status.toLowerCase()) {
-      case "completed":
-        return "success";
-      case "pending":
-        return "warning";
-      case "cancelled":
-        return "error";
+    switch (status?.toLowerCase()) {
+      case 'completed':
+        return 'success';
+      case 'cancelled':
+        return 'error';
+      case 'pending':
+        return 'warning';
+      case 'late':
+        return 'error';
       default:
-        return "default";
+        return 'default';
     }
   };
 
-  
+  // Get payment status color
+  const getPaymentStatusColor = (paid) => {
+    return paid ? 'success' : 'error';
+  };
 
   return (
     <Layout>
+      {/* Page Header with Back Button and Action Buttons */}
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, flexWrap: 'wrap' }}>
+        <IconButton 
+          onClick={() => navigate(-1)} 
+          sx={{ mr: 2, color: 'primary.main' }}
+        >
+          <ArrowBack />
+        </IconButton>
       <PageHeader 
-        title={`Appointment #${dummyAppointment.id}`}
+          title="Appointment Details" 
         breadcrumbs={[
+            { text: 'Dashboard', href: '/' },
           { text: 'Appointments', href: '/appointments' },
-          { text: 'Details', href: '#' }
+            { text: 'Appointment Details' }
         ]}
       />
       
-      <Box sx={{ bgcolor: "#f5f7fa", minHeight: "100vh" }}>
-        <Box sx={{ p: 3, maxWidth: 1200, margin: "0 auto" }}>
-          {/* Header Section */}
-          <Box sx={{ display: "flex", alignItems: "center", mb: 4 }}>
+        {/* Action Buttons moved to the top */}
+        <Box sx={{ display: 'flex', gap: 2, ml: 'auto', mt: { xs: 2, md: 0 } }}>
+          {!isFromPastAppointments && appointmentInfo.status !== 'completed' && (
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<MedicalServices />}
+              onClick={() => navigate('/consultation', { 
+                state: { patientInfo, appointmentInfo } 
+              })}
+            >
+              Start Consultation
+            </Button>
+          )}
+          
+          {isFromPastAppointments && (
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<Assignment />}
+              onClick={() => navigate('/prescription', { 
+                state: { 
+                  patientInfo, 
+                  appointmentInfo,
+                  fromAppointmentDetails: true 
+                } 
+              })}
+            >
+              View Prescription
+            </Button>
+          )}
+          
+          {!isFromPastAppointments && (
             <Button
               variant="outlined"
-              onClick={() => navigate(-1)}
-              startIcon={<ArrowBackIcon />}
-              sx={{ mr: 2, borderRadius: 2 }}
+              startIcon={<Edit />}
+              onClick={() => {/* Handle edit */}}
             >
-              Back
+              Edit Appointment
             </Button>
-            <Typography variant="h4" sx={{ fontWeight: "bold", flex: 1 }}>
-              Appointment #{dummyAppointment.id}
-            </Typography>
-            <Chip
-              label={dummyAppointment.status}
-              color={getStatusColor(dummyAppointment.status)}
-              sx={{ fontSize: "1rem", py: 1 }}
-            />
-          </Box>
-
-          {/* Patient Summary Card */}
-          <Card sx={{ mb: 3, borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
-                <Avatar
-                  sx={{ 
-                    width: 64, 
-                    height: 64, 
-                    bgcolor: "primary.main",
-                    fontSize: "1.5rem",
-                    mr: 2 
-                  }}
-                >
-                  {`${dummyAppointment.firstName[0]}${dummyAppointment.lastName[0]}`}
-                </Avatar>
-                <Box>
-                  <Typography variant="h5" sx={{ fontWeight: "bold" }}>
-                    {dummyAppointment.firstName} {dummyAppointment.lastName}
-                  </Typography>
-                  <Typography variant="body1" color="text.secondary">
-                    {dummyAppointment.age} years • {dummyAppointment.sex}
-                  </Typography>
-                </Box>
-              </Box>
-
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={4}>
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <AccessTimeIcon sx={{ mr: 1, color: "primary.main" }} />
-                    <Typography>
-                      {new Date(dummyAppointment.date).toLocaleString()}
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <PaymentIcon sx={{ mr: 1, color: "primary.main" }} />
-                    <Typography>
-                      ₹{dummyAppointment.fees_paid} ({dummyAppointment.mode})
-                    </Typography>
-                  </Box>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-
-          {/* Custom styled Tabs */}
-          <Tabs
-            value={activeTab}
-            onChange={(e, newValue) => setActiveTab(newValue)}
-            sx={{
-              mb: 3,
-              borderBottom: 1,
-              borderColor: 'divider',
-              '& .MuiTab-root': {
-                minWidth: 120,
-                fontWeight: 500,
-                fontSize: '1rem',
-              }
-            }}
-          >
-            <Tab label="Details" icon={<LocalHospitalIcon />} iconPosition="start" />
-            <Tab label="Prescription" icon={<LocalHospitalIcon />} iconPosition="start" />
-            <Tab label="Attachments" icon={<AttachmentIcon />} iconPosition="start" />
-          </Tabs>
-
-          {/* Tab Panels */}
-          {activeTab === 0 && (
-            <Box>
-              {/* Vitals Card */}
-              <Card sx={{ mb: 3, borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="h6" sx={{ mb: 3, fontWeight: "bold" }}>
-                    Vitals
-                  </Typography>
-                  <Grid container spacing={3}>
-                    {Object.entries(dummyAppointment.vitals).map(([key, value]) => (
-                      <Grid item xs={12} sm={6} md={4} key={key}>
-                        <Card sx={{ bgcolor: "#f8fafc", p: 2, borderRadius: 2 }}>
-                          <Typography color="text.secondary" sx={{ textTransform: "capitalize" }}>
-                            {key.replace('_', ' ')}
-                          </Typography>
-                          <Typography variant="h6" sx={{ fontWeight: "bold", mt: 1 }}>
-                            {value}
-                          </Typography>
-                        </Card>
-                      </Grid>
-                    ))}
-                  </Grid>
-                </CardContent>
-              </Card>
-            </Box>
           )}
-
-          {activeTab === 1 && (
-            <Box>
-              {/* Complaints, Diagnosis, and Medications sections */}
-              {["Complaints", "Diagnosis", "Medications"].map((section) => (
-                <Card 
-                  key={section}
-                  sx={{ 
-                    mb: 3, 
-                    borderRadius: 2,
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
-                  }}
-                >
-                  <CardContent sx={{ p: 3 }}>
-                    <Typography variant="h6" sx={{ mb: 3, fontWeight: "bold" }}>
-                      {section}
-                    </Typography>
-                    <TableContainer>
-                      <Table>
-                        <TableHead>
-                          <TableRow>
-                            {Object.keys(dummyAppointment[section.toLowerCase()][0]).map((header) => (
-                              <TableCell 
-                                key={header}
-                                sx={{ 
-                                  fontWeight: "bold",
-                                  bgcolor: "#f8fafc",
-                                  textTransform: "capitalize"
-                                }}
-                              >
-                                {header.replace('_', ' ')}
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {dummyAppointment[section.toLowerCase()].map((item, index) => (
-                            <TableRow key={index}>
-                              {Object.values(item).map((value, i) => (
-                                <TableCell key={i}>{value}</TableCell>
-                              ))}
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  </CardContent>
-                </Card>
-              ))}
-            </Box>
-          )}
-
-          {activeTab === 2 && (
-            <Grid container spacing={3}>
-              {dummyAppointment.attachments.map((file, index) => (
-                <Grid item xs={12} sm={6} md={4} key={index}>
-                  <Card 
-                    sx={{ 
-                      borderRadius: 2,
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                      transition: "transform 0.2s",
-                      "&:hover": {
-                        transform: "translateY(-4px)"
-                      }
-                    }}
-                  >
-                    <CardContent sx={{ p: 3 }}>
-                      <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                        <AttachmentIcon sx={{ mr: 1, color: "primary.main" }} />
-                        <Typography variant="h6" noWrap>{file.name}</Typography>
-                      </Box>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                        Uploaded: {file.date}
-                      </Typography>
-                      <Box sx={{ display: "flex", gap: 1 }}>
-                        <Button 
-                          variant="contained" 
-                          fullWidth
-                          sx={{ borderRadius: 2 }}
-                        >
-                          Preview
-                        </Button>
-                        <Button 
-                          variant="outlined" 
-                          fullWidth
-                          sx={{ borderRadius: 2 }}
-                        >
-                          Download
-                        </Button>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
+          
+          {!isFromPastAppointments && appointmentInfo.status !== 'cancelled' && 
+           appointmentInfo.status !== 'completed' && (
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<Cancel />}
+              onClick={() => {/* Handle cancel */}}
+            >
+              Cancel Appointment
+            </Button>
           )}
         </Box>
+          </Box>
+
+      {/* Consolidated Card with All Information */}
+      <Paper 
+        elevation={0} 
+                  sx={{ 
+          mb: { xs: 4, md: 6 },
+          bgcolor: 'white', 
+          borderRadius: 2,
+          border: '1px solid #f0f0f0',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+        }}
+      >
+        <Typography 
+          variant="h6" 
+          sx={{ 
+            p: 2,
+            color: 'primary.main', 
+            fontWeight: 'medium',
+            borderBottom: '1px solid #f0f0f0',
+            backgroundColor: '#fcfcfc'
+                  }}
+                >
+          Appointment Information
+        </Typography>
+        
+        <Box sx={{ p: { xs: 2, md: 3 } }}>
+          {/* Patient Information Section - Moved to top */}
+          {patientInfo && (
+            <>
+              <Typography variant="h6" color="primary.main" sx={{ mb: 2 }}>
+                Patient Information
+              </Typography>
+              
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <Avatar 
+                  sx={{ width: 56, height: 56, bgcolor: 'primary.main', mr: 2 }}
+                >
+                  {patientInfo.name ? patientInfo.name.charAt(0) : 'P'}
+                </Avatar>
+                <Box>
+                  <Typography variant="h6">{patientInfo.name || 'Unknown Patient'}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    ID: {patientInfo.id || 'Unknown'} | {patientInfo.age ? `${patientInfo.age} years` : 'Age not available'}, {patientInfo.gender || 'Gender not specified'}
+                  </Typography>
+                </Box>
+                <Button 
+                  variant="outlined" 
+                  startIcon={<Person />} 
+                  sx={{ ml: 'auto' }}
+                  onClick={() => navigate('/patient-info', { 
+                    state: { patientInfo, appointmentInfo } 
+                  })}
+                >
+                  View Complete Profile
+                </Button>
+              </Box>
+
+              <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6} md={4}>
+                  <TextField
+                    fullWidth
+                    label="Phone Number"
+                    value={patientInfo.phone || "Not available"}
+                    InputProps={{ readOnly: true }}
+                    variant="outlined"
+                    size="small"
+                    margin="normal"
+                  />
+                </Grid>
+                
+                <Grid item xs={12} sm={6} md={4}>
+                  <TextField
+                    fullWidth
+                    label="Email"
+                    value={patientInfo.email || "Not available"}
+                    InputProps={{ readOnly: true }}
+                    variant="outlined"
+                    size="small"
+                    margin="normal"
+                  />
+                </Grid>
+                
+                {patientInfo.location && (
+                  <Grid item xs={12} sm={6} md={4}>
+                    <TextField
+                      fullWidth
+                      label="Location"
+                      value={patientInfo.location}
+                      InputProps={{ readOnly: true }}
+                      variant="outlined"
+                      size="small"
+                      margin="normal"
+                    />
+                  </Grid>
+                )}
+                
+                {patientInfo.guardianName && (
+                  <Grid item xs={12} sm={6} md={4}>
+                    <TextField
+                      fullWidth
+                      label="Guardian Name"
+                      value={patientInfo.guardianName}
+                      InputProps={{ readOnly: true }}
+                      variant="outlined"
+                      size="small"
+                      margin="normal"
+                    />
+                  </Grid>
+                )}
+              </Grid>
+            </>
+          )}
+          
+          <Divider sx={{ my: 3 }} />
+          
+          {/* Appointment Status Information */}
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h6" color="primary.main" sx={{ mb: 2 }}>
+              Appointment Status
+                  </Typography>
+            
+                  <Grid container spacing={3}>
+              <Grid item xs={12} sm={6} md={4}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Appointment ID
+                          </Typography>
+                <Typography variant="body1" fontWeight="medium">
+                  #{appointmentInfo.id}
+                          </Typography>
+                  </Grid>
+              
+              <Grid item xs={12} sm={6} md={4}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Status
+                </Typography>
+                <Typography 
+                  variant="body1" 
+                  fontWeight="medium"
+                  sx={{ 
+                    color: appointmentInfo.status?.toLowerCase() === 'completed' ? 'success.main' : 
+                           appointmentInfo.status?.toLowerCase() === 'cancelled' ? 'error.main' : 
+                           appointmentInfo.status?.toLowerCase() === 'pending' ? 'warning.main' : 'text.primary'
+                  }}
+                >
+                  {appointmentInfo.status || 'Pending'}
+                    </Typography>
+              </Grid>
+              
+              <Grid item xs={12} sm={6} md={4}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Payment Status
+                </Typography>
+                <Typography 
+                  variant="body1" 
+                  fontWeight="medium"
+                  sx={{ color: appointmentInfo.paid ? 'success.main' : 'error.main' }}
+                >
+                  {appointmentInfo.paid ? 'Paid' : 'Unpaid'}
+                </Typography>
+              </Grid>
+              
+              {appointmentInfo.token && (
+                <Grid item xs={12} sm={6} md={4}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Token Number
+                  </Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    #{appointmentInfo.token}
+                  </Typography>
+                </Grid>
+              )}
+            </Grid>
+          </Box>
+          
+          <Divider sx={{ my: 3 }} />
+          
+          {/* Appointment Details */}
+          <Typography variant="h6" color="primary.main" sx={{ mb: 2 }}>
+            Appointment Details
+          </Typography>
+          
+          <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid item xs={12} sm={6} md={4}>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Date
+                </Typography>
+                <Typography variant="body1">
+                  {appointmentInfo.date || 'Not scheduled'}
+                </Typography>
+              </Box>
+              
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Time
+                </Typography>
+                <Typography variant="body1">
+                  {appointmentInfo.time || 'Time not set'}
+                </Typography>
+              </Box>
+              
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Appointment Type
+                </Typography>
+                <Typography variant="body1">
+                  {appointmentInfo.type || 'General Checkup'}
+                </Typography>
+              </Box>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={4}>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Reason for Visit
+                </Typography>
+                <Typography variant="body1">
+                  {appointmentInfo.reason || 'Not specified'}
+                </Typography>
+              </Box>
+              
+              {appointmentInfo.doctor && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Doctor
+                  </Typography>
+                  <Typography variant="body1">
+                    {appointmentInfo.doctor}
+                  </Typography>
+            </Box>
+          )}
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={4}>
+              {appointmentInfo.fees > 0 && (
+                <>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Amount
+                    </Typography>
+                    <Typography variant="body1">
+                      ₹{appointmentInfo.fees}
+                    </Typography>
+                      </Box>
+                  
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Payment Method
+                      </Typography>
+                    <Typography variant="body1">
+                      {appointmentInfo.paymentMode || 'Not specified'}
+                    </Typography>
+                      </Box>
+                </>
+              )}
+            </Grid>
+          </Grid>
+          
+          {appointmentInfo.notes && (
+            <Box sx={{ mt: 2, p: 2, backgroundColor: '#f9f9f9', borderRadius: 1 }}>
+              <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                Additional Notes
+              </Typography>
+              <Typography variant="body1">{appointmentInfo.notes}</Typography>
+            </Box>
+          )}
+        </Box>
+      </Paper>
+      
+      {/* Back button at the bottom */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 4 }}>
+        <Button
+          variant="outlined"
+          startIcon={<ArrowBack />}
+          onClick={() => navigate(-1)}
+        >
+          Back
+        </Button>
       </Box>
     </Layout>
   );
-}
+};
+
+export default AppointmentDetails;

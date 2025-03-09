@@ -45,179 +45,136 @@ import TimelineContent from '@mui/lab/TimelineContent';
 import TimelineDot from '@mui/lab/TimelineDot';
 import TimelineOppositeContent from '@mui/lab/TimelineOppositeContent';
 
+// Import the PrescriptionForm component
+import { PrescriptionForm } from './PrescriptionPage';
+
 import {
   CalendarToday,
+  AccessTime,
   LocalHospital,
+  ArrowBack,
   MedicalServices,
-  Description,
+  Save,
+  Print,
+  Close,
+  ExpandMore,
+  Add,
+  Remove,
+  RemoveCircleOutline,
+  AttachMoney,
+  CheckCircle,
+  Paid as PaidIcon,
+  Person,
+  Assignment,
+  ReceiptLong,
   PictureAsPdf,
   Image,
+  Description,
   InsertDriveFile,
-  ExpandMore,
-  CheckCircle,
-  Add,
-  FileUpload,
-  Download,
-  Print,
-  ArrowBack,
-  Save,
-  Done,
-  Close,
-  RemoveCircleOutline,
+  Edit,
 } from '@mui/icons-material';
 
 const ConsultationPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Get patient data from location state
+  const patientInfo = location.state?.patientInfo || {
+    name: 'John Doe',
+    age: '45',
+    gender: 'Male',
+    phone: '+91 9876543210',
+    email: 'john.doe@example.com',
+    id: 'PT12345',
+    bloodGroup: 'O+',
+  };
+
+  const appointmentInfo = location.state?.appointmentInfo || {
+    date: new Date().toISOString().split('T')[0],
+    time: '10:00 AM',
+    doctor: 'Dr. Smith',
+    type: 'General Checkup',
+    status: 'In Progress',
+    id: 'AP67890',
+    reason: 'General Checkup',
+    fees: 0,
+    paymentMode: 'cash',
+    paid: true,
+    checkin: true,
+  };
+
+  const vitalsInfo = location.state?.vitalsInfo || {
+    bloodPressure: '120/80',
+    heartRate: '72',
+    temperature: '98.6',
+    respiratoryRate: '16',
+    spO2: '98',
+    height: '175',
+    weight: '70',
+  };
+
+  // Get complaints data from location state
+  const complaintsData = location.state?.complaintsData || [];
+
+  // Get queue position information
+  const position = location.state?.position || 0;
+  const late = location.state?.late || false;
+  const status = location.state?.status || 'pending';
+
+  // We're not going to use the complaints data for prefilling
+  // Instead, we'll just initialize with an empty complaint
+
+  // Modify the prefilledPrescriptionData to remove patient details
+  const prefilledPrescriptionData = {
+    // Remove patient details since they're shown in the header
+    vitals: {
+      bloodPressure: vitalsInfo.bloodPressure,
+      heartRate: vitalsInfo.heartRate,
+      temperature: vitalsInfo.temperature,
+      respiratoryRate: vitalsInfo.respiratoryRate,
+      spO2: vitalsInfo.spO2,
+    },
+    complaints: [
+    { complaint: '', severity: '', duration: '', isEditing: false }
+    ],
+    diagnoses: [
+    { diagnosis: '', duration: '', isEditing: false }
+    ],
+    medications: [
+    { medicine: '', dose: '', timing: '', frequency: '', duration: '', isEditing: false }
+    ],
+    tests: [],
+    instructions: "",
+    followUp: "",
+    signature: appointmentInfo.doctor,
+  };
+
   const [openAttachmentDialog, setOpenAttachmentDialog] = useState(false);
   const [selectedAttachment, setSelectedAttachment] = useState(null);
   const [confirmDoneDialog, setConfirmDoneDialog] = useState(false);
+  const [isEditingVitals, setIsEditingVitals] = useState(false);
+  const [editedVitals, setEditedVitals] = useState({...vitalsInfo});
 
-  // Dummy data - in a real app, this would come from props or context
-  const patient = {
-    id: "P123456",
-    name: 'John Doe',
-    age: 35,
-    gender: 'Male',
-    bloodGroup: 'O+',
-    contact: '123-456-7890',
-    email: 'john.doe@example.com',
-    allergies: ['Penicillin', 'Peanuts'],
-    chronicConditions: ['Hypertension', 'Diabetes Type 2'],
-  };
-
-  const currentAppointment = {
-    id: "A789",
-    date: '2024-03-10',
-    time: '10:00 AM',
-    doctor: 'Dr. Smith',
-    department: 'Cardiology',
-    status: 'Ongoing',
-    reason: 'Regular Checkup',
-    appointmentType: 'Follow-up',
-    token: '45',
-    disease: 'Hypertension',
-  };
-
-  const vitals = {
-    bp: '120/80',
-    temp: '98.6°F',
-    pulse: '72 bpm',
-    weight: '75 kg',
-    spO2: '98%',
-    respiratoryRate: '16/min',
-  };
-
-  // Prescription state
-  const [complaints, setComplaints] = useState([
-    { complaint: '', severity: '', duration: '', isEditing: false }
-  ]);
-
-  const [diagnoses, setDiagnoses] = useState([
-    { diagnosis: '', duration: '', isEditing: false }
-  ]);
-
-  const [medications, setMedications] = useState([
-    { medicine: '', dose: '', timing: '', frequency: '', duration: '', isEditing: false }
-  ]);
-
-  const [tests, setTests] = useState([]);
-  const [newTest, setNewTest] = useState('');
-  const [instructions, setInstructions] = useState('');
-
-  // Dummy data for suggestions
-  const commonComplaints = [
-    "Headache", "Fever", "Cough", "Body Pain", "Stomach Pain", 
-    "Vomiting", "Diarrhea", "Chest Pain", "Breathlessness", "Dizziness"
-  ];
-
-  const severityLevels = [
-    "Mild", "Moderate", "Severe", "Very Severe", "Unbearable"
-  ];
-
-  const durationSuggestions = [
-    "1 day", "2-3 days", "1 week", "2 weeks", "1 month", "3 months", "6 months", "> 1 year"
-  ];
-
-  const commonDiagnosisList = [
-    "Hypertension", "Diabetes Mellitus Type 2", "Upper Respiratory Tract Infection",
-    "Gastroenteritis", "Migraine", "Bronchial Asthma", "Anxiety Disorder",
-    "Osteoarthritis", "Urinary Tract Infection", "Dyslipidemia"
-  ];
-
-  const diagnosisDurationSuggestions = [
-    "Acute", "Chronic", "1 month", "6 months", "1 year", "> 2 years", "Lifelong"
-  ];
-
-  const medicineSuggestions = [
-    "Paracetamol", "Amoxicillin", "Omeprazole", "Cetirizine", "Atorvastatin", "Metformin"
-  ];
-
-  const medicineDosePatterns = [
-    "1-0-1", "1-1-1", "1-0-0", "0-0-1", "1/2-0-1/2", "1/2-0-0", "2-2-2", "SOS"
-  ];
-
-  const medicineTimings = [
-    "Before breakfast", "After breakfast", "Before lunch", "After lunch",
-    "Before dinner", "After dinner", "Empty stomach", "With meals", "SOS"
-  ];
-
-  const medicineFrequency = [
-    "Daily", "Alternate days", "Weekly once", "Weekly twice", "Monthly once",
-    "Every 6 hours", "Every 8 hours", "SOS"
-  ];
-
-  const medicineDuration = [
-    "1 day", "3 days", "5 days", "1 week", "2 weeks", "1 month", "3 months", "6 months", "Lifelong"
-  ];
-
-  const testSuggestions = [
-    "Complete Blood Count (CBC)", "Comprehensive Metabolic Panel", "Lipid Profile",
-    "Thyroid Function Test", "Liver Function Test", "Renal Function Test",
-    "HbA1c", "Urine Routine & Microscopy", "ECG", "Chest X-ray", "Ultrasound Abdomen"
-  ];
-
-  // Attachments
+  // Add this for attachments
   const [attachments, setAttachments] = useState([
+    // Sample attachments - in a real app, these would come from the API
     { id: 1, name: 'Blood Test Results.pdf', type: 'pdf', date: '2024-03-10', size: '1.2 MB' },
     { id: 2, name: 'ECG Report.jpg', type: 'image', date: '2024-03-10', size: '3.5 MB' },
   ]);
 
-  // Past consultations
-  const pastConsultations = [
-    {
-      id: 1,
-      date: '2024-02-15',
-      doctor: 'Dr. Smith',
-      diagnosis: 'Hypertension',
-      medications: ['Lisinopril 10mg', 'Hydrochlorothiazide 12.5mg'],
-      attachments: [
-        { name: 'Blood Pressure Chart.pdf', type: 'pdf' },
-        { name: 'ECG Results.jpg', type: 'image' },
-      ],
-    },
-    {
-      id: 2,
-      date: '2024-01-20',
-      doctor: 'Dr. Brown',
-      diagnosis: 'Seasonal Flu',
-      medications: ['Oseltamivir 75mg', 'Acetaminophen 500mg'],
-      attachments: [
-        { name: 'Chest X-Ray.jpg', type: 'image' },
-      ],
-    },
-    {
-      id: 3,
-      date: '2023-12-05',
-      doctor: 'Dr. Johnson',
-      diagnosis: 'Mild Sprain',
-      medications: ['Ibuprofen 400mg', 'Diclofenac Gel'],
-      attachments: [
-        { name: 'Ankle X-Ray.jpg', type: 'image' },
-        { name: 'Physical Therapy Plan.pdf', type: 'pdf' },
-      ],
-    },
-  ];
+  // Add this helper function to get the appropriate icon for each attachment type
+  const getAttachmentIcon = (type) => {
+    switch(type) {
+      case 'pdf':
+        return <PictureAsPdf fontSize="small" color="error" />;
+      case 'image':
+        return <Image fontSize="small" color="primary" />;
+      case 'document':
+        return <Description fontSize="small" color="info" />;
+      default:
+        return <InsertDriveFile fontSize="small" />;
+    }
+  };
 
   const handleOpenAttachment = (attachment) => {
     setSelectedAttachment(attachment);
@@ -226,6 +183,7 @@ const ConsultationPage = () => {
 
   const handleCloseAttachmentDialog = () => {
     setOpenAttachmentDialog(false);
+    setSelectedAttachment(null);
   };
 
   const handleDoneConsultation = () => {
@@ -234,483 +192,593 @@ const ConsultationPage = () => {
 
   const confirmDoneConsultation = () => {
     setConfirmDoneDialog(false);
-    // In a real app, you would save the consultation data here
-    navigate('/patient-info');
+    // Here you would typically save the consultation data
+    alert("Consultation marked as done!");
+    handleBackToPatient();
   };
 
   const handleBackToPatient = () => {
-    navigate('/patient-info');
+    navigate(-1); // Navigate back to the previous page
   };
 
-  const getAttachmentIcon = (type) => {
-    switch(type) {
-      case 'pdf':
-        return <PictureAsPdf color="error" />;
-      case 'image':
-        return <Image color="primary" />;
-      case 'document':
-        return <Description color="info" />;
-      default:
-        return <InsertDriveFile />;
+  const handlePrescriptionSubmit = (formData) => {
+    console.log("Prescription submitted:", formData);
+    // Here you would typically save the prescription data
+    // and then navigate back or to another page
+    
+    // For demo purposes, just show an alert and navigate back
+    alert("Prescription saved successfully!");
+    handleBackToPatient();
+  };
+
+  const handleEditVitals = () => {
+    setIsEditingVitals(!isEditingVitals);
+    if (isEditingVitals) {
+      // Save the edited vitals
+      console.log("Saving vitals:", editedVitals);
+      // Here you would typically save the vitals data to your backend
     }
   };
 
-  // Handlers for prescription form
-  const handleComplaintChange = (index, field, value) => {
-    const updatedComplaints = [...complaints];
-    updatedComplaints[index][field] = value;
-    
-    if (value) {
-      const currentRow = updatedComplaints[index];
-      
-      // Auto-focus next field
-      if (field === 'complaint' && value) {
-        const nextElement = document.querySelector(`#severity-${index}`);
-        if (nextElement) nextElement.focus();
-      } else if (field === 'severity' && value) {
-        const nextElement = document.querySelector(`#duration-${index}`);
-        if (nextElement) nextElement.focus();
-      }
+  const handleVitalsChange = (field, value) => {
+    setEditedVitals(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
 
-      // Check if all fields in current row are filled
-      if (currentRow.complaint && currentRow.severity && currentRow.duration) {
-        // Close current row
-        updatedComplaints[index].isEditing = false;
-        setComplaints(updatedComplaints);
-        
-        // Add new row if this is the last row
-        if (index === complaints.length - 1) {
-          setTimeout(() => {
-            addNewComplaintRow();
-          }, 100);
-        }
-      }
+  // Add this constant
+  const hidePatientDetails = true; // Since we want to always hide patient details in consultation page
+
+  // Add sample previous prescriptions data
+  const [previousPrescriptions, setPreviousPrescriptions] = useState([
+    {
+      id: 'P001',
+      date: '2024-02-15',
+      doctor: 'Dr. Smith',
+      diagnosis: 'Hypertension',
+      vitals: {
+        bloodPressure: '140/90',
+        heartRate: '78',
+        temperature: '98.4',
+        respiratoryRate: '16',
+        spO2: '97',
+      },
+      medications: [
+        { medicine: 'Amlodipine', dose: '5mg', timing: 'Morning', frequency: 'Once daily', duration: '30 days' },
+        { medicine: 'Hydrochlorothiazide', dose: '12.5mg', timing: 'Morning', frequency: 'Once daily', duration: '30 days' }
+      ],
+      tests: ['Complete Blood Count', 'Lipid Profile'],
+      instructions: 'Reduce salt intake. Regular exercise recommended.',
+      followUp: '1 month'
+    },
+    {
+      id: 'P002',
+      date: '2024-01-20',
+      doctor: 'Dr. Johnson',
+      diagnosis: 'Upper Respiratory Infection',
+      vitals: {
+        bloodPressure: '120/80',
+        heartRate: '82',
+        temperature: '99.2',
+        respiratoryRate: '18',
+        spO2: '96',
+      },
+      medications: [
+        { medicine: 'Azithromycin', dose: '500mg', timing: 'After meals', frequency: 'Once daily', duration: '5 days' },
+        { medicine: 'Paracetamol', dose: '500mg', timing: 'As needed', frequency: 'Every 6 hours', duration: '3 days' }
+      ],
+      tests: ['Throat Swab Culture'],
+      instructions: 'Plenty of fluids. Rest advised.',
+      followUp: '1 week if symptoms persist'
     }
-    
-    setComplaints(updatedComplaints);
-  };
-
-  const addNewComplaintRow = () => {
-    setComplaints(prev => [...prev, { complaint: '', severity: '', duration: '', isEditing: true }]);
-  };
-
-  const handleDiagnosisChange = (index, field, value) => {
-    const updatedDiagnoses = [...diagnoses];
-    updatedDiagnoses[index][field] = value;
-    
-    if (value) {
-      const currentRow = updatedDiagnoses[index];
-      
-      // Auto-focus next field
-      if (field === 'diagnosis' && value) {
-        const nextElement = document.querySelector(`#diagnosis-duration-${index}`);
-        if (nextElement) nextElement.focus();
-      }
-
-      // Check if all fields in current row are filled
-      if (currentRow.diagnosis && currentRow.duration) {
-        updatedDiagnoses[index].isEditing = false;
-        setDiagnoses(updatedDiagnoses);
-        
-        if (index === diagnoses.length - 1) {
-          setTimeout(() => {
-            addNewDiagnosisRow();
-          }, 100);
-        }
-      }
-    }
-    
-    setDiagnoses(updatedDiagnoses);
-  };
-
-  const addNewDiagnosisRow = () => {
-    setDiagnoses(prev => [...prev, { diagnosis: '', duration: '', isEditing: true }]);
-  };
-
-  const handleMedicationChange = (index, field, value) => {
-    const updatedMedications = [...medications];
-    updatedMedications[index][field] = value;
-    
-    if (value) {
-      const currentRow = updatedMedications[index];
-      
-      // Auto-focus next field logic
-      const fields = ['medicine', 'dose', 'timing', 'frequency', 'duration'];
-      const currentFieldIndex = fields.indexOf(field);
-      if (currentFieldIndex < fields.length - 1) {
-        const nextField = fields[currentFieldIndex + 1];
-        const nextElement = document.querySelector(`#med-${nextField}-${index}`);
-        if (nextElement) nextElement.focus();
-      }
-
-      // Check if all fields are filled
-      if (currentRow.medicine && currentRow.dose && currentRow.timing && 
-          currentRow.frequency && currentRow.duration) {
-        updatedMedications[index].isEditing = false;
-        setMedications(updatedMedications);
-        
-        if (index === medications.length - 1) {
-          setTimeout(() => {
-            addNewMedicationRow();
-          }, 100);
-        }
-      }
-    }
-    
-    setMedications(updatedMedications);
-  };
-
-  const addNewMedicationRow = () => {
-    setMedications(prev => [...prev, { 
-      medicine: '', dose: '', timing: '', frequency: '', duration: '', isEditing: true 
-    }]);
-  };
-
-  const handleAddTest = () => {
-    if (newTest) {
-      setTests([...tests, newTest]);
-      setNewTest('');
-    }
-  };
-
-  const handleRemoveTest = (index) => {
-    const updatedTests = [...tests];
-    updatedTests.splice(index, 1);
-    setTests(updatedTests);
-  };
-
-  const handleClickAway = (index, setterFunction, array) => {
-    const updated = [...array];
-    updated[index].isEditing = false;
-    setterFunction(updated);
-  };
+  ]);
 
   return (
-    <>
-      {/* Fixed App Bar with Patient Info and Actions */}
-      <AppBar position="sticky" color="default" elevation={1} sx={{ mb: 3 }}>
-        <Toolbar>
-          <IconButton edge="start" color="inherit" onClick={handleBackToPatient} sx={{ mr: 2 }}>
-            <ArrowBack />
-          </IconButton>
-          
-          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
-            <Typography variant="h6" component="div" sx={{ mr: 2 }}>
-              {patient.name}
-            </Typography>
-            <Chip label={`ID: ${patient.id}`} size="small" sx={{ mr: 1 }} />
-            <Chip label={`${patient.age} yrs, ${patient.gender}`} size="small" sx={{ mr: 1 }} />
-            <Chip label={`Blood: ${patient.bloodGroup}`} size="small" color="error" />
-          </Box>
-          
-          <Box sx={{ display: 'flex', gap: 1 }}>
+    <Container maxWidth="xl" sx={{ mt: 2, mb: 4, pb: 8 }}>
+      {/* Back button moved outside of header */}
+      <Box sx={{ display: 'flex', mb: 2 }}>
             <Button 
-              variant="contained" 
+          variant="outlined" 
               color="primary" 
-              startIcon={<Save />}
+          onClick={handleBackToPatient}
+          startIcon={<ArrowBack />}
               size="small"
+          sx={{ py: 1, px: 2 }}
             >
-              Save Draft
-            </Button>
-            <Button 
-              variant="contained" 
-              color="success" 
-              startIcon={<Done />}
-              size="small"
-              onClick={handleDoneConsultation}
-            >
-              Done Consultation
+          Back to Patient List
             </Button>
           </Box>
-        </Toolbar>
-      </AppBar>
 
-      <Container maxWidth="xl" sx={{ py: 2, pb: 20 }}>
-        {/* 1. Prescription Form */}
-        <Paper sx={{ p: 3, mb: 3 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="h6">Prescription</Typography>
+      {/* SECTION 1: Merged Header and Patient Details with Vitals (editable) and Attachments */}
+      <Paper elevation={3} sx={{ p: 3, mb: 4 }}>
+        {/* Patient Header */}
+        <Box sx={{ mb: 3 }}>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} md={7}>
             <Box>
+                <Typography variant="h5" component="h1" sx={{ fontWeight: 'medium', mb: 1 }}>
+                  {patientInfo.name}
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
               <Chip 
-                label={currentAppointment.status} 
+                    size="small"
+                    icon={<Person />} 
+                    label={`${patientInfo.gender}${patientInfo.age ? `, ${patientInfo.age} years` : ""}`} 
+                    variant="outlined" 
+                  />
+                  {patientInfo.id && 
+                    <Chip 
+                      size="small"
+                      label={`ID: ${patientInfo.id}`} 
+                      variant="outlined" 
+                    />
+                  }
+                  <Chip 
+                    size="small"
+                    label={`Token: #${appointmentInfo.token}`} 
                 color="primary" 
+                    variant="outlined" 
+                  />
+                  <Chip 
                 size="small" 
-                sx={{ mr: 1 }}
+                    label="General Checkup" 
+                    variant="outlined" 
               />
               <Chip 
-                icon={<CalendarToday fontSize="small" />} 
-                label={`${currentAppointment.date}, ${currentAppointment.time}`} 
                 size="small" 
+                    label="Blood: O+" 
                 variant="outlined"
+                    color="error"
+                  />
+                  {appointmentInfo.disease && (
+                    <Chip 
+                      size="small" 
+                      icon={<LocalHospital />} 
+                      label={appointmentInfo.disease} 
+                      color="error" 
+                      variant="outlined"
               />
+                  )}
             </Box>
-          </Box>
-
-          {/* Patient Details */}
-          <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid item xs={12} sm={3}>
-              <TextField
-                fullWidth
-                label="Patient Name"
-                value={patient.name}
-                size="small"
-                InputProps={{ readOnly: true }}
-              />
+              </Box>
             </Grid>
-            <Grid item xs={4} sm={1.5}>
-              <TextField
-                fullWidth
-                label="Age"
-                value={patient.age}
+            <Grid item xs={12} md={5} sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' }, gap: 1 }}>
+              <Button 
+                variant="contained" 
+                color="success" 
+                onClick={handleDoneConsultation}
+                startIcon={<Save />}
                 size="small"
-                InputProps={{ readOnly: true }}
-              />
-            </Grid>
-            <Grid item xs={4} sm={1.5}>
-              <TextField
-                fullWidth
-                label="Gender"
-                value={patient.gender}
-                size="small"
-                InputProps={{ readOnly: true }}
-              />
-            </Grid>
-            <Grid item xs={4} sm={1.5}>
-              <TextField
-                fullWidth
-                label="Weight"
-                value={vitals.weight}
-                size="small"
-                InputProps={{ readOnly: true }}
-              />
-            </Grid>
-            <Grid item xs={6} sm={2}>
-              <TextField
-                fullWidth
-                label="BP"
-                value={vitals.bp}
-                size="small"
-                InputProps={{ readOnly: true }}
-              />
-            </Grid>
-            <Grid item xs={6} sm={2}>
-              <TextField
-                fullWidth
-                label="Temperature"
-                value={vitals.temp}
-                size="small"
-                InputProps={{ readOnly: true }}
-              />
+                sx={{ py: 1, px: 2 }}
+              >
+                Complete Consultation
+              </Button>
             </Grid>
           </Grid>
+          </Box>
 
-          {/* Complaints Table */}
-          <Typography variant="h6" className="section-header" sx={{ mt: 3, mb: 1 }}>
+        <Divider sx={{ mb: 3 }} />
+        
+        {/* Editable Vitals with Edit Button */}
+        <Box sx={{ mb: 4 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <MedicalServices color="primary" sx={{ mr: 1 }} />
+              <Typography variant="subtitle1" sx={{ fontWeight: 'medium', color: 'primary.main', mr: 2 }}>
+                Vitals
+              </Typography>
+              <Button 
+                variant="outlined" 
+                color={isEditingVitals ? "success" : "primary"}
+                size="small" 
+                startIcon={isEditingVitals ? <Save /> : <Edit />}
+                onClick={handleEditVitals}
+                sx={{ ml: 2 }}
+              >
+                {isEditingVitals ? "Save Vitals" : "Edit Vitals"}
+              </Button>
+            </Box>
+          </Box>
+          <Paper variant="outlined" sx={{ p: 2, bgcolor: isEditingVitals ? 'background.paper' : '#f8f9fa' }}>
+            <Grid container spacing={3}>
+              <Grid item xs={6} sm={4} md={2}>
+              <TextField
+                  label="Blood Pressure"
+                  value={editedVitals.bloodPressure}
+                  variant="outlined"
+                  size="small"
+                fullWidth
+                  disabled={!isEditingVitals}
+                  InputProps={{ 
+                    endAdornment: <Typography variant="caption">mmHg</Typography>,
+                    sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
+                  }}
+                  onChange={(e) => handleVitalsChange('bloodPressure', e.target.value)}
+              />
+            </Grid>
+              <Grid item xs={6} sm={4} md={2}>
+              <TextField
+                  label="Heart Rate"
+                  value={editedVitals.heartRate}
+                  variant="outlined"
+                  size="small"
+                fullWidth
+                  disabled={!isEditingVitals}
+                  InputProps={{ 
+                    endAdornment: <Typography variant="caption">bpm</Typography>,
+                    sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
+                  }}
+                  onChange={(e) => handleVitalsChange('heartRate', e.target.value)}
+              />
+            </Grid>
+              <Grid item xs={6} sm={4} md={2}>
+              <TextField
+                  label="Temperature"
+                  value={editedVitals.temperature}
+                  variant="outlined"
+                  size="small"
+                fullWidth
+                  disabled={!isEditingVitals}
+                  InputProps={{ 
+                    endAdornment: <Typography variant="caption">°F</Typography>,
+                    sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
+                  }}
+                  onChange={(e) => handleVitalsChange('temperature', e.target.value)}
+              />
+            </Grid>
+              <Grid item xs={6} sm={4} md={2}>
+              <TextField
+                  label="Respiratory Rate"
+                  value={editedVitals.respiratoryRate}
+                  variant="outlined"
+                  size="small"
+                fullWidth
+                  disabled={!isEditingVitals}
+                  InputProps={{ 
+                    endAdornment: <Typography variant="caption">bpm</Typography>,
+                    sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
+                  }}
+                  onChange={(e) => handleVitalsChange('respiratoryRate', e.target.value)}
+              />
+            </Grid>
+              <Grid item xs={6} sm={4} md={2}>
+              <TextField
+                  label="SpO2"
+                  value={editedVitals.spO2}
+                  variant="outlined"
+                  size="small"
+                fullWidth
+                  disabled={!isEditingVitals}
+                  InputProps={{ 
+                    endAdornment: <Typography variant="caption">%</Typography>,
+                    sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
+                  }}
+                  onChange={(e) => handleVitalsChange('spO2', e.target.value)}
+              />
+            </Grid>
+              <Grid item xs={6} sm={4} md={2}>
+              <TextField
+                  label="Weight"
+                  value={editedVitals.weight}
+                  variant="outlined"
+                  size="small"
+                fullWidth
+                  disabled={!isEditingVitals}
+                  InputProps={{ 
+                    endAdornment: <Typography variant="caption">kg</Typography>,
+                    sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
+                  }}
+                  onChange={(e) => handleVitalsChange('weight', e.target.value)}
+                />
+              </Grid>
+            </Grid>
+          </Paper>
+        </Box>
+        
+        {/* Attachments with Report Names */}
+        <Box sx={{ mt: 4 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <Description color="primary" sx={{ mr: 1 }} />
+            <Typography variant="subtitle1" sx={{ fontWeight: 'medium', color: 'primary.main' }}>
+              Attachments
+            </Typography>
+          </Box>
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                flexWrap: 'wrap', 
+                gap: 1.5,
+                p: 0.5,
+              }}
+            >
+              {attachments.map((attachment) => (
+                <Chip
+                  key={attachment.id}
+                  icon={getAttachmentIcon(attachment.type)}
+                  label={
+                    <Box sx={{ textAlign: 'center' }}>
+                      <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontSize: '0.7rem' }}>
+                        {attachment.type === 'pdf' ? 'Blood Test Report' : 'ECG Report'}
+                      </Typography>
+                      {attachment.name}
+                    </Box>
+                  }
+                  size="medium"
+                  variant="outlined"
+                  onClick={() => handleOpenAttachment(attachment)}
+                  sx={{ 
+                    p: 0.5,
+                    height: 'auto',
+                    '& .MuiChip-label': {
+                      whiteSpace: 'normal',
+                      overflow: 'visible',
+                      display: 'block',
+                      padding: '4px 0'
+                    }
+                  }}
+                />
+              ))}
+              <Chip
+                icon={<Add fontSize="small" />}
+                label={
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontSize: '0.7rem' }}>
+                      New Report
+                    </Typography>
+                    Add New Report
+                  </Box>
+                }
+                size="medium"
+                color="primary"
+                variant="outlined"
+                onClick={() => {/* Handle add attachment */}}
+                sx={{ 
+                  p: 0.5,
+                  height: 'auto',
+                  '& .MuiChip-label': {
+                    padding: '4px 0'
+                  }
+                }}
+              />
+            </Box>
+          </Paper>
+        </Box>
+      </Paper>
+
+      {/* SECTION 2: Prescription Page with more vertical spacing */}
+      <Paper elevation={3} sx={{ p: 3, mb: 4 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+          <ReceiptLong color="primary" sx={{ mr: 1 }} />
+          <Typography variant="h6" component="h2">
+            Prescription
+          </Typography>
+        </Box>
+        <Divider sx={{ mb: 4 }} />
+        
+        {/* Prescription Form with more vertical spacing */}
+        <PrescriptionForm 
+          initialData={prefilledPrescriptionData}
+          onSubmit={handlePrescriptionSubmit}
+          showPrintButton={true}
+          hidePatientDetails={hidePatientDetails}
+          patientInfo={{
+            patientName: patientInfo.name,
+            age: patientInfo.age,
+            gender: patientInfo.gender,
+            weight: editedVitals.weight,
+          }}
+          // Add custom styling to reduce clutter and add vertical spacing
+          formSx={{
+            '& .MuiGrid-container': { mb: 5 },
+            '& .MuiTableCell-root': { p: 2 },
+            '& .MuiTableContainer-root': { mb: 5 },
+            '& .MuiDivider-root': { my: 5 },
+            '& .MuiButton-root': { mx: 0.5 },
+            '& .MuiTypography-subtitle1': { mb: 2 },
+            '& .MuiPaper-root': { p: 2, mb: 4 },
+            '& .section-header': { mt: 5, mb: 2 }
+          }}
+        />
+      </Paper>
+
+      {/* SECTION 3: Past Appointments */}
+      {previousPrescriptions.length > 0 && (
+        <Paper elevation={2} sx={{ p: 3, mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <MedicalServices color="primary" sx={{ mr: 1 }} />
+            <Typography variant="h6" component="h2">
+              Past Appointments
+            </Typography>
+          </Box>
+          <Divider sx={{ mb: 2 }} />
+          
+          {previousPrescriptions.map((prescription, index) => (
+            <Accordion 
+              key={prescription.id}
+              sx={{ 
+                mb: 2,
+                '&:before': { display: 'none' },
+                boxShadow: 'none',
+                border: '1px solid',
+                borderColor: 'divider',
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMore />}
+                aria-controls={`panel${index}-content`}
+                id={`panel${index}-header`}
+                sx={{ 
+                  bgcolor: 'background.default',
+                  '&:hover': { bgcolor: 'action.hover' },
+                  p: 1.5
+                }}
+              >
+                <Grid container alignItems="center" spacing={1}>
+                  <Grid item xs={3} sm={2}>
+                    <Typography variant="subtitle2">
+                      {prescription.date}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={3} sm={2}>
+                    <Typography variant="body2" color="text.secondary">
+                      {prescription.doctor}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6} sm={8}>
+                    <Typography variant="body2">
+                      Diagnosis: <Chip 
+                        label={prescription.diagnosis} 
+                size="small"
+                        color="primary" 
+                        variant="outlined"
+                        sx={{ ml: 0.5 }}
+              />
+                    </Typography>
+            </Grid>
+          </Grid>
+              </AccordionSummary>
+              <AccordionDetails sx={{ p: 3, pt: 1 }}>
+                {/* Patient Details for this appointment */}
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
+                    Patient Details
+                  </Typography>
+                  <Paper variant="outlined" sx={{ p: 2 }}>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={4}>
+                        <Typography variant="caption" color="text.secondary">Appointment Date</Typography>
+                        <Typography variant="body2">{prescription.date}</Typography>
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <Typography variant="caption" color="text.secondary">Doctor</Typography>
+                        <Typography variant="body2">{prescription.doctor}</Typography>
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <Typography variant="caption" color="text.secondary">Diagnosis</Typography>
+                        <Typography variant="body2">{prescription.diagnosis}</Typography>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+                </Box>
+
+                {/* Vitals Section */}
+                <Box sx={{ mt: 3, mb: 3 }}>
+                  <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
+                    Vitals
+                  </Typography>
+                  <Paper variant="outlined" sx={{ p: 2 }}>
+                    <Grid container spacing={2}>
+                      <Grid item xs={6} sm={4} md={2}>
+                        <Typography variant="caption" color="text.secondary">Blood Pressure</Typography>
+                        <Typography variant="body2">{prescription.vitals.bloodPressure} mmHg</Typography>
+                      </Grid>
+                      <Grid item xs={6} sm={4} md={2}>
+                        <Typography variant="caption" color="text.secondary">Heart Rate</Typography>
+                        <Typography variant="body2">{prescription.vitals.heartRate} bpm</Typography>
+                      </Grid>
+                      <Grid item xs={6} sm={4} md={2}>
+                        <Typography variant="caption" color="text.secondary">Temperature</Typography>
+                        <Typography variant="body2">{prescription.vitals.temperature} °F</Typography>
+                      </Grid>
+                      <Grid item xs={6} sm={4} md={2}>
+                        <Typography variant="caption" color="text.secondary">Respiratory Rate</Typography>
+                        <Typography variant="body2">{prescription.vitals.respiratoryRate || "16"} bpm</Typography>
+                      </Grid>
+                      <Grid item xs={6} sm={4} md={2}>
+                        <Typography variant="caption" color="text.secondary">SpO2</Typography>
+                        <Typography variant="body2">{prescription.vitals.spO2 || "98"}%</Typography>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+                </Box>
+
+                {/* Complaints Section */}
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
             Complaints
           </Typography>
-          
-          <TableContainer component={Paper} className="compact-table" sx={{ mb: 3 }}>
+                  <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+                    <TableContainer>
             <Table size="small">
               <TableHead>
                 <TableRow>
                   <TableCell>Complaint</TableCell>
                   <TableCell>Severity</TableCell>
                   <TableCell>Duration</TableCell>
-                  <TableCell width="50px"></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {complaints.map((row, index) => (
-                  <TableRow 
-                    key={index}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const updatedComplaints = complaints.map((c, i) => ({
-                        ...c,
-                        isEditing: i === index
-                      }));
-                      setComplaints(updatedComplaints);
-                    }}
-                  >
+                          {prescription.complaints ? (
+                            prescription.complaints.map((complaint, idx) => (
+                              <TableRow key={idx} hover>
+                                <TableCell>{complaint.complaint}</TableCell>
                     <TableCell>
-                      <Autocomplete
-                        id={`complaint-${index}`}
-                        freeSolo
+                                  <Chip 
+                                    label={complaint.severity} 
                         size="small"
-                        options={commonComplaints}
-                        value={row.complaint}
-                        open={row.isEditing}
-                        onClose={() => handleClickAway(index, setComplaints, complaints)}
-                        onChange={(_, value) => handleComplaintChange(index, 'complaint', value)}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            variant="standard"
-                            placeholder="Enter complaint"
-                            onFocus={(e) => {
-                              e.stopPropagation();
-                              const updatedComplaints = [...complaints];
-                              updatedComplaints[index].isEditing = true;
-                              setComplaints(updatedComplaints);
-                            }}
-                          />
-                        )}
+                                    color={
+                                      complaint.severity === 'High' ? 'error' : 
+                                      complaint.severity === 'Medium' ? 'warning' : 'success'
+                                    }
                       />
                     </TableCell>
-                    <TableCell>
-                      <Autocomplete
-                        id={`severity-${index}`}
-                        freeSolo
-                        size="small"
-                        options={severityLevels}
-                        value={row.severity}
-                        open={row.isEditing}
-                        onClose={() => handleClickAway(index, setComplaints, complaints)}
-                        onChange={(_, value) => handleComplaintChange(index, 'severity', value)}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            variant="standard"
-                            placeholder="Select severity"
-                          />
-                        )}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Autocomplete
-                        id={`duration-${index}`}
-                        freeSolo
-                        size="small"
-                        options={durationSuggestions}
-                        value={row.duration}
-                        open={row.isEditing}
-                        onClose={() => handleClickAway(index, setComplaints, complaints)}
-                        onChange={(_, value) => handleComplaintChange(index, 'duration', value)}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            variant="standard"
-                            placeholder="Select duration"
-                          />
-                        )}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {complaints.length > 1 && (
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const updatedComplaints = complaints.filter((_, i) => i !== index);
-                            setComplaints(updatedComplaints);
-                          }}
-                        >
-                          <RemoveCircleOutline fontSize="small" color="error" />
-                        </IconButton>
-                      )}
-                    </TableCell>
+                                <TableCell>{complaint.duration}</TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={3} align="center">No complaints recorded</TableCell>
                   </TableRow>
-                ))}
+                          )}
               </TableBody>
             </Table>
           </TableContainer>
+                  </Paper>
+                </Box>
 
-          {/* Diagnosis Table */}
-          <Typography variant="h6" className="section-header" sx={{ mt: 3, mb: 1 }}>
+                {/* Diagnosis Section */}
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
             Diagnosis
           </Typography>
-          
-          <TableContainer component={Paper} className="compact-table" sx={{ mb: 3 }}>
+                  <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+                    <TableContainer>
             <Table size="small">
               <TableHead>
                 <TableRow>
                   <TableCell>Diagnosis</TableCell>
                   <TableCell>Duration</TableCell>
-                  <TableCell width="50px"></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {diagnoses.map((row, index) => (
-                  <TableRow 
-                    key={index}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const updatedDiagnoses = diagnoses.map((d, i) => ({
-                        ...d,
-                        isEditing: i === index
-                      }));
-                      setDiagnoses(updatedDiagnoses);
-                    }}
-                  >
-                    <TableCell>
-                      <Autocomplete
-                        id={`diagnosis-${index}`}
-                        freeSolo
-                        size="small"
-                        options={commonDiagnosisList}
-                        value={row.diagnosis}
-                        open={row.isEditing}
-                        onClose={() => handleClickAway(index, setDiagnoses, diagnoses)}
-                        onChange={(_, value) => handleDiagnosisChange(index, 'diagnosis', value)}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            variant="standard"
-                            placeholder="Enter diagnosis"
-                            onFocus={(e) => {
-                              e.stopPropagation();
-                              const updatedDiagnoses = [...diagnoses];
-                              updatedDiagnoses[index].isEditing = true;
-                              setDiagnoses(updatedDiagnoses);
-                            }}
-                          />
-                        )}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Autocomplete
-                        id={`diagnosis-duration-${index}`}
-                        freeSolo
-                        size="small"
-                        options={diagnosisDurationSuggestions}
-                        value={row.duration}
-                        open={row.isEditing}
-                        onClose={() => handleClickAway(index, setDiagnoses, diagnoses)}
-                        onChange={(_, value) => handleDiagnosisChange(index, 'duration', value)}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            variant="standard"
-                            placeholder="Select duration"
-                          />
-                        )}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {diagnoses.length > 1 && (
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDiagnoses(diagnoses.filter((_, i) => i !== index));
-                          }}
-                        >
-                          <RemoveCircleOutline fontSize="small" color="error" />
-                        </IconButton>
-                      )}
-                    </TableCell>
+                          {prescription.diagnoses ? (
+                            prescription.diagnoses.map((diagnosis, idx) => (
+                              <TableRow key={idx} hover>
+                                <TableCell>{diagnosis.diagnosis}</TableCell>
+                                <TableCell>{diagnosis.duration}</TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow hover>
+                              <TableCell>{prescription.diagnosis}</TableCell>
+                              <TableCell>Not specified</TableCell>
                   </TableRow>
-                ))}
+                          )}
               </TableBody>
             </Table>
           </TableContainer>
+                  </Paper>
+                </Box>
 
-          {/* Medications Table */}
-          <Typography variant="h6" className="section-header" sx={{ mt: 3, mb: 1 }}>
+                {/* Medications Section */}
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
             Medications
           </Typography>
-          
-          <TableContainer component={Paper} className="compact-table" sx={{ mb: 3 }}>
+                  <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+                    <TableContainer>
             <Table size="small">
               <TableHead>
                 <TableRow>
@@ -719,259 +787,85 @@ const ConsultationPage = () => {
                   <TableCell>Timing</TableCell>
                   <TableCell>Frequency</TableCell>
                   <TableCell>Duration</TableCell>
-                  <TableCell width="50px"></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {medications.map((row, index) => (
-                  <TableRow 
-                    key={index}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const updatedMedications = medications.map((m, i) => ({
-                        ...m,
-                        isEditing: i === index
-                      }));
-                      setMedications(updatedMedications);
-                    }}
-                  >
-                    <TableCell>
-                      <Autocomplete
-                        id={`med-medicine-${index}`}
-                        freeSolo
-                        size="small"
-                        options={medicineSuggestions}
-                        value={row.medicine}
-                        open={row.isEditing}
-                        onClose={() => handleClickAway(index, setMedications, medications)}
-                        onChange={(_, value) => handleMedicationChange(index, 'medicine', value)}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            variant="standard"
-                            placeholder="Enter medicine"
-                            onFocus={(e) => {
-                              e.stopPropagation();
-                              const updatedMedications = [...medications];
-                              updatedMedications[index].isEditing = true;
-                              setMedications(updatedMedications);
-                            }}
-                          />
-                        )}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Autocomplete
-                        id={`med-dose-${index}`}
-                        freeSolo
-                        size="small"
-                        options={medicineDosePatterns}
-                        value={row.dose}
-                        open={row.isEditing}
-                        onClose={() => handleClickAway(index, setMedications, medications)}
-                        onChange={(_, value) => handleMedicationChange(index, 'dose', value)}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            variant="standard"
-                            placeholder="Select dose"
-                          />
-                        )}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Autocomplete
-                        id={`med-timing-${index}`}
-                        freeSolo
-                        size="small"
-                        options={medicineTimings}
-                        value={row.timing}
-                        open={row.isEditing}
-                        onClose={() => handleClickAway(index, setMedications, medications)}
-                        onChange={(_, value) => handleMedicationChange(index, 'timing', value)}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            variant="standard"
-                            placeholder="Select timing"
-                          />
-                        )}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Autocomplete
-                        id={`med-frequency-${index}`}
-                        freeSolo
-                        size="small"
-                        options={medicineFrequency}
-                        value={row.frequency}
-                        open={row.isEditing}
-                        onClose={() => handleClickAway(index, setMedications, medications)}
-                        onChange={(_, value) => handleMedicationChange(index, 'frequency', value)}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            variant="standard"
-                            placeholder="Select frequency"
-                          />
-                        )}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Autocomplete
-                        id={`med-duration-${index}`}
-                        freeSolo
-                        size="small"
-                        options={medicineDuration}
-                        value={row.duration}
-                        open={row.isEditing}
-                        onClose={() => handleClickAway(index, setMedications, medications)}
-                        onChange={(_, value) => handleMedicationChange(index, 'duration', value)}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            variant="standard"
-                            placeholder="Select duration"
-                          />
-                        )}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {medications.length > 1 && (
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setMedications(medications.filter((_, i) => i !== index));
-                          }}
-                        >
-                          <RemoveCircleOutline fontSize="small" color="error" />
-                        </IconButton>
-                      )}
-                    </TableCell>
+                          {prescription.medications.map((med, idx) => (
+                            <TableRow key={idx} hover>
+                              <TableCell>{med.medicine}</TableCell>
+                              <TableCell>{med.dose}</TableCell>
+                              <TableCell>{med.timing}</TableCell>
+                              <TableCell>{med.frequency}</TableCell>
+                              <TableCell>{med.duration}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </TableContainer>
-
-          {/* Instructions */}
-          <Typography variant="subtitle1" sx={{ mt: 3, mb: 1 }}>
-            Special Instructions
-          </Typography>
-          <TextField
-            fullWidth
-            multiline
-            rows={2}
-            placeholder="Enter any special instructions for the patient"
-            value={instructions}
-            onChange={(e) => setInstructions(e.target.value)}
-          />
         </Paper>
-
-        {/* 2. Attachments Section with Add More Option */}
-        <Paper sx={{ p: 3, mb: 3 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6">Current Attachments</Typography>
-            <Button startIcon={<FileUpload />} color="primary">
-              Upload New Attachment
-            </Button>
           </Box>
           
-          {attachments.length > 0 ? (
-            <Grid container spacing={2}>
-              {attachments.map((attachment) => (
-                <Grid item xs={12} sm={6} md={4} key={attachment.id}>
-                  <Card 
-                    variant="outlined" 
-                    sx={{ 
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      '&:hover': { boxShadow: 3 }
-                    }}
-                    onClick={() => handleOpenAttachment(attachment)}
-                  >
-                    <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      {getAttachmentIcon(attachment.type)}
-                      <Box sx={{ flexGrow: 1 }}>
-                        <Typography variant="subtitle2" noWrap>{attachment.name}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {attachment.date} • {attachment.size}
+                {/* Tests Section */}
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
+                    Tests
                         </Typography>
+                  <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+                    {prescription.tests && prescription.tests.length > 0 ? (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                        {prescription.tests.map((test, idx) => (
+                          <Chip key={idx} label={test} size="small" />
+                        ))}
                       </Box>
-                      <IconButton size="small">
-                        <Download fontSize="small" />
-                      </IconButton>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
-          ) : (
-            <Box sx={{ p: 3, textAlign: 'center', bgcolor: '#f5f5f5', borderRadius: 1 }}>
-              <Typography color="text.secondary">No attachments available</Typography>
-              <Button startIcon={<Add />} sx={{ mt: 1 }}>Add First Attachment</Button>
-            </Box>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary" sx={{ p: 1 }}>
+                        No tests prescribed
+                      </Typography>
           )}
         </Paper>
-
-        {/* 3. Past Consultations Timeline */}
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>Past Consultations</Typography>
-          
-          <Timeline position="alternate">
-            {pastConsultations.map((consultation, index) => (
-              <TimelineItem key={consultation.id}>
-                <TimelineOppositeContent color="text.secondary">
-                  {consultation.date}
-                </TimelineOppositeContent>
-                <TimelineSeparator>
-                  <TimelineDot color={index === 0 ? "primary" : "grey"} />
-                  {index < pastConsultations.length - 1 && <TimelineConnector />}
-                </TimelineSeparator>
-                <TimelineContent>
-                  <Accordion>
-                    <AccordionSummary expandIcon={<ExpandMore />}>
-                      <Typography>{consultation.diagnosis} - {consultation.doctor}</Typography>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                      <Typography variant="subtitle2" sx={{ mb: 1 }}>Medications:</Typography>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                        {consultation.medications.map((med, i) => (
-                          <Chip key={i} label={med} size="small" />
-                        ))}
                       </Box>
                       
-                      <Typography variant="subtitle2" sx={{ mb: 1 }}>Attachments:</Typography>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                        {consultation.attachments.map((attachment, i) => (
-                          <Chip 
-                            key={i} 
-                            icon={getAttachmentIcon(attachment.type)} 
-                            label={attachment.name} 
-                            size="small"
-                            onClick={() => handleOpenAttachment(attachment)}
-                          />
-                        ))}
+                {/* Instructions & Follow-up Section */}
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
+                    Instructions & Follow-up
+                  </Typography>
+                  <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Instructions</Typography>
+                        <Typography variant="body2">{prescription.instructions || "No specific instructions"}</Typography>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Follow-up</Typography>
+                        <Typography variant="body2">{prescription.followUp || "No follow-up scheduled"}</Typography>
+                      </Grid>
+                    </Grid>
+                  </Paper>
                       </Box>
                       
-                      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                {/* Action buttons */}
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3, gap: 1 }}>
+                  <Button 
+                    size="small" 
+                    variant="outlined" 
+                    startIcon={<Print />}
+                  >
+                    Print
+                  </Button>
                         <Button 
                           size="small" 
                           variant="outlined" 
                           startIcon={<Description />}
                         >
-                          View Full Details
+                    View Full
                         </Button>
                       </Box>
                     </AccordionDetails>
                   </Accordion>
-                </TimelineContent>
-              </TimelineItem>
             ))}
-          </Timeline>
         </Paper>
-      </Container>
+      )}
 
       {/* Attachment Preview Dialog */}
       <Dialog
@@ -1012,12 +906,12 @@ const ConsultationPage = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseAttachmentDialog}>Close</Button>
-          <Button startIcon={<Download />} color="primary">Download</Button>
           <Button startIcon={<Print />} color="primary">Print</Button>
+          <Button startIcon={<Save />} color="primary">Download</Button>
         </DialogActions>
       </Dialog>
 
-      {/* Confirm Done Dialog */}
+      {/* Confirmation Dialog */}
       <Dialog
         open={confirmDoneDialog}
         onClose={() => setConfirmDoneDialog(false)}
@@ -1025,17 +919,19 @@ const ConsultationPage = () => {
         <DialogTitle>Complete Consultation</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to mark this consultation as complete? This will save the prescription and update the patient's records.
+            Are you sure you want to mark this consultation as complete?
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmDoneDialog(false)}>Cancel</Button>
+          <Button onClick={() => setConfirmDoneDialog(false)} color="primary">
+            Cancel
+          </Button>
           <Button onClick={confirmDoneConsultation} color="primary" variant="contained">
-            Complete Consultation
+            Confirm
           </Button>
         </DialogActions>
       </Dialog>
-    </>
+    </Container>
   );
 };
 

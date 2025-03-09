@@ -202,6 +202,46 @@ export default function PastAppointments() {
     [rows]
   );
 
+  // Add this function to handle clicking on an appointment
+  const handleAppointmentClick = (appointment) => {
+    // Extract patient information from the appointment
+    const patientInfo = {
+      id: appointment.patient_id || appointment.id,
+      name: appointment.patient_name || appointment.name,
+      age: appointment.age || appointment.patient_age,
+      gender: appointment.gender || appointment.sex,
+      phone: appointment.phone_number || appointment.mobile || appointment.contact,
+      email: appointment.email || '',
+      guardianName: appointment.guardian_name || '',
+    };
+    
+    // Format appointment information
+    const appointmentInfo = {
+      id: appointment.appointment_id,
+      date: appointment.date || appointment.appointment_date,
+      time: appointment.time || appointment.appointment_time,
+      status: appointment.status || 'completed',
+      type: appointment.appointment_type || 'Consultation',
+      reason: appointment.disease || appointment.reason,
+      doctor: appointment.doctor_name || 'Current Doctor',
+      token: appointment.token || appointment.position,
+      department: appointment.department || 'General',
+      fees: appointment.fees_paid || 0,
+      paymentMode: appointment.payment_mode || 'cash',
+      paid: appointment.paid === true || appointment.payment_status === 'paid',
+      notes: appointment.notes || appointment.additional_notes || '',
+    };
+    
+    // Navigate to appointment details with this data
+    navigate('/appointment-details', {
+      state: {
+        appointmentInfo,
+        patientInfo,
+        fromPastAppointments: true,
+      }
+    });
+  };
+
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <div

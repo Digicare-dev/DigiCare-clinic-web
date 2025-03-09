@@ -30,6 +30,11 @@ export default function Home({
   const currentPatient = patients.find((p) => p.position === currentPosition);
 
   useEffect(() => {
+    console.log('home received patients:', patients);
+  }, [patients]);
+
+
+  useEffect(() => {
     if (patients.length > 0 && currentPosition !== null) {
       const sorted = [...patients].sort((a, b) => a.position - b.position);
       setPatients(sorted);

@@ -39,6 +39,7 @@ import {
 } from "../services/api";
 import CustomSnackbar from "../components/CustomSnackbar";
 import { getLatestCabinSlot } from '../utils/dateUtils';
+import { useNavigate } from "react-router-dom";
 
 const modalStyle = {
   position: "absolute",
@@ -124,6 +125,8 @@ export default function AppointmentTable() {
     lastName: "",
     checkin: false,
     paid: false,
+    mode: "cash",
+    fee_paids: 0,
     status: "pending",
     disease: "",
     age: "",
@@ -225,6 +228,8 @@ export default function AppointmentTable() {
   const [selectedAppointment, setSelectedAppointment] = React.useState(null);
 
   const displayedRows = React.useMemo(() => generateDisplayRows(rows), [rows]);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (user?.checkupcabindata?.[0]?.cabin_slots) {
@@ -361,7 +366,14 @@ export default function AppointmentTable() {
     }
   }, [rows]);
 
-  const handleOpen = () => setOpen(true);
+  const handleOpen = () => {
+    setOpen(true);
+    // Auto-fill the token field with suggested token
+    setNewAppointment(prev => ({
+      ...prev,
+      token: suggestedToken
+    }));
+  };
   const handleClose = () => {
     setOpen(false);
     setError("");
@@ -524,6 +536,30 @@ export default function AppointmentTable() {
       editable: false,
       type: "number",
       renderCell: (params) => (params.row.isPlaceholder ? "N/A" : params.value),
+    },
+    {
+      field: "actions",
+      headerName: "Actions",
+      width: 120,
+      sortable: false,
+      renderCell: (params) => 
+        params.row.isPlaceholder ? (
+          <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
+        ) : (
+          <Button
+            color="primary"
+            variant="outlined"
+            size="small"
+            startIcon={<EditIcon />}
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent row click from triggering
+              handleEditClick(params.row);
+            }}
+            sx={{ fontSize: '0.75rem', py: 0.5 }}
+          >
+            Edit
+          </Button>
+        ),
     },
   ];
 
@@ -700,82 +736,47 @@ export default function AppointmentTable() {
       onClose={handleEditModalClose}
       fullWidth
       maxWidth="md"
+      PaperProps={{
+        sx: {
+          width: "600px",
+          maxWidth: "90vw",
+          borderRadius: 2,
+          p: 3,
+        }
+      }}
     >
-      <DialogTitle sx={{ position: "relative", pr: 6 }}>
-        Edit Appointment
+      <DialogTitle sx={{ position: "relative", pr: 6, p: 0, mb: 2 }}>
+        <Typography variant="h5">Edit Appointment</Typography>
         <IconButton
           aria-label="close"
           onClick={handleEditModalClose}
           sx={{
             position: "absolute",
-            right: 8,
-            top: 8,
+            right: 0,
+            top: 0,
             color: (theme) => theme.palette.grey[500],
           }}
         >
           <CloseIcon />
         </IconButton>
       </DialogTitle>
-      <DialogContent>
+      <DialogContent sx={{ p: 0, pt: 1 }}>
         {selectedAppointment && (
-          <>
-            <Box
-              sx={{
+          <div
+            style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(3, 1fr)",
-                gap: 2,
-                mt: 2,
+              gap: "16px",
+              gridTemplateColumns: "1fr 1fr",
+              paddingTop: "8px"
               }}
             >
               <TextField
                 fullWidth
-                label="First Name"
-                value={selectedAppointment.firstName}
-                onChange={(e) =>
-                  setSelectedAppointment((prev) => ({
-                    ...prev,
-                    firstName: e.target.value,
-                  }))
-                }
-                margin="normal"
-              />
-
-              <TextField
-                fullWidth
-                label="Last Name"
-                value={selectedAppointment.lastName}
-                onChange={(e) =>
-                  setSelectedAppointment((prev) => ({
-                    ...prev,
-                    lastName: e.target.value,
-                  }))
-                }
-                margin="normal"
-              />
-
-              <TextField
-                fullWidth
-                label="Token"
+              label="Token Number"
                 type="number"
                 value={selectedAppointment.token}
                 InputProps={{ readOnly: true }}
-                margin="normal"
               />
-
-              <TextField
-                fullWidth
-                label="Age"
-                type="number"
-                value={selectedAppointment.age}
-                onChange={(e) =>
-                  setSelectedAppointment((prev) => ({
-                    ...prev,
-                    age: e.target.value,
-                  }))
-                }
-                margin="normal"
-              />
-
               <TextField
                 fullWidth
                 label="Mobile"
@@ -786,74 +787,30 @@ export default function AppointmentTable() {
                     phone_number: e.target.value,
                   }))
                 }
-                margin="normal"
                 inputProps={{ maxLength: 10 }}
               />
-
-              <Autocomplete
-                options={genderOptions}
-                getOptionLabel={(option) => option.label}
-                value={
-                  genderOptions.find(
-                    (opt) => opt.value === selectedAppointment.sex
-                  ) || null
-                }
-                onChange={(_, newValue) =>
-                  setSelectedAppointment((prev) => ({
-                    ...prev,
-                    sex: newValue?.value || "",
-                  }))
-                }
-                renderInput={(params) => (
-                  <TextField {...params} label="Gender" margin="normal" />
-                )}
-              />
-
               <TextField
                 fullWidth
-                label="Location"
-                value={selectedAppointment.location}
+              label="First Name"
+              value={selectedAppointment.firstName}
                 onChange={(e) =>
                   setSelectedAppointment((prev) => ({
                     ...prev,
-                    location: e.target.value,
+                  firstName: e.target.value,
                   }))
                 }
-                margin="normal"
               />
-
               <TextField
                 fullWidth
-                label="Disease"
-                value={selectedAppointment.disease}
+              label="Last Name"
+              value={selectedAppointment.lastName}
                 onChange={(e) =>
                   setSelectedAppointment((prev) => ({
                     ...prev,
-                    disease: e.target.value,
-                  }))
-                }
-                margin="normal"
-              />
-
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Appointment Type</InputLabel>
-                <Select
-                  value={selectedAppointment.appointment_type}
-                  onChange={(e) =>
-                    setSelectedAppointment((prev) => ({
-                      ...prev,
-                      appointment_type: e.target.value,
+                  lastName: e.target.value,
                     }))
                   }
-                  label="Appointment Type"
-                >
-                  <MenuItem value="New">New</MenuItem>
-                  <MenuItem value="Follow-up">Follow-up</MenuItem>
-                  <MenuItem value="Emergency">Emergency</MenuItem>
-                </Select>
-              </FormControl>
-
-              <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+            />
                 <FormControlLabel
                   control={
                     <Checkbox
@@ -866,9 +823,18 @@ export default function AppointmentTable() {
                       }
                     />
                   }
-                  label="Check-in"
+              label={
+                <Typography 
+                  variant="body1" 
+                  sx={{ 
+                    fontWeight: selectedAppointment.checkin ? 'bold' : 'normal',
+                    color: selectedAppointment.checkin ? 'primary.main' : 'text.primary'
+                  }}
+                >
+                  Present in Clinic
+                </Typography>
+              }
                 />
-
                 <FormControlLabel
                   control={
                     <Checkbox
@@ -878,19 +844,25 @@ export default function AppointmentTable() {
                           ...prev,
                           paid: e.target.checked,
                           mode: e.target.checked ? prev.mode || "cash" : "",
-                          fees_paid: e.target.checked
-                            ? prev.fees_paid || 250
-                            : 0,
+                      fees_paid: e.target.checked ? prev.fees_paid || 250 : 0,
                         }))
                       }
                     />
                   }
-                  label="Payment"
-                />
-              </Box>
-
+              label={
+                <Typography 
+                  variant="body1" 
+                  sx={{ 
+                    fontWeight: selectedAppointment.paid ? 'bold' : 'normal',
+                    color: selectedAppointment.paid ? 'primary.main' : 'text.primary'
+                  }}
+                >
+                  Payment Done
+                </Typography>
+              }
+            />
               {selectedAppointment.paid && (
-                <Box sx={{ display: "flex", gap: 2 }}>
+              <>
                   <FormControl fullWidth>
                     <InputLabel>Payment Mode</InputLabel>
                     <Select
@@ -909,7 +881,7 @@ export default function AppointmentTable() {
                   </FormControl>
                   <TextField
                     fullWidth
-                    label="Fees Paid"
+                  label="Fees"
                     type="number"
                     value={selectedAppointment.fees_paid}
                     onChange={(e) =>
@@ -919,38 +891,122 @@ export default function AppointmentTable() {
                       }))
                     }
                   />
-                </Box>
-              )}
-            </Box>
           </>
         )}
+            <TextField
+              fullWidth
+              label="Age"
+              type="number"
+              value={selectedAppointment.age}
+              onChange={(e) =>
+                setSelectedAppointment((prev) => ({
+                  ...prev,
+                  age: e.target.value,
+                }))
+              }
+            />
+            <FormControl component="fieldset">
+              <ToggleButtonGroup
+                value={selectedAppointment.sex}
+                exclusive
+                onChange={(_, newValue) =>
+                  setSelectedAppointment((prev) => ({
+                    ...prev,
+                    sex: newValue || "",
+                  }))
+                }
+          color="primary"
+              >
+                <ToggleButton value="M" color="primary">
+                  Male
+                </ToggleButton>
+                <ToggleButton value="F" color="secondary">
+                  Female
+                </ToggleButton>
+                <ToggleButton value="O">Other</ToggleButton>
+              </ToggleButtonGroup>
+            </FormControl>
+            <TextField
+              fullWidth
+              label="Guardian"
+              value={selectedAppointment.guardian}
+              onChange={(e) =>
+                setSelectedAppointment((prev) => ({
+                  ...prev,
+                  guardian: e.target.value,
+                }))
+              }
+            />
+            <TextField
+              fullWidth
+              label="Place"
+              value={selectedAppointment.location}
+              onChange={(e) =>
+                setSelectedAppointment((prev) => ({
+                  ...prev,
+                  location: e.target.value,
+                }))
+              }
+            />
+            <FormControl fullWidth>
+              <InputLabel>Appointment Type</InputLabel>
+              <Select
+                value={selectedAppointment.appointment_type}
+                onChange={(e) =>
+                  setSelectedAppointment((prev) => ({
+                    ...prev,
+                    appointment_type: e.target.value,
+                  }))
+                }
+                label="Appointment Type"
+              >
+                <MenuItem value="New">New</MenuItem>
+                <MenuItem value="Follow-up">Follow-up</MenuItem>
+                <MenuItem value="Emergency">Emergency</MenuItem>
+                <MenuItem value="Routine">Routine</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              fullWidth
+              label="Complaint"
+              value={selectedAppointment.disease}
+              onChange={(e) =>
+                setSelectedAppointment((prev) => ({
+                  ...prev,
+                  disease: e.target.value,
+                }))
+              }
+            />
+          </div>
+        )}
       </DialogContent>
-      <DialogActions>
-        <Button
-          onClick={handleEditModalClose}
-          color="primary"
-          disabled={isUpdating}
-        >
-          Cancel
-        </Button>
-        <Button
-          onClick={handleConfirmEdit}
-          color="primary"
-          disabled={isUpdating}
-        >
-          {isUpdating ? <CircularProgress size={24} /> : "Save"}
-        </Button>
+      <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end" }}>
         <Button
           onClick={() => {
             setRowToCancel(selectedAppointment);
             setCancelConfirmationOpen(true);
           }}
           color="error"
+          variant="outlined"
+          sx={{ 
+            mr: 2,
+            borderWidth: "2px",
+            '&:hover': {
+              borderWidth: "2px"
+            }
+          }}
           disabled={isCanceling}
         >
           {isCanceling ? <CircularProgress size={24} /> : "Cancel Appointment"}
         </Button>
-      </DialogActions>
+        <Button
+          variant="contained"
+          onClick={handleConfirmEdit}
+          disabled={isUpdating}
+        >
+          {isUpdating ? <CircularProgress size={24} /> : "Update"}
+        </Button>
+      </Box>
     </Dialog>
   );
 
@@ -1043,6 +1099,87 @@ export default function AppointmentTable() {
       return "done-checkup-row";
     }
     return "data-row";
+  };
+
+  // Function to format date and time from appointment_id
+  const formatAppointmentDateTime = (appointmentId) => {
+    try {
+      // The format appears to be: "7049822025-03-07 17:22:35.039546"
+      const dateTimePart = appointmentId.split('-').slice(1).join('-'); // "03-07 17:22:35.039546"
+      const dateTime = new Date(`2025-${dateTimePart}`); // Add 2025 as the API data uses 2025 year
+      
+      return {
+        date: dateTime.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        }),
+        time: dateTime.toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        })
+      };
+    } catch (error) {
+      console.error("Error formatting appointment date/time:", error);
+      return { date: 'Unknown date', time: 'Unknown time' };
+    }
+  };
+
+  // Function to handle click on an appointment
+  const handleAppointmentClick = (appointment) => {
+    // Extract date and time from appointment_id
+    const { date, time } = formatAppointmentDateTime(appointment.appointment_id);
+    
+    // Create patient information from the flattened appointment data
+    const patientInfo = {
+      id: appointment.id,
+      name: `${appointment.firstName} ${appointment.lastName}`.trim(),
+      age: appointment.age || '',
+      gender: appointment.sex === 'M' ? 'Male' : 
+              appointment.sex === 'F' ? 'Female' : 'Other',
+      phone: appointment.phone_number || '',
+      location: appointment.location || 'Not specified',
+      guardianName: appointment.guardian !== 'NULL' ? appointment.guardian : '',
+      // Add default values for potentially missing fields
+      email: '',  // Not in the API data
+      bloodGroup: '',  // Not in the API data
+    };
+    
+    // Format appointment information
+    const appointmentInfo = {
+      id: appointment.appointment_id,
+      date: date,
+      time: time,
+      status: mapStatusToReadable(appointment.status),
+      type: appointment.appointment_type || 'Consultation',
+      reason: appointment.disease || 'Not specified',
+      token: appointment.token,
+      fees: appointment.fees_paid || 0,
+      paymentMode: appointment.mode || 'Not specified',
+      paid: appointment.paid === true,
+      checkin: appointment.checkin === true,
+    };
+    
+    console.log('Navigating to appointment details with:', { appointmentInfo, patientInfo });
+    
+    // Navigate to appointment details with this data
+    navigate('/appointment-details', {
+      state: {
+        appointmentInfo,
+        patientInfo,
+      }
+    });
+  };
+  
+  // Helper function to map API status to human-readable status
+  const mapStatusToReadable = (status) => {
+    switch(status) {
+      case 'pending': return 'Pending';
+      case 'done_checkup': return 'Completed';
+      case 'cancelled': return 'Cancelled';
+      case 'late': return 'Late';
+      default: return status;
+    }
   };
 
   return (
@@ -1163,7 +1300,9 @@ export default function AppointmentTable() {
           sortModel={[{ field: "token", sort: "asc" }]}
           loading={loading}
           onRowClick={(params) => {
-            if (!params.row.isPlaceholder) handleEditClick(params.row);
+            if (!params.row.isPlaceholder) {
+              handleAppointmentClick(params.row);
+            }
           }}
           sx={{
             "& .MuiDataGrid-columnHeaders": {
@@ -1271,20 +1410,14 @@ export default function AppointmentTable() {
               required
               helperText={`Suggested token: ${suggestedToken}`}
             />
-            <FormControl fullWidth>
-              <InputLabel>Appointment Type *</InputLabel>
-              <Select
-                name="appointmentType"
-                value={newAppointment.appointment_type}
+            <TextField
+              label="Mobile"
+              name="phone_number"
+              value={newAppointment.phone_number}
                 onChange={handleInputChange}
-                label="Appointment Type"
-              >
-                <MenuItem value="New">New</MenuItem>
-                <MenuItem value="Follow-up">Follow-up</MenuItem>
-                <MenuItem value="Emergency">Emergency</MenuItem>
-                <MenuItem value="Routine">Routine</MenuItem>
-              </Select>
-            </FormControl>
+              slotProps={{ input: { maxLength: 10 } }}
+              fullWidth
+            />
             <TextField
               label="First Name"
               name="firstName"
@@ -1299,61 +1432,6 @@ export default function AppointmentTable() {
               onChange={handleInputChange}
               required
             />
-            <TextField
-              label="Mobile"
-              name="phone_number"
-              value={newAppointment.phone_number}
-              onChange={handleInputChange}
-              slotProps={{ input: { maxLength: 10 } }}
-              fullWidth
-              helperText="Enter mobile number to enable additional fields"
-            />
-            <TextField
-              label="Age"
-              name="age"
-              type="number"
-              value={newAppointment.age}
-              onChange={handleInputChange}
-              disabled={!newAppointment.phone_number}
-            />
-            <FormControl component="fieldset">
-              <ToggleButtonGroup
-                value={newAppointment.sex}
-                exclusive
-                onChange={handleSexChange}
-                color="primary"
-                disabled={!newAppointment.phone_number}
-              >
-                <ToggleButton value="M" color="primary">
-                  Male
-                </ToggleButton>
-                <ToggleButton value="F" color="secondary">
-                  Female
-                </ToggleButton>
-                <ToggleButton value="O">Other</ToggleButton>
-              </ToggleButtonGroup>
-            </FormControl>
-            <TextField
-              label="Disease"
-              name="disease"
-              value={newAppointment.disease}
-              onChange={handleInputChange}
-            />
-            <TextField
-              label="Guardian"
-              name="guardian"
-              value={newAppointment.guardian}
-              onChange={handleInputChange}
-              disabled={!newAppointment.phone_number}
-            />
-            {/* Place TextField moved here */}
-            <TextField
-              label="Place"
-              name="location"
-              value={newAppointment.location}
-              onChange={handleInputChange}
-            />
-            <Box sx={{ display: "flex", alignItems: "center" }}>
               <FormControlLabel
                 control={
                   <Checkbox
@@ -1366,8 +1444,17 @@ export default function AppointmentTable() {
                     }
                   />
                 }
-                label="Check-in"
-                sx={{ display: "block", mb: 2 }}
+              label={
+                <Typography 
+                  variant="body1" 
+                  sx={{ 
+                    fontWeight: newAppointment.checkin ? 'bold' : 'normal',
+                    color: newAppointment.checkin ? 'primary.main' : 'text.primary'
+                  }}
+                >
+                  Present in Clinic
+                </Typography>
+              }
               />
               <FormControlLabel
                 control={
@@ -1378,17 +1465,24 @@ export default function AppointmentTable() {
                         ...prev,
                         paid: e.target.checked,
                         mode: e.target.checked ? "cash" : "",
-                        fees_paid: e.target.checked ? 250 : 0,
                       }))
                     }
                   />
                 }
-                label="Payment"
-                sx={{ display: "block", mb: 2 }}
-              />
-            </Box>{" "}
+              label={
+                <Typography 
+                  variant="body1" 
+                  sx={{ 
+                    fontWeight: newAppointment.paid ? 'bold' : 'normal',
+                    color: newAppointment.paid ? 'primary.main' : 'text.primary'
+                  }}
+                >
+                  Payment Done
+                </Typography>
+              }
+            />
             {newAppointment.paid && (
-              <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+              <>
                 <FormControl fullWidth>
                   <InputLabel>Payment Mode</InputLabel>
                   <Select
@@ -1410,8 +1504,63 @@ export default function AppointmentTable() {
                   onChange={handleInputChange}
                   InputProps={{ inputProps: { min: 0 } }}
                 />
-              </Box>
+              </>
             )}
+            <TextField
+              label="Age"
+              name="age"
+              type="number"
+              value={newAppointment.age}
+              onChange={handleInputChange}
+            />
+            <FormControl component="fieldset">
+              <ToggleButtonGroup
+                value={newAppointment.sex}
+                exclusive
+                onChange={handleSexChange}
+                color="primary"
+              >
+                <ToggleButton value="M" color="primary">
+                  Male
+                </ToggleButton>
+                <ToggleButton value="F" color="secondary">
+                  Female
+                </ToggleButton>
+                <ToggleButton value="O">Other</ToggleButton>
+              </ToggleButtonGroup>
+            </FormControl>
+            <TextField
+              label="Guardian"
+              name="guardian"
+              value={newAppointment.guardian}
+              onChange={handleInputChange}
+            />
+            <TextField
+              label="Place"
+              name="location"
+              value={newAppointment.location}
+              onChange={handleInputChange}
+            />
+            <FormControl fullWidth>
+              <InputLabel>Appointment Type *</InputLabel>
+              <Select
+                name="appointmentType"
+                value={newAppointment.appointment_type}
+                onChange={handleInputChange}
+                label="Appointment Type"
+              >
+                <MenuItem value="New">New</MenuItem>
+                <MenuItem value="Follow-up">Follow-up</MenuItem>
+                <MenuItem value="Emergency">Emergency</MenuItem>
+                <MenuItem value="Routine">Routine</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              label="Complaint"
+              name="disease"
+              value={newAppointment.disease}
+              onChange={handleInputChange}
+            />
           </div>
 
           <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end" }}>
