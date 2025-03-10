@@ -923,49 +923,6 @@ const AppointmentDetails = () => {
             </Grid>
           </Box>
           
-          {/* Add a section for medical reports after the appointment status section */}
-          <Divider sx={{ my: 3 }} />
-          
-          {/* Medical Reports Section */}
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="h6" color="primary.main" sx={{ mb: 2 }}>
-              Medical Reports
-            </Typography>
-            
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6} md={4}>
-                <Box sx={{ 
-                  p: 2, 
-                  border: '1px solid #eee', 
-                  borderRadius: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 1
-                }}>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Available Reports
-                  </Typography>
-                  
-                  <ReportLink 
-                    type="blood-test" 
-                    variant="button" 
-                    label="Blood Test Report" 
-                  />
-                  
-                  <ReportLink 
-                    type="ecg-test" 
-                    variant="button" 
-                    label="ECG Test Report" 
-                  />
-                  
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-                    Last updated: {new Date().toLocaleDateString()}
-                  </Typography>
-                </Box>
-              </Grid>
-            </Grid>
-          </Box>
-          
           {appointmentInfo.notes && (
             <Box sx={{ mt: 2, p: 2, backgroundColor: '#f9f9f9', borderRadius: 1 }}>
               <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
