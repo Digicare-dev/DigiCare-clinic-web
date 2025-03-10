@@ -103,25 +103,6 @@
   background: #ebf8ff;
 }
 
-.late {
-  border-left: 4px solid #dd6b20;
-}
-
-.done {
-  opacity: 0.6;
-  background: #f7fafc;
-}
-
-.MuiChip-root {
-  height: 24px;
-}
-
-.MuiChip-icon {
-  margin-left: 4px;
-  margin-right: -4px;
-}
-
-/* PatientItem.css updates */
 .token-details {
   display: flex;
   flex-direction: column;

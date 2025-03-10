@@ -25,24 +25,14 @@ export default function Home({
   shufflePosition,
   loading,
   fetchPatientsData,
-  fetchPatientsDataWithoutLoader,
-  fetchCurrentPositionDataWithoutLoader,
 }) {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const currentPatient = patients.find((p) => p.position === currentPosition);
 
   useEffect(() => {
     if (patients.length > 0 && currentPosition !== null) {
-      const needsSorting = patients.some((p, index) =>
-        index === 0
-          ? p.position !== currentPosition
-          : p.position <= patients[index - 1].position
-      );
-
-      if (needsSorting) {
-        const sorted = [...patients].sort((a, b) => a.position - b.position);
-        setPatients(sorted);
-      }
+      const sorted = [...patients].sort((a, b) => a.position - b.position);
+      setPatients(sorted);
     }
   }, [currentPosition]);
 
@@ -82,10 +72,6 @@ export default function Home({
             handleLatePatient={handleLatePatient}
             shufflePosition={shufflePosition}
             fetchPatientsData={fetchPatientsData}
-            fetchPatientsDataWithoutLoader={fetchPatientsDataWithoutLoader}
-            fetchCurrentPositionDataWithoutLoader={
-              fetchCurrentPositionDataWithoutLoader
-            }
           />
         </div>
       )}
@@ -99,52 +85,3 @@ export default function Home({
     </div>
   );
 }
-
-const styles = {
-  container: {
-    // margin: "auto",
-    // marginTop: "20px",
-    height: "80%",
-  },
-  card: {
-    // marginBottom: "20px",
-    // width: "80%",
-    // margin: "20px auto",
-    padding: "10px",
-    boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.15)",
-    borderRadius: "12px",
-    background: "linear-gradient(145deg, #ffffff, #f0f0f0)",
-    animation: `${fadeIn} 0.5s ease-in-out`,
-  },
-  header: {
-    display: "flex",
-    alignItems: "center",
-    marginBottom: "16px",
-  },
-  avatar: {
-    backgroundColor: "#1976d2",
-    width: "30px",
-    height: "30px",
-    marginRight: "12px",
-  },
-  title: {
-    fontWeight: "bold",
-  },
-  patientName: {
-    // fontWeight: "bold",
-    marginBottom: "8px",
-    color: "#333",
-  },
-  position: {
-    fontSize: "0.875rem",
-    color: "#666",
-  },
-  buttonContainer: {
-    display: "flex",
-    gap: "16px", // Adds spacing between buttons
-    marginTop: "16px",
-  },
-  button: {
-    flex: 1, // Ensures both buttons take equal space
-  },
-};

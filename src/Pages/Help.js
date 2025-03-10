@@ -10,7 +10,15 @@ import {
 
 const Help = () => {
   return (
-    <Box sx={{ padding: "20px", maxWidth: "800px", margin: "auto" }}>
+    <Box
+      sx={{
+        padding: "20px",
+        maxWidth: "80%",
+        margin: "auto",
+        overflow: "auto",
+        height: "100vh",
+      }}
+    >
       <Typography variant="body1" paragraph>
         Welcome to the help page. Here you can find answers to frequently asked
         questions and best practices for using the DigiCare Reception Dashboard.

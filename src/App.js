@@ -13,10 +13,16 @@ import PrivateRoute from "./components/PrivateRoute";
 import Help from "./Pages/Help";
 import RoleBasedRoute from "./components/RolebasedRoute";
 import AppointmentTable from "./Pages/AppointmentTable";
+import PrescriptionPage from "./Pages/PrescriptionPage";
 import { EventSource } from "eventsource";
 import AddAppointmentMobile from "./Pages/AddAppointmentMobile";
 import MobileAppointmentTable from "./Pages/MobileAppointmentTable";
+import PastAppointmentsPage from "./Pages/PastAppointments";
 import { Navigate } from "react-router-dom";
+
+import PrescriptionTablePage from "./Pages/Prescriptiondemo";
+
+import AppointmentDetails from "./Pages/AppointmentDetails";
 
 import {
   fetchPatients,
@@ -27,6 +33,12 @@ import {
   addAppointment,
 } from "./services/api";
 
+import { ThemeProvider } from '@mui/material/styles';
+import { theme } from './theme/theme';
+import Dashboard from './Pages/Dashboard';
+import { getLatestCabinSlot } from './utils/dateUtils';
+import PatientInfoPage from './Pages/PatientInfoPage';
+import ConsultationPage from './Pages/ConsultationPage';
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 const App = () => {
@@ -36,11 +48,12 @@ const App = () => {
   const [patients, setPatients] = useState([]);
   const [currentPatient, setCurrentPatient] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [currentCabinSlot, setCurrentCabinSlot] = useState(null);
 
   useEffect(() => {
     const fetchInitialData = async () => {
-      // Only fetch if user exists and has required data
-      if (user?.checkupcabindata?.[0]?.id) {
+      if (user?.checkupcabindata?.[0]?.id && currentCabinSlot) {
+        console.log('starting')
         setLoading(true);
         try {
           setPatients([]);
@@ -48,6 +61,7 @@ const App = () => {
 
           await fetchPatientsData();
           await fetchCurrentPositionData();
+          console.log('apicallscomplete')
         } catch (error) {
           console.error("Initial data fetch error:", error);
         } finally {
@@ -56,11 +70,8 @@ const App = () => {
       }
     };
 
-    // Use a timeout to ensure localStorage is populated
-    const timeoutId = setTimeout(fetchInitialData, 100);
-
-    return () => clearTimeout(timeoutId);
-  }, [user?.checkupcabindata?.[0]?.id]);
+    fetchInitialData();
+  }, [user?.checkupcabindata?.[0]?.id, currentCabinSlot]);
 
   let eventSource;
 
@@ -83,27 +94,21 @@ const App = () => {
     eventSource.onmessage = (event) => {
       try {
         const parsedData = JSON.parse(event.data);
-
-        // console.log("SSE Data:", parsedData);
+        console.log("SSE Data received:", parsedData);
 
         if (parsedData.queue) {
-          // Assuming the update is the whole patients array
           setPatients((prevPatients) => {
-            // Find if the patient already exists
-            const existingIndex = prevPatients.findIndex(
-              (p) =>
-                p.appointment.appointment_id ===
-                parsedData.queue.appointment.appointment_id
-            );
-
-            // Create updated patient object with defaults
             const updatedPatient = {
-              ...parsedData.queue,
+              appointment: parsedData.queue.appointment,
               paid: parsedData.queue.paid || false,
               checkin: parsedData.queue.checkin || false,
               status: parsedData.queue.status || "pending",
               position: parsedData.queue.position,
             };
+
+            const existingIndex = prevPatients.findIndex(
+              (p) => p.appointment.appointment_id === updatedPatient.appointment.appointment_id
+            );
 
             const newPatients = [...prevPatients];
             if (existingIndex !== -1) {
@@ -117,7 +122,7 @@ const App = () => {
           setCurrentPosition(parsedData.cabinslot.current_number);
         }
       } catch (error) {
-        // console.error("Error parsing SSE data:", error);
+        console.error("Error processing SSE data:", error);
       }
     };
 
@@ -141,39 +146,51 @@ const App = () => {
     }
   }, [patients, currentPosition]);
 
+  useEffect(() => {
+    if (user?.checkupcabindata?.[0]?.cabin_slots) {
+      const latestSlot = getLatestCabinSlot(user.checkupcabindata[0].cabin_slots);
+      setCurrentCabinSlot(latestSlot);
+    }
+  }, [user?.checkupcabindata]);
+
   const fetchPatientsData = useCallback(async () => {
+    if (!currentCabinSlot) return;
+    
     try {
       setLoading(true);
+      console.log('Fetching patients data');
       const data = await fetchPatients(
         user.checkupcabindata[0].id,
-        user.checkupcabindata[0].cabin_slots[0]
+        currentCabinSlot
       );
+      console.log('Raw patient data:', data);
 
       const processedData = data.map((patient) => ({
-        ...patient,
-        paid: patient.paid || false, // Default to false if not provided
-        checkin: patient.checkin || false, // Default to false if not provided
+        appointment: patient.appointment,
+        paid: patient.paid || false,
+        checkin: patient.checkin || false,
         status: patient.status || "pending",
+        position: patient.position
       }));
 
+      console.log('Processed patient data:', processedData);
       processedData.sort((a, b) => a.position - b.position);
-      // console.log(processedData);
       setPatients(processedData);
     } catch (error) {
       console.error("Error fetching patients:", error);
     } finally {
-      setTimeout(() => {
-        setLoading(false);
-      }, 300);
+      setLoading(false);
     }
-  }, [user]);
+  }, [user, currentCabinSlot]);
 
   const fetchCurrentPositionData = useCallback(async () => {
+    if (!currentCabinSlot) return;
+    
     try {
       setLoading(true);
       const { current_number } = await fetchCurrentPosition(
         user.checkupcabindata[0].id,
-        user.checkupcabindata[0].cabin_slots[0]
+        currentCabinSlot
       );
 
       setCurrentPosition(current_number);
@@ -185,64 +202,15 @@ const App = () => {
         setLoading(false);
       }, 200);
     }
-  }, [user, setCurrentPosition, setLoading]);
-
-  const fetchPatientsDataWithoutLoader = async () => {
-    try {
-      const data = await fetchPatients(
-        user.checkupcabindata[0].id,
-        user.checkupcabindata[0].cabin_slots[0]
-      );
-
-      const processedData = data.map((patient) => ({
-        ...patient,
-        paid: patient.paid || false, // Default to false if not provided
-        checkin: patient.checkin || false, // Default to false if not provided
-        status: patient.status || "pending", // Default status
-      }));
-
-      processedData.sort((a, b) => a.position - b.position);
-      setPatients(processedData);
-    } catch (error) {
-      console.error("Error fetching patients:", error);
-    }
-  };
-
-  const fetchCurrentPositionDataWithoutLoader = async () => {
-    try {
-      const { current_number } = await fetchCurrentPosition(
-        user.checkupcabindata[0].id,
-        user.checkupcabindata[0].cabin_slots[0]
-      );
-
-      setCurrentPosition(current_number);
-      return current_number;
-    } catch (error) {
-      console.error("Error fetching current position:", error);
-    }
-  };
-
-  const markCurrentPatientAsDone = () => {
-    const newpatients = patients.map((p) => {
-      if (p.position === currentPosition) {
-        const newp = { ...p, done_checkup: true };
-        return newp;
-      } else {
-        return p;
-      }
-    });
-    fetchPatientsData();
-  };
+  }, [user, currentCabinSlot]);
 
   const handleNextPatient = async (id) => {
     const result = await markPatientAsDone(id);
     return result;
   };
 
-  const handleLatePatient = async (id, pos) => {
+  const handleLatePatient = async (id) => {
     const result = await markPatientAsLate(id);
-    // await fetchPatientsDataWithoutLoader();
-    // await fetchCurrentPositionDataWithoutLoader();
     return result;
   };
 
@@ -256,121 +224,159 @@ const App = () => {
       patientId: pid,
       paid: "False",
       disease: disease,
-      slot: user.checkupcabindata[0].cabin_slots[0],
+      slot: currentCabinSlot,
       username: user.username,
       appointment_type: appointmentType,
     };
     const result = await addAppointment(payload);
-    await fetchPatientsData();
-    await fetchCurrentPositionData();
     return result;
   };
 
   return (
-    <Router>
-      <div className="App" style={{ height: "100vh", overflow: "hidden" }}>
-        {user !== null && <Header />}
-        <Box sx={{ display: "flex", height: "100%" }}>
-          {!isMobile && user !== null && <Sidebar />}
-          <Box
-            component="main"
-            sx={{ flexGrow: 1, padding: "6px", height: "100%", width: "100%" }}
-          >
-            <Routes>
-              <Route
-                path="/login"
-                element={user ? <Navigate to="/" replace /> : <Login />}
-              />
-              <Route
-                path="/"
-                element={
-                  <PrivateRoute>
-                    <Home
-                      currentPosition={currentPosition}
-                      setCurrentPosition={setCurrentPosition}
-                      patients={patients}
-                      setPatients={(patients) => setPatients(patients)}
-                      handleNextPatient={handleNextPatient}
-                      handleLatePatient={(id, pos) =>
-                        handleLatePatient(id, pos)
-                      }
-                      shufflePosition={(payload) => shufflePosition(payload)}
-                      loading={loading}
-                      fetchPatientsData={fetchPatientsData}
-                      fetchPatientsDataWithoutLoader={
-                        fetchPatientsDataWithoutLoader
-                      }
-                      fetchCurrentPositionDataWithoutLoader={
-                        fetchCurrentPositionDataWithoutLoader
-                      }
-                    />
-                  </PrivateRoute>
-                }
-              />
-              {/* <Route
-                path="/add-appointment"
-                element={
-                  <PrivateRoute>
-                    <AddAppointment
-                      addNewAppointment={(pid, disease, appointmentType) =>
-                        addNewAppointment(pid, disease, appointmentType)
-                      }
-                    />
-                  </PrivateRoute>
-                }
-              /> */}
-              {/* <Route
-                path="/patient-details"
-                element={
-                  <PrivateRoute>
-                    <RoleBasedRoute allowedRoles={["doctor"]}>
-                    <PatientDetails
-                      currentPatient={currentPatient}
-                      handleNextPatient={handleNextPatient}
-                    />
-                    </RoleBasedRoute>
-                  </PrivateRoute>
-                }
-              /> */}
-              <Route
-                path="/appointments"
-                element={
-                  <PrivateRoute>
-                    {<AppointmentTable fetchPatientsData={fetchPatientsData} />}
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/help"
-                element={
-                  <PrivateRoute>
-                    <Help />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/add-appointment"
-                element={
-                  <PrivateRoute>
-                    <AddAppointmentMobile patients={patients} />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/mobile-appointments"
-                element={
-                  <PrivateRoute>
-                    <MobileAppointmentTable />
-                  </PrivateRoute>
-                }
-              />
-              <Route path="*" element={<Navigate to="/login" replace />} />
-            </Routes>
+    <ThemeProvider theme={theme}>
+      <Router>
+        <div className="App" style={{ height: "100vh", overflow: "hidden" }}>
+          {user !== null && <Header />}
+          <Box sx={{ display: "flex", height: "100%" }}>
+            {!isMobile && user !== null && <Sidebar />}
+            <Box
+              component="main"
+              sx={{
+                flexGrow: 1,
+                padding: "6px",
+                height: "100%",
+                width: "100%",
+                overflowY: "auto",
+                marginBottom: "200px",
+              }}
+            >
+              <Routes>
+                <Route
+                  path="/login"
+                  element={user ? <Navigate to="/" replace /> : <Login />}
+                />
+                <Route
+                  path="/"
+                  element={
+                    <PrivateRoute>
+                      <Dashboard 
+                        patients={patients}
+                        setPatients={setPatients}
+                        currentPosition={currentPosition}
+                        loading={loading}
+                        handleNextPatient={handleNextPatient}
+                        handleLatePatient={handleLatePatient}
+                        shufflePosition={shufflePosition}
+                        fetchPatientsData={fetchPatientsData}
+                      />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/appointments"
+                  element={
+                    <PrivateRoute>
+                      <AppointmentTable 
+                        fetchPatientsData={fetchPatientsData}
+                        currentCabinSlot={currentCabinSlot}
+                      />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/past-appointments"
+                  element={
+                    <PrivateRoute>{<PastAppointmentsPage />}</PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/prescription"
+                  element={
+                    <PrivateRoute>
+                      {/* <PrescriptionTablePage /> */}
+                      <PrescriptionPage />
+                    </PrivateRoute>
+                  }
+                />
+
+<Route
+                  path="/patient-info"
+                  element={
+                    <PrivateRoute>
+                      <PatientInfoPage />
+                    </PrivateRoute>
+                  }
+                />
+
+                <Route
+                  path="/appointment-details"
+                  element={
+                    <PrivateRoute>
+                      <appointment />
+                      <AppointmentDetails />
+                    </PrivateRoute>
+                  }
+                />
+
+                <Route
+                  path="/help"
+                  element={
+                    <PrivateRoute>
+                      <Help />
+                    </PrivateRoute>
+                  }
+                />
+
+                <Route
+                  path="/add-appointment"
+                  element={
+                    <PrivateRoute>
+                      <AddAppointmentMobile patients={patients} />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/mobile-appointments"
+                  element={
+                    <PrivateRoute>
+                      <MobileAppointmentTable />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/queue"
+                  element={
+                    <PrivateRoute>
+                      <Home
+                        currentPosition={currentPosition}
+                        setCurrentPosition={setCurrentPosition}
+                        patients={patients}
+                        setPatients={(patients) => setPatients(patients)}
+                        handleNextPatient={handleNextPatient}
+                        handleLatePatient={(id, pos) => handleLatePatient(id, pos)}
+                        shufflePosition={(payload) => shufflePosition(payload)}
+                        loading={loading}
+                        fetchPatientsData={fetchPatientsData}
+                      />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/consultation"
+                  element={
+                    <PrivateRoute>
+                      <ConsultationPage />
+                    </PrivateRoute>
+                  }
+                />
+                <Route path="*" element={<Navigate to="/login" replace />} />
+              </Routes>
+            </Box>
           </Box>
-        </Box>
-        {user !== null && isMobile && <BottomNavigator />}
-      </div>
-    </Router>
+          {user !== null && isMobile && <BottomNavigator />}
+        </div>
+      </Router>
+    </ThemeProvider>
   );
 };
 

@@ -1,0 +1,44 @@
+/* PastAppointments.css */
+.MuiDataGrid-root {
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.MuiDataGrid-virtualScroller {
+  overflow: auto !important;
+}
+
+.MuiDataGrid-main {
+  height: 100% !important;
+}
+
+.cancelled-row {
+  background-color: #ffebee !important;
+  color: #d32f2f !important;
+  text-decoration: line-through !important;
+}
+
+.done-checkup-row {
+  background-color: #e8f5e9 !important;
+  color: #2e7d32 !important;
+}
+
+/* Optional: Custom scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}

@@ -31,7 +31,6 @@ const PatientItem = ({
   currentPosition,
   handleNextPatient,
   handleLatePatient,
-  isDraggable,
   paid,
   checkin,
   status,
