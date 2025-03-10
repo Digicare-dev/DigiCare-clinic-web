@@ -243,11 +243,18 @@ export default function AppointmentTable() {
   useEffect(() => {
     if (!user) return;
     
-    // Fetch appointments when component mounts
+    // Fetch appointments on component mount
     getAppointments();
     
-    // No need for SSE in demo mode
-  }, [currentCabinSlot]);
+    // Set up a refresh interval to simulate real-time updates
+    const refreshInterval = setInterval(() => {
+      if (!open && !editModalOpen && !cancelConfirmationOpen) {
+        getAppointments();
+      }
+    }, 60000); // Refresh every minute
+    
+    return () => clearInterval(refreshInterval);
+  }, []); // Empty dependency array to run only on mount
 
   const getAppointments = async () => {
     setLoading(true);
@@ -536,13 +543,22 @@ export default function AppointmentTable() {
     setIsAdding(true);
     try {
       // Import dummy data service dynamically
-      const { dummyAddAppointment } = await import('../services/dummyDataService');
+      const { dummyAddAppointment, dummyPatients } = await import('../services/dummyDataService');
       
-      // Add new appointment using dummy service
+      // Add new appointment using dummy service with complete patient information
       const result = await dummyAddAppointment({
         patientName: `${newEntry.firstName} ${newEntry.lastName}`,
         disease: newEntry.disease,
-        appointment_type: newEntry.appointment_type
+        appointment_type: newEntry.appointment_type,
+        phone_number: newEntry.phone_number,
+        age: newEntry.age,
+        gender: newEntry.sex,
+        location: newEntry.location,
+        guardian: newEntry.guardian,
+        fees_paid: newEntry.fees_paid,
+        mode: newEntry.mode,
+        paid: newEntry.paid,
+        checkin: newEntry.checkin
       });
       
       if (result.success) {
@@ -569,7 +585,18 @@ export default function AppointmentTable() {
         
         // Add to rows
         setRows((prev) => [...prev, newAppointment].sort((a, b) => a.token - b.token));
-        handleOpenSnackbar("Appointment added successfully");
+        
+        // Show appropriate success message
+        if (newEntry.phone_number) {
+          handleOpenSnackbar("Appointment added successfully and patient profile created. Patient added to queue with token " + newEntry.token);
+          
+          // Update the global patients state in App.js
+          // This will refresh the queue display
+          window.dispatchEvent(new CustomEvent('refreshQueue', { detail: { patients: dummyPatients } }));
+        } else {
+          handleOpenSnackbar("Appointment added successfully");
+        }
+        
         handleClose();
       } else {
         setError("Failed to add appointment");

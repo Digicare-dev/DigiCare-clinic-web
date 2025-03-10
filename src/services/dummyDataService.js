@@ -467,17 +467,105 @@ export const dummyShufflePatientPosition = (payload) => {
 export const dummyAddAppointment = (payload) => {
   return new Promise((resolve) => {
     setTimeout(() => {
+      // Generate a unique appointment ID
+      const appointmentId = `20240310_${Math.floor(1000 + Math.random() * 9000)}`;
+      const tokenNumber = `${dummyPatients.length + 1}`;
+      
+      // Extract patient information from payload
+      const nameParts = payload.patientName.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      // Create a new patient profile if phone number is provided
+      if (payload.phone_number) {
+        // Generate a unique patient ID
+        const patientId = `PT${String(patientProfiles.length + 1).padStart(3, '0')}`;
+        
+        // Create new patient profile
+        const newPatientProfile = {
+          id: patientId,
+          firstName: firstName,
+          lastName: lastName,
+          fullName: payload.patientName,
+          age: payload.age || 30,
+          gender: payload.gender || "Not specified",
+          phone_number: payload.phone_number,
+          email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
+          address: payload.location || "Address not provided",
+          bloodGroup: "Not specified",
+          allergies: [],
+          chronicConditions: [],
+          emergencyContact: payload.guardian || "Not provided",
+          registrationDate: new Date().toISOString().split('T')[0],
+          lastVisit: new Date().toISOString().split('T')[0]
+        };
+        
+        // Add to patient profiles
+        patientProfiles.push(newPatientProfile);
+        
+        // Create new patient for queue
+        const newPatient = {
+          appointment: {
+            appointment_id: appointmentId,
+            name: payload.patientName,
+            token: tokenNumber,
+            disease: payload.disease || "General checkup",
+            appointment_type: payload.appointment_type || "Consultation",
+            fees_paid: payload.fees_paid || 500,
+            mode: payload.mode || "cash"
+          },
+          paid: payload.paid || false,
+          checkin: payload.checkin || false,
+          status: "pending",
+          position: dummyPatients.length + 1,
+          patient: {
+            age: payload.age || 30,
+            gender: payload.gender || "Not specified",
+            phone_number: payload.phone_number,
+            location: payload.location || "Not provided",
+            guardian: payload.guardian || "NULL"
+          }
+        };
+        
+        // Add to patients queue
+        dummyPatients.push(newPatient);
+        
+        // Add to appointment table data for persistence
+        const newAppointmentTableEntry = {
+          token: tokenNumber,
+          appointment_id: appointmentId,
+          name: payload.patientName,
+          disease: payload.disease || "General checkup",
+          appointment_type: payload.appointment_type || "Consultation",
+          status: "pending",
+          fees_paid: payload.fees_paid || 500,
+          mode: payload.mode || "cash",
+          date: new Date().toISOString().split('T')[0],
+          time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          patient: {
+            age: payload.age || 30,
+            gender: payload.gender?.charAt(0) || "Not specified",
+            phone_number: payload.phone_number,
+            location: payload.location || "Not provided",
+            guardian: payload.guardian || "NULL"
+          }
+        };
+        
+        // Add to appointment table data
+        dummyAppointmentTableData.push(newAppointmentTableEntry);
+      }
+      
       resolve({ 
         success: true, 
         message: "Appointment added successfully",
         appointment: {
-          appointment_id: `20240310_${Math.floor(1000 + Math.random() * 9000)}`,
+          appointment_id: appointmentId,
           name: payload.patientName || "New Patient",
-          token: `${dummyPatients.length + 1}`,
+          token: tokenNumber,
           disease: payload.disease || "General checkup",
           appointment_type: payload.appointment_type || "Consultation",
-          fees_paid: 500,
-          mode: "cash"
+          fees_paid: payload.fees_paid || 500,
+          mode: payload.mode || "cash"
         }
       });
     }, 1000);

@@ -88,6 +88,21 @@ const App = () => {
     }
   }, [patients, currentPosition]);
 
+  // Add event listener for queue refresh
+  useEffect(() => {
+    const handleQueueRefresh = (event) => {
+      if (event.detail && event.detail.patients) {
+        setPatients(event.detail.patients);
+      }
+    };
+    
+    window.addEventListener('refreshQueue', handleQueueRefresh);
+    
+    return () => {
+      window.removeEventListener('refreshQueue', handleQueueRefresh);
+    };
+  }, []);
+
   useEffect(() => {
     if (!user) return;
     
@@ -242,36 +257,32 @@ const App = () => {
 
   const addNewAppointment = async (pid, disease, appointmentType) => {
     // Import dummy data service
-    const { dummyAddAppointment } = await import('./services/dummyDataService');
+    const { dummyAddAppointment, patientProfiles, dummyPatients } = await import('./services/dummyDataService');
     
-    // Add new appointment
+    // Find patient in profiles
+    const patientProfile = patientProfiles.find(p => p.id === pid);
+    
+    // Add new appointment with complete patient information
     const result = await dummyAddAppointment({
       patientId: pid,
+      patientName: patientProfile ? patientProfile.fullName : "Unknown Patient",
       disease: disease,
-      appointment_type: appointmentType
+      appointment_type: appointmentType,
+      phone_number: patientProfile ? patientProfile.phone_number : "",
+      age: patientProfile ? patientProfile.age : "",
+      gender: patientProfile ? patientProfile.gender : "",
+      location: patientProfile ? patientProfile.address : "",
+      guardian: patientProfile ? patientProfile.emergencyContact : ""
     });
     
-    // Update local state
+    // Update local state with the latest patients from dummyPatients
     if (result.success && result.appointment) {
-      const newPatient = {
-        appointment: result.appointment,
-        paid: false,
-        checkin: false,
-        status: "pending",
-        position: patients.length + 1,
-        patient: {
-          age: Math.floor(20 + Math.random() * 50),
-          gender: Math.random() > 0.5 ? "M" : "F",
-          phone_number: `9${Math.floor(Math.random() * 1000000000)}`,
-          location: "Demo City",
-          guardian: "NULL"
-        }
-      };
-      
-      setPatients([...patients, newPatient]);
+      // Get the latest patients from the dummyPatients array
+      setPatients([...dummyPatients]);
+      return result;
     }
     
-    return result;
+    return { success: false };
   };
 
   return (
