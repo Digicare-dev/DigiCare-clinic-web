@@ -46,6 +46,7 @@ import {
   Print,
   Close,
 } from '@mui/icons-material';
+import ArrowRightIcon from '@mui/icons-material/ArrowRight';
 import { Layout } from '../components/Layout';
 import { PageHeader } from '../components/common/PageHeader';
 import ReportLink from '../components/ReportLink';
@@ -580,21 +581,18 @@ const AppointmentDetails = () => {
 
   return (
     <Layout>
-      {/* Page Header with Back Button and Action Buttons */}
+      {/* Page Header with integrated Back Button */}
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, flexWrap: 'wrap' }}>
-        <IconButton 
-          onClick={handleBack} 
-          sx={{ mr: 2, color: 'primary.main' }}
-        >
-          <ArrowBack />
-        </IconButton>
-      <PageHeader 
+        <PageHeader 
           title="Appointment Details" 
-        breadcrumbs={[
+          breadcrumbs={[
             { text: 'Dashboard', href: '/' },
             { text: isFromPastAppointments ? 'Past Appointments' : 'Appointments', href: isFromPastAppointments ? '/past-appointments' : '/appointments' },
             { text: 'Appointment Details' }
           ]}
+          showBackButton={true}
+          backButtonVariant="icon"
+          onBackButtonClick={handleBack}
         />
       
         {/* Action Buttons moved to the top */}
@@ -934,17 +932,6 @@ const AppointmentDetails = () => {
         </Box>
       </Paper>
       
-      {/* Back button at the bottom */}
-      <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
-        <Button 
-          variant="outlined" 
-          startIcon={<ArrowBack />} 
-          onClick={handleBack}
-        >
-          Back to {isFromPastAppointments ? 'Past Appointments' : 'Appointments'}
-        </Button>
-      </Box>
-
       {/* Prescription Modal */}
       <Dialog
         open={prescriptionModalOpen}

@@ -75,6 +75,7 @@ import {
 import ReportLink from '../components/ReportLink';
 import dayjs from 'dayjs';
 import { PrescriptionForm } from './PrescriptionPage';
+import { PageHeader } from '../components/common/PageHeader';
 
 const modalStyle = {
   position: "absolute",
@@ -764,19 +765,13 @@ const PatientInfoPage = () => {
 
   return (
     <Container maxWidth="xl" sx={{ mt: 3, mb: 10 }}>
-      {/* Back button and page title */}
-      <Box sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
-        <IconButton 
-          color="primary" 
-          onClick={handleGoBack}
-          sx={{ mr: 1 }}
-            >
-          <ArrowBack />
-        </IconButton>
-        <Typography variant="h5" component="h1">
-          Patient Information
-        </Typography>
-            </Box>
+      {/* Enhanced PageHeader with back button */}
+      <PageHeader 
+        title="Patient Information"
+        showBackButton={true}
+        backButtonVariant="icon"
+        onBackButtonClick={handleGoBack}
+      />
 
       {/* Connected layout with consistent styling */}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

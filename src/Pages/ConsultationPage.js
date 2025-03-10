@@ -79,6 +79,7 @@ import {
 } from '@mui/icons-material';
 
 import ReportLink from '../components/ReportLink';
+import { PageHeader } from '../components/common/PageHeader';
 
 const ConsultationPage = () => {
   const navigate = useNavigate();
@@ -670,19 +671,14 @@ const ConsultationPage = () => {
 
   return (
     <Container maxWidth="xl" sx={{ mt: 2, mb: 4, pb: 8 }}>
-      {/* Back button moved outside of header */}
-      <Box sx={{ display: 'flex', mb: 2 }}>
-            <Button 
-          variant="outlined" 
-              color="primary" 
-          onClick={handleBackToPatient}
-          startIcon={<ArrowBack />}
-              size="small"
-          sx={{ py: 1, px: 2 }}
-            >
-          Back to Patient List
-            </Button>
-          </Box>
+      {/* Enhanced PageHeader with back button */}
+      <PageHeader 
+        title="Patient Consultation"
+        showBackButton={true}
+        backButtonVariant="button"
+        backButtonText="Back to Patient List"
+        onBackButtonClick={handleBackToPatient}
+      />
 
       {/* SECTION 1: Merged Header and Patient Details with Vitals (editable) and Attachments */}
       <Paper elevation={3} sx={{ p: 3, mb: 4 }}>
