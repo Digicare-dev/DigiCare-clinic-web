@@ -101,7 +101,7 @@ const ConsultationPage = () => {
   const appointmentInfo = location.state?.appointmentInfo || {
     date: new Date().toISOString().split('T')[0],
     time: '10:00 AM',
-    doctor: 'Dr. Smith',
+    doctor: 'Dr. Amit Mittal',
     type: 'General Checkup',
     status: 'In Progress',
     id: 'AP67890',
@@ -155,7 +155,7 @@ const ConsultationPage = () => {
     tests: [],
     instructions: "",
     followUp: "",
-    signature: appointmentInfo.doctor,
+    signature: "Dr. Amit Mittal",
   };
 
   const [openAttachmentDialog, setOpenAttachmentDialog] = useState(false);
@@ -257,7 +257,7 @@ const ConsultationPage = () => {
     {
       id: 'P001',
       date: '2024-02-15',
-      doctor: 'Dr. Smith',
+      doctor: 'Dr. Amit Mittal',
       diagnosis: 'Hypertension',
       vitals: {
         bloodPressure: '140/90',
@@ -276,12 +276,16 @@ const ConsultationPage = () => {
       ],
       tests: ['Complete Blood Count', 'Lipid Profile'],
       instructions: 'Reduce salt intake. Regular exercise recommended.',
-      followUp: '1 month'
+      followUp: '1 month',
+      attachments: [
+        { id: 1, name: 'Blood Test Results.pdf', type: 'pdf', reportType: 'blood-test', date: '2024-02-15', size: '1.2 MB' },
+        { id: 2, name: 'ECG Report.pdf', type: 'pdf', reportType: 'ecg-test', date: '2024-02-15', size: '3.5 MB' },
+      ]
     },
     {
       id: 'P002',
       date: '2024-01-20',
-      doctor: 'Dr. Johnson',
+      doctor: 'Dr. Amit Mittal',
       diagnosis: 'Upper Respiratory Infection',
       vitals: {
         bloodPressure: '120/80',
@@ -299,7 +303,11 @@ const ConsultationPage = () => {
       ],
       tests: ['Throat Swab Culture'],
       instructions: 'Plenty of fluids. Rest advised.',
-      followUp: '1 week if symptoms persist'
+      followUp: '1 week if symptoms persist',
+      attachments: [
+        { id: 1, name: 'Throat Swab Results.pdf', type: 'pdf', reportType: 'lab-test', date: '2024-01-20', size: '0.8 MB' },
+        { id: 2, name: 'Chest X-Ray.jpg', type: 'image', reportType: 'image', date: '2024-01-20', size: '2.5 MB' },
+      ]
     }
   ]);
 
@@ -309,6 +317,10 @@ const ConsultationPage = () => {
   const [uploadFileName, setUploadFileName] = useState('');
   const [uploadFileType, setUploadFileType] = useState('pdf');
   const [isDragging, setIsDragging] = useState(false);
+
+  // Add state for prescription modal
+  const [prescriptionModalOpen, setPrescriptionModalOpen] = useState(false);
+  const [selectedPrescription, setSelectedPrescription] = useState(null);
 
   // Add function to handle opening the upload modal
   const handleOpenUploadModal = () => {
@@ -371,6 +383,226 @@ const ConsultationPage = () => {
     
     // Show a success message (in a real app)
     alert('File uploaded successfully!');
+  };
+
+  // Add function to handle opening the prescription modal
+  const handleOpenPrescription = (prescription) => {
+    setSelectedPrescription({
+      patientInfo: patientInfo,
+      appointmentInfo: {
+        date: prescription.date,
+        doctor: prescription.doctor,
+        diagnosis: prescription.diagnosis,
+        id: prescription.id
+      },
+      initialData: {
+        vitals: prescription.vitals,
+        complaints: prescription.complaints || [],
+        diagnoses: prescription.diagnoses || [],
+        medications: prescription.medications || [],
+        tests: prescription.tests || [],
+        instructions: prescription.instructions || "",
+        followUp: prescription.followUp || "",
+        attachments: prescription.attachments || []
+      },
+      readOnly: true
+    });
+    setPrescriptionModalOpen(true);
+  };
+  
+  // Add function to handle closing the prescription modal
+  const handleClosePrescriptionModal = () => {
+    setPrescriptionModalOpen(false);
+    setSelectedPrescription(null);
+  };
+
+  // Add function to handle printing the prescription
+  const handlePrintPrescription = () => {
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank');
+    
+    // Generate prescription HTML content
+    const prescriptionContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Prescription - ${selectedPrescription.appointmentInfo.date}</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #333;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #2196f3;
+            padding-bottom: 10px;
+          }
+          .clinic-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2196f3;
+          }
+          .doctor-info {
+            font-size: 16px;
+            margin: 5px 0;
+          }
+          .patient-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+          }
+          .patient-details, .appointment-details {
+            flex: 1;
+          }
+          .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 15px 0 10px 0;
+            color: #2196f3;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+          }
+          .medication-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+          }
+          .medication-table th, .medication-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+          }
+          .medication-table th {
+            background-color: #f2f2f2;
+          }
+          .tests, .instructions {
+            margin-top: 15px;
+          }
+          .footer {
+            margin-top: 30px;
+            text-align: right;
+            font-style: italic;
+            color: #666;
+          }
+          .attachments {
+            margin-top: 15px;
+          }
+          .attachments ul {
+            list-style-type: none;
+            padding-left: 0;
+          }
+          .attachments li {
+            padding: 5px 0;
+            border-bottom: 1px dashed #ddd;
+          }
+          @media print {
+            button { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="clinic-name">DigiCare Medical Center</div>
+          <div class="doctor-info">Healthcare Professional: ${selectedPrescription.appointmentInfo.doctor || 'Doctor'}</div>
+        </div>
+        
+        <div class="patient-info">
+          <div class="patient-details">
+            <p><strong>Patient Name:</strong> ${selectedPrescription.patientInfo.name}</p>
+            <p><strong>Patient ID:</strong> ${selectedPrescription.patientInfo.id}</p>
+            <p><strong>Age/Gender:</strong> ${selectedPrescription.patientInfo.age} years, ${selectedPrescription.patientInfo.gender}</p>
+          </div>
+          <div class="appointment-details">
+            <p><strong>Date:</strong> ${selectedPrescription.appointmentInfo.date}</p>
+            <p><strong>Appointment ID:</strong> ${selectedPrescription.appointmentInfo.id}</p>
+            <p><strong>BP:</strong> ${selectedPrescription.initialData.vitals.bloodPressure} mmHg | <strong>Temp:</strong> ${selectedPrescription.initialData.vitals.temperature}°F</p>
+          </div>
+        </div>
+        
+        <div class="section-title">Diagnosis</div>
+        <p>${selectedPrescription.initialData.diagnoses.map(d => d.diagnosis).join(', ') || selectedPrescription.appointmentInfo.diagnosis}</p>
+        
+        <div class="section-title">Medications</div>
+        <table class="medication-table">
+          <thead>
+            <tr>
+              <th>Medication</th>
+              <th>Dosage</th>
+              <th>Frequency</th>
+              <th>Duration</th>
+              <th>Instructions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${selectedPrescription.initialData.medications.map(med => `
+              <tr>
+                <td>${med.medicine}</td>
+                <td>${med.dose}</td>
+                <td>${med.frequency}</td>
+                <td>${med.duration}</td>
+                <td>${med.notes || med.timing || ''}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        
+        ${selectedPrescription.initialData.tests && selectedPrescription.initialData.tests.length > 0 ? `
+          <div class="section-title">Tests Advised</div>
+          <div class="tests">
+            ${selectedPrescription.initialData.tests.map(test => `<p>• ${test}</p>`).join('')}
+          </div>
+        ` : ''}
+        
+        <div class="section-title">Instructions</div>
+        <div class="instructions">
+          <p>${selectedPrescription.initialData.instructions || 'No specific instructions provided.'}</p>
+          <p><strong>Follow-up:</strong> ${selectedPrescription.initialData.followUp || 'As needed'}</p>
+        </div>
+        
+        ${selectedPrescription.initialData.attachments && selectedPrescription.initialData.attachments.length > 0 ? `
+          <div class="section-title">Attachments</div>
+          <div class="attachments">
+            <ul>
+              ${selectedPrescription.initialData.attachments.map(attachment => `
+                <li>
+                  <strong>${attachment.name}</strong> - 
+                  ${attachment.reportType === 'ecg-test' ? 'ECG Test Report' : 
+                  attachment.reportType === 'blood-test' ? 'Blood Test Report' : 
+                  attachment.reportType === 'lab-test' ? 'Lab Test Report' :
+                  attachment.type === 'pdf' ? 'PDF Document' :
+                  attachment.type === 'image' ? 'Image' : 'Document'}
+                  (${attachment.date})
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+        ` : ''}
+        
+        <div class="footer">
+          <p>This is a digital prescription issued by DigiCare Medical Center.</p>
+        </div>
+        
+        <button onclick="window.print(); window.close();" style="display: block; margin: 30px auto; padding: 10px 20px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer;">
+          Print Prescription
+        </button>
+      </body>
+      </html>
+    `;
+    
+    // Write the content to the new window
+    printWindow.document.open();
+    printWindow.document.write(prescriptionContent);
+    printWindow.document.close();
+    
+    // Automatically trigger print when content is loaded
+    printWindow.onload = function() {
+      printWindow.focus();
+    };
   };
 
   // Render the PrescriptionForm with the patient ID
@@ -1041,7 +1273,63 @@ const ConsultationPage = () => {
                       </Grid>
                     </Grid>
                   </Paper>
+                </Box>
+
+                {/* Attachments Section */}
+                {prescription.attachments && prescription.attachments.length > 0 && (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
+                      Attachments
+                    </Typography>
+                    <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                      <Box 
+                        sx={{ 
+                          display: 'grid', 
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
+                          gap: 2,
+                          p: 0.5,
+                        }}
+                      >
+                        {prescription.attachments.map((attachment) => (
+                          <Box
+                            key={attachment.id}
+                            sx={{ 
+                              border: '1px solid #e0e0e0',
+                              borderRadius: 1,
+                              p: 1.5,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              transition: 'all 0.2s',
+                              '&:hover': { 
+                                bgcolor: 'rgba(0, 0, 0, 0.03)',
+                                borderColor: 'primary.light'
+                              }
+                            }}
+                            onClick={() => handleOpenAttachment(attachment)}
+                          >
+                            {getAttachmentIcon(attachment.type)}
+                            <Box sx={{ ml: 1.5, flex: 1, overflow: 'hidden' }}>
+                              <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontSize: '0.7rem' }}>
+                                {attachment.reportType === 'ecg-test' ? 'ECG Test Report' : 
+                                attachment.reportType === 'blood-test' ? 'Blood Test Report' : 
+                                attachment.reportType === 'lab-test' ? 'Lab Test Report' :
+                                attachment.type === 'pdf' ? 'PDF Document' :
+                                attachment.type === 'image' ? 'Image' : 'Document'}
+                              </Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {attachment.name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {attachment.date} • {attachment.size}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        ))}
                       </Box>
+                    </Paper>
+                  </Box>
+                )}
                       
                 {/* Action buttons */}
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2, gap: 1 }}>
@@ -1049,145 +1337,7 @@ const ConsultationPage = () => {
                     size="small" 
                     variant="outlined" 
                     startIcon={<Print />}
-                    onClick={() => {
-                      // Create a new window for printing
-                      const printWindow = window.open('', '_blank');
-                      
-                      // Generate prescription HTML content
-                      const prescriptionContent = `
-                        <!DOCTYPE html>
-                        <html>
-                        <head>
-                          <title>Prescription - ${prescription.date}</title>
-                          <style>
-                            body { font-family: Arial, sans-serif; margin: 20px; }
-                            .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
-                            .section { margin-bottom: 15px; }
-                            h1 { font-size: 24px; margin-bottom: 10px; }
-                            h2 { font-size: 18px; margin-bottom: 8px; color: #2196f3; }
-                            table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-                            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                            th { background-color: #f5f5f5; }
-                            .footer { margin-top: 30px; text-align: right; }
-                            @media print {
-                              button { display: none; }
-                              body { margin: 0; }
-                            }
-                          </style>
-                        </head>
-                        <body>
-                          <div class="header">
-                            <div>
-                              <h1>Medical Prescription</h1>
-                              <p>Date: ${prescription.date}</p>
-                              <p>Doctor: ${prescription.doctor}</p>
-                            </div>
-                          </div>
-                          
-                          <div class="section">
-                            <h2>Vitals</h2>
-                            <p>Blood Pressure: ${prescription.vitals.bloodPressure} mmHg | 
-                               Heart Rate: ${prescription.vitals.heartRate} bpm | 
-                               Temperature: ${prescription.vitals.temperature} °F | 
-                               Respiratory Rate: ${prescription.vitals.respiratoryRate || "16"} bpm | 
-                               SpO2: ${prescription.vitals.spO2 || "98"}%</p>
-                          </div>
-                          
-                          <div class="section">
-                            <h2>Diagnosis</h2>
-                            <table>
-                              <thead>
-                                <tr>
-                                  <th>Diagnosis</th>
-                                  <th>Duration</th>
-                                  <th>Notes</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                ${prescription.diagnoses ? 
-                                  prescription.diagnoses.map(diag => `
-                                    <tr>
-                                      <td>${diag.diagnosis}</td>
-                                      <td>${diag.duration}</td>
-                                      <td>${diag.notes || ''}</td>
-                                    </tr>
-                                  `).join('') : 
-                                  `<tr>
-                                    <td>${prescription.diagnosis}</td>
-                                    <td>Not specified</td>
-                                    <td>No notes provided</td>
-                                  </tr>`
-                                }
-                              </tbody>
-                            </table>
-                          </div>
-                          
-                          <div class="section">
-                            <h2>Medications</h2>
-                            <table>
-                              <thead>
-                                <tr>
-                                  <th>Medicine</th>
-                                  <th>Dose</th>
-                                  <th>Timing</th>
-                                  <th>Frequency</th>
-                                  <th>Duration</th>
-                                  <th>Notes</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                ${prescription.medications.map(med => `
-                                  <tr>
-                                    <td>${med.medicine}</td>
-                                    <td>${med.dose}</td>
-                                    <td>${med.timing}</td>
-                                    <td>${med.frequency}</td>
-                                    <td>${med.duration}</td>
-                                    <td>${med.notes || ''}</td>
-                                  </tr>
-                                `).join('')}
-                              </tbody>
-                            </table>
-                          </div>
-                          
-                          ${prescription.tests && prescription.tests.length > 0 ? `
-                            <div class="section">
-                              <h2>Tests</h2>
-                              <ul>
-                                ${prescription.tests.map(test => `<li>${test}</li>`).join('')}
-                              </ul>
-                            </div>
-                          ` : ''}
-                          
-                          <div class="section">
-                            <h2>Instructions & Follow-up</h2>
-                            <p><strong>Instructions:</strong> ${prescription.instructions || "No specific instructions"}</p>
-                            <p><strong>Follow-up:</strong> ${prescription.followUp || "No follow-up scheduled"}</p>
-                          </div>
-                          
-                          <div class="footer">
-                            <p>Signature: ${prescription.doctor}</p>
-                          </div>
-                          
-                          <button onclick="window.print(); window.close();" style="margin-top: 20px; padding: 8px 16px;">
-                            Print Prescription
-                          </button>
-                        </body>
-                        </html>
-                      `;
-                      
-                      // Write the content to the new window
-                      printWindow.document.open();
-                      printWindow.document.write(prescriptionContent);
-                      printWindow.document.close();
-                      
-                      // Automatically trigger print when content is loaded
-                      printWindow.onload = function() {
-                        printWindow.focus();
-                        // Uncomment to automatically print
-                        // printWindow.print();
-                      };
-                    }}
+                    onClick={() => handleOpenPrescription(prescription)}
                   >
                     Print
                   </Button>
@@ -1389,6 +1539,251 @@ const ConsultationPage = () => {
         </DialogActions>
       </Dialog>
 
+      {/* Prescription Modal */}
+      <Dialog
+        open={prescriptionModalOpen}
+        onClose={handleClosePrescriptionModal}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">Prescription</Typography>
+            <Box>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<Print />}
+                onClick={handlePrintPrescription}
+                sx={{ mr: 1 }}
+              >
+                Print
+              </Button>
+              <IconButton onClick={handleClosePrescriptionModal}>
+                <Close />
+              </IconButton>
+            </Box>
+          </Box>
+        </DialogTitle>
+        <DialogContent dividers>
+          {selectedPrescription && (
+            <Box sx={{ p: 2, bgcolor: '#fff', maxHeight: '70vh', overflowY: 'auto' }}>
+              {/* Prescription Header */}
+              <Box sx={{ textAlign: 'center', mb: 3, pb: 2, borderBottom: '2px solid #2196f3' }}>
+                <Typography variant="h5" component="div" sx={{ color: '#2196f3', fontWeight: 'bold', mb: 1 }}>
+                  DigiCare Medical Center
+                </Typography>
+                <Typography variant="body1">
+                  Healthcare Professional: {selectedPrescription.appointmentInfo.doctor || 'Doctor'}
+                </Typography>
+              </Box>
+
+              {/* Patient Info */}
+              <Box sx={{ 
+                display: 'flex', 
+                flexWrap: 'wrap', 
+                mb: 3, 
+                p: 2, 
+                bgcolor: '#f5f5f5',
+                borderRadius: 1
+              }}>
+                <Box sx={{ flex: 1, minWidth: '250px', mb: { xs: 2, md: 0 } }}>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Patient Name:</strong> {selectedPrescription.patientInfo.name}
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Patient ID:</strong> {selectedPrescription.patientInfo.id}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Age/Gender:</strong> {selectedPrescription.patientInfo.age} years, {selectedPrescription.patientInfo.gender}
+                  </Typography>
+                </Box>
+                <Box sx={{ flex: 1, minWidth: '250px' }}>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Date:</strong> {selectedPrescription.appointmentInfo.date}
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Appointment ID:</strong> {selectedPrescription.appointmentInfo.id}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>BP:</strong> {selectedPrescription.initialData.vitals.bloodPressure} mmHg | <strong>Temp:</strong> {selectedPrescription.initialData.vitals.temperature}°F
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Diagnosis */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" sx={{ 
+                  borderBottom: '1px solid #ddd', 
+                  pb: 1, 
+                  mb: 2, 
+                  color: '#2196f3',
+                  fontSize: '1.1rem'
+                }}>
+                  Diagnosis
+                </Typography>
+                <Typography variant="body1">
+                  {selectedPrescription.initialData.diagnoses && selectedPrescription.initialData.diagnoses.length > 0 
+                    ? selectedPrescription.initialData.diagnoses.map(d => d.diagnosis).join(', ') 
+                    : selectedPrescription.appointmentInfo.diagnosis || 'No diagnosis recorded'}
+                </Typography>
+              </Box>
+
+              {/* Medications */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" sx={{ 
+                  borderBottom: '1px solid #ddd', 
+                  pb: 1, 
+                  mb: 2, 
+                  color: '#2196f3',
+                  fontSize: '1.1rem'
+                }}>
+                  Medications
+                </Typography>
+                <TableContainer component={Paper} variant="outlined">
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell><strong>Medication</strong></TableCell>
+                        <TableCell><strong>Dosage</strong></TableCell>
+                        <TableCell><strong>Frequency</strong></TableCell>
+                        <TableCell><strong>Duration</strong></TableCell>
+                        <TableCell><strong>Instructions</strong></TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {selectedPrescription.initialData.medications && selectedPrescription.initialData.medications.length > 0 ? (
+                        selectedPrescription.initialData.medications.map((med, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell>{med.medicine}</TableCell>
+                            <TableCell>{med.dose}</TableCell>
+                            <TableCell>{med.frequency}</TableCell>
+                            <TableCell>{med.duration}</TableCell>
+                            <TableCell>{med.notes || med.timing || ''}</TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={5} align="center">No medications prescribed</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+
+              {/* Tests */}
+              {selectedPrescription.initialData.tests && selectedPrescription.initialData.tests.length > 0 && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="h6" sx={{ 
+                    borderBottom: '1px solid #ddd', 
+                    pb: 1, 
+                    mb: 2, 
+                    color: '#2196f3',
+                    fontSize: '1.1rem'
+                  }}>
+                    Tests Advised
+                  </Typography>
+                  <Box sx={{ pl: 2 }}>
+                    {selectedPrescription.initialData.tests.map((test, idx) => (
+                      <Typography key={idx} variant="body1" sx={{ mb: 0.5 }}>
+                        • {test}
+                      </Typography>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+
+              {/* Instructions */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" sx={{ 
+                  borderBottom: '1px solid #ddd', 
+                  pb: 1, 
+                  mb: 2, 
+                  color: '#2196f3',
+                  fontSize: '1.1rem'
+                }}>
+                  Instructions
+                </Typography>
+                <Typography variant="body1" sx={{ mb: 2 }}>
+                  {selectedPrescription.initialData.instructions || 'No specific instructions provided.'}
+                </Typography>
+                <Typography variant="body1">
+                  <strong>Follow-up:</strong> {selectedPrescription.initialData.followUp || 'As needed'}
+                </Typography>
+              </Box>
+
+              {/* Attachments */}
+              {selectedPrescription.initialData.attachments && selectedPrescription.initialData.attachments.length > 0 && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="h6" sx={{ 
+                    borderBottom: '1px solid #ddd', 
+                    pb: 1, 
+                    mb: 2, 
+                    color: '#2196f3',
+                    fontSize: '1.1rem'
+                  }}>
+                    Attachments
+                  </Typography>
+                  <Box 
+                    sx={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
+                      gap: 2,
+                      p: 0.5,
+                    }}
+                  >
+                    {selectedPrescription.initialData.attachments.map((attachment) => (
+                      <Box
+                        key={attachment.id}
+                        sx={{ 
+                          border: '1px solid #e0e0e0',
+                          borderRadius: 1,
+                          p: 1.5,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          transition: 'all 0.2s',
+                          '&:hover': { 
+                            bgcolor: 'rgba(0, 0, 0, 0.03)',
+                            borderColor: 'primary.light'
+                          }
+                        }}
+                        onClick={() => handleOpenAttachment(attachment)}
+                      >
+                        {getAttachmentIcon(attachment.type)}
+                        <Box sx={{ ml: 1.5, flex: 1, overflow: 'hidden' }}>
+                          <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontSize: '0.7rem' }}>
+                            {attachment.reportType === 'ecg-test' ? 'ECG Test Report' : 
+                             attachment.reportType === 'blood-test' ? 'Blood Test Report' : 
+                             attachment.reportType === 'lab-test' ? 'Lab Test Report' :
+                             attachment.type === 'pdf' ? 'PDF Document' :
+                             attachment.type === 'image' ? 'Image' : 'Document'}
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {attachment.name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {attachment.date} • {attachment.size}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+
+              {/* Footer */}
+              <Box sx={{ mt: 4, textAlign: 'right', fontStyle: 'italic', color: '#666' }}>
+                <Typography variant="body2">
+                  This is a digital prescription issued by DigiCare Medical Center.
+                </Typography>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Past Prescriptions Modal */}
       <Dialog
         open={pastPrescriptionsOpen}
@@ -1398,48 +1793,113 @@ const ConsultationPage = () => {
       >
         <DialogTitle>
           <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Typography variant="h6">Previous Medications</Typography>
+            <Typography variant="h6">Previous Prescriptions</Typography>
             <IconButton onClick={() => setPastPrescriptionsOpen(false)}>
-              <CancelIcon />
+              <Close />
             </IconButton>
           </Box>
         </DialogTitle>
         <DialogContent dividers>
           {isLoadingPrescriptions ? (
             <Box display="flex" justifyContent="center" p={3}>
-              <Typography>Loading previous medications...</Typography>
+              <Typography>Loading previous prescriptions...</Typography>
             </Box>
           ) : pastPrescriptions.length === 0 ? (
             <Box display="flex" justifyContent="center" p={3}>
-              <Typography>No previous medications found for this patient.</Typography>
+              <Typography>No previous prescriptions found for this patient.</Typography>
             </Box>
           ) : (
-            <Box>
+            <Box sx={{ maxHeight: '75vh', overflowY: 'auto' }}>
               {pastPrescriptions.map((prescription, index) => (
-                <Paper key={prescription.id} elevation={0} variant="outlined" sx={{ mb: 2, p: 2 }}>
-                  <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
-                      {new Date(prescription.date).toLocaleDateString()} - {prescription.doctor}
+                <Paper 
+                  key={prescription.id} 
+                  elevation={0} 
+                  variant="outlined" 
+                  sx={{ 
+                    mb: 4, 
+                    p: 3,
+                    backgroundColor: '#fff',
+                  }}
+                >
+                  {/* Prescription Header with Date */}
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    borderBottom: '2px solid #2196f3',
+                    pb: 1,
+                    mb: 3
+                  }}>
+                    <Typography variant="h6" sx={{ fontWeight: 'medium', color: '#2196f3' }}>
+                      Prescription - {new Date(prescription.date).toLocaleDateString()}
                     </Typography>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      size="small"
+                      startIcon={<Print />}
+                      onClick={() => handleOpenPrescription(prescription)}
+                    >
+                      View & Print
+                    </Button>
                   </Box>
                   
-                  <Box mb={2}>
-                    <Typography variant="subtitle2" gutterBottom>Diagnoses:</Typography>
-                    <List dense>
-                      {prescription.diagnoses.map((diag, i) => (
-                        <ListItem key={i}>
-                          <ListItemText 
-                            primary={diag.diagnosis} 
-                            secondary={`${diag.duration}${diag.notes ? ` - ${diag.notes}` : ''}`} 
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
+                  {/* Vitals Section */}
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'medium', color: 'primary.main', mb: 1, borderBottom: '1px solid #eee', pb: 0.5 }}>
+                      Vitals
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={6} sm={4} md={2}>
+                        <Typography variant="caption" color="text.secondary">Blood Pressure</Typography>
+                        <Typography variant="body2">{prescription.vitals.bloodPressure} mmHg</Typography>
+                      </Grid>
+                      <Grid item xs={6} sm={4} md={2}>
+                        <Typography variant="caption" color="text.secondary">Heart Rate</Typography>
+                        <Typography variant="body2">{prescription.vitals.heartRate} bpm</Typography>
+                      </Grid>
+                      <Grid item xs={6} sm={4} md={2}>
+                        <Typography variant="caption" color="text.secondary">Temperature</Typography>
+                        <Typography variant="body2">{prescription.vitals.temperature} °F</Typography>
+                      </Grid>
+                      <Grid item xs={6} sm={4} md={2}>
+                        <Typography variant="caption" color="text.secondary">SpO2</Typography>
+                        <Typography variant="body2">{prescription.vitals.spO2 || "98"}%</Typography>
+                      </Grid>
+                    </Grid>
                   </Box>
                   
-                  <Box mb={2}>
-                    <Typography variant="subtitle2" gutterBottom>Medications:</Typography>
-                    <TableContainer component={Paper} variant="outlined">
+                  {/* Diagnoses Section */}
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'medium', color: 'primary.main', mb: 1, borderBottom: '1px solid #eee', pb: 0.5 }}>
+                      Diagnoses
+                    </Typography>
+                    <Box sx={{ pl: 1 }}>
+                      {prescription.diagnoses && prescription.diagnoses.length > 0 ? (
+                        prescription.diagnoses.map((diag, i) => (
+                          <Box key={i} sx={{ mb: 1 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                              {diag.diagnosis} ({diag.duration})
+                            </Typography>
+                            {diag.notes && (
+                              <Typography variant="body2" color="text.secondary">
+                                Note: {diag.notes}
+                              </Typography>
+                            )}
+                          </Box>
+                        ))
+                      ) : (
+                        <Typography variant="body2">{prescription.diagnosis || "No diagnosis recorded"}</Typography>
+                      )}
+                    </Box>
+                  </Box>
+                  
+                  {/* Medications Section */}
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'medium', color: 'primary.main', mb: 1, borderBottom: '1px solid #eee', pb: 0.5 }}>
+                      Medications
+                    </Typography>
+                    <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
                       <Table size="small">
                         <TableHead>
                           <TableRow>
@@ -1466,9 +1926,9 @@ const ConsultationPage = () => {
                       </Table>
                     </TableContainer>
                     
-                    <Box display="flex" justifyContent="flex-end" mt={1}>
+                    <Box display="flex" justifyContent="flex-end">
                       <Button
-                        variant="contained"
+                        variant="outlined"
                         color="primary"
                         size="small"
                         startIcon={<ContentCopyIcon />}
@@ -1479,11 +1939,94 @@ const ConsultationPage = () => {
                     </Box>
                   </Box>
                   
-                  {prescription.instructions && (
-                    <Box>
-                      <Typography variant="subtitle2" gutterBottom>Instructions:</Typography>
-                      <Typography variant="body2">{prescription.instructions}</Typography>
+                  {/* Tests Section */}
+                  {prescription.tests && prescription.tests.length > 0 && (
+                    <Box sx={{ mb: 3 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 'medium', color: 'primary.main', mb: 1, borderBottom: '1px solid #eee', pb: 0.5 }}>
+                        Tests
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                        {prescription.tests.map((test, idx) => (
+                          <Chip key={idx} label={test} size="small" />
+                        ))}
+                      </Box>
                     </Box>
+                  )}
+                  
+                  {/* Instructions and Follow-up Section */}
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'medium', color: 'primary.main', mb: 1, borderBottom: '1px solid #eee', pb: 0.5 }}>
+                      Instructions & Follow-up
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Instructions</Typography>
+                        <Typography variant="body2">{prescription.instructions || "No specific instructions"}</Typography>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Follow-up</Typography>
+                        <Typography variant="body2">{prescription.followUp || "No follow-up scheduled"}</Typography>
+                      </Grid>
+                    </Grid>
+                  </Box>
+                  
+                  {/* Attachments Section */}
+                  {prescription.attachments && prescription.attachments.length > 0 && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 'medium', color: 'primary.main', mb: 1, borderBottom: '1px solid #eee', pb: 0.5 }}>
+                        Attachments
+                      </Typography>
+                      <Box 
+                        sx={{ 
+                          display: 'grid', 
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
+                          gap: 2,
+                          p: 0.5,
+                        }}
+                      >
+                        {prescription.attachments.map((attachment) => (
+                          <Box
+                            key={attachment.id}
+                            sx={{ 
+                              border: '1px solid #e0e0e0',
+                              borderRadius: 1,
+                              p: 1.5,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              transition: 'all 0.2s',
+                              '&:hover': { 
+                                bgcolor: 'rgba(0, 0, 0, 0.03)',
+                                borderColor: 'primary.light'
+                              }
+                            }}
+                            onClick={() => handleOpenAttachment(attachment)}
+                          >
+                            {getAttachmentIcon(attachment.type)}
+                            <Box sx={{ ml: 1.5, flex: 1, overflow: 'hidden' }}>
+                              <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontSize: '0.7rem' }}>
+                                {attachment.reportType === 'ecg-test' ? 'ECG Test Report' : 
+                                 attachment.reportType === 'blood-test' ? 'Blood Test Report' : 
+                                 attachment.reportType === 'lab-test' ? 'Lab Test Report' :
+                                 attachment.type === 'pdf' ? 'PDF Document' :
+                                 attachment.type === 'image' ? 'Image' : 'Document'}
+                              </Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {attachment.name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {attachment.date} • {attachment.size}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+                  
+                  {/* Divider between prescriptions */}
+                  {index < pastPrescriptions.length - 1 && (
+                    <Divider sx={{ mt: 3, mb: 3 }} />
                   )}
                 </Paper>
               ))}

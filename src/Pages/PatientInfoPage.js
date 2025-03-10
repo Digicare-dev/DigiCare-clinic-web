@@ -29,6 +29,17 @@ import {
   TextField,
   Tooltip,
   Divider,
+  Modal,
+  FormControlLabel,
+  Checkbox,
+  ToggleButtonGroup,
+  ToggleButton,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
 import {
   CalendarToday,
@@ -65,6 +76,19 @@ import ReportLink from '../components/ReportLink';
 import dayjs from 'dayjs';
 import { PrescriptionForm } from './PrescriptionPage';
 
+const modalStyle = {
+  position: "absolute",
+  top: "50%",
+  left: "50%",
+  transform: "translate(-50%, -50%)",
+  width: 600,
+  maxWidth: "90vw",
+  bgcolor: "background.paper",
+  borderRadius: 2,
+  boxShadow: 24,
+  p: 3,
+};
+
 const PatientInfoPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -73,11 +97,11 @@ const PatientInfoPage = () => {
   const patientId = location.state?.patientId || 'PT12345';
   const appointmentId = location.state?.appointmentId || 'AP67890';
   const patientInfo = location.state?.patientInfo || {
-    name: 'John Doe',
+    name: 'Rajesh Kumar',
     age: '45',
     gender: 'Male',
     phone: '+91 9876543210',
-    email: 'john.doe@example.com',
+    email: 'rajesh.kumar@example.com',
     id: 'PT12345',
     bloodGroup: 'O+',
     allergies: ['None'],
@@ -90,7 +114,7 @@ const PatientInfoPage = () => {
   const appointmentInfo = location.state?.appointmentInfo || {
     date: new Date().toISOString().split('T')[0],
     time: '10:00 AM',
-    doctor: 'Dr. Smith',
+    doctor: 'Dr. Amit Mittal',
     type: 'General Checkup',
     status: 'In Progress',
     id: 'AP67890',
@@ -143,7 +167,7 @@ const PatientInfoPage = () => {
       id: 'A456',
       date: '2024-02-15',
       time: '09:30 AM',
-      doctor: 'Dr. Smith',
+      doctor: 'Dr. Amit Mittal',
       department: 'Cardiology',
       diagnosis: 'Hypertension',
       prescription: 'View',
@@ -151,12 +175,14 @@ const PatientInfoPage = () => {
       appointmentType: 'Follow-up',
       token: '32',
       disease: 'Hypertension',
+      paid: true,
+      mode: 'cash'
     },
     {
       id: 'A123',
       date: '2024-01-20',
       time: '11:00 AM',
-      doctor: 'Dr. Brown',
+      doctor: 'Dr. Amit Mittal',
       department: 'Internal Medicine',
       diagnosis: 'Seasonal Flu',
       prescription: 'View',
@@ -164,12 +190,14 @@ const PatientInfoPage = () => {
       appointmentType: 'New Visit',
       token: '18',
       disease: 'Influenza',
+      paid: true,
+      mode: 'online'
     },
     {
       id: 'A089',
       date: '2023-12-05',
       time: '10:15 AM',
-      doctor: 'Dr. Johnson',
+      doctor: 'Dr. Amit Mittal',
       department: 'Orthopedics',
       diagnosis: 'Mild Sprain',
       prescription: 'View',
@@ -177,6 +205,8 @@ const PatientInfoPage = () => {
       appointmentType: 'Emergency',
       token: '07',
       disease: 'Ankle Sprain',
+      paid: false,
+      mode: ''
     },
   ];
 
@@ -194,6 +224,31 @@ const PatientInfoPage = () => {
   const [uploadFileType, setUploadFileType] = useState('pdf');
   const [isDragging, setIsDragging] = useState(false);
   
+  // New appointment modal state
+  const [open, setOpen] = useState(false);
+  const [newAppointment, setNewAppointment] = useState({
+    id: "",
+    token: "",
+    appointment_id: "",
+    firstName: "",
+    lastName: "",
+    checkin: false,
+    paid: false,
+    mode: "cash",
+    fees_paid: 0,
+    status: "pending",
+    disease: "",
+    age: "",
+    phone_number: "",
+    location: "",
+    sex: "",
+    guardian: "",
+    appointment_type: "New",
+  });
+  const [suggestedToken, setSuggestedToken] = useState(1);
+  const [isAdding, setIsAdding] = useState(false);
+  const [error, setError] = useState("");
+
   const handleCreatePrescription = () => {
     navigate('/prescription', { 
       state: { 
@@ -311,6 +366,22 @@ const PatientInfoPage = () => {
             duration: "30 days",
             timing: "After breakfast",
             notes: "Take regularly"
+          },
+          { 
+            drug: "Pantoprazole", 
+            dosage: "40mg", 
+            frequency: "Once daily", 
+            duration: "15 days",
+            timing: "Before breakfast",
+            notes: "Take on empty stomach"
+          },
+          { 
+            drug: "Ecosprin", 
+            dosage: "75mg", 
+            frequency: "Once daily", 
+            duration: "30 days",
+            timing: "After dinner",
+            notes: "Do not skip doses"
           }
         ],
         tests: ["Complete Blood Count", "Lipid Profile"],
@@ -428,7 +499,7 @@ const PatientInfoPage = () => {
       <body>
         <div class="header">
           <div class="clinic-name">DigiCare Medical Center</div>
-          <div class="doctor-info">${selectedPrescription?.appointmentInfo?.doctor || 'Dr. Smith'}</div>
+          <div class="doctor-info">${selectedPrescription?.appointmentInfo?.doctor || 'Dr. Amit Mittal'}</div>
           <div class="doctor-info">${selectedPrescription?.appointmentInfo?.department || 'General Medicine'}</div>
         </div>
         
@@ -488,7 +559,7 @@ const PatientInfoPage = () => {
         <div class="footer">
           <div></div>
           <div class="signature">
-            <p>${selectedPrescription?.appointmentInfo?.doctor || 'Dr. Smith'}</p>
+            <p>${selectedPrescription?.appointmentInfo?.doctor || 'Dr. Amit Mittal'}</p>
             <p>${selectedPrescription?.appointmentInfo?.department || 'General Medicine'}</p>
           </div>
         </div>
@@ -596,6 +667,99 @@ const PatientInfoPage = () => {
     
     // Show a success message (in a real app)
     alert('File uploaded successfully!');
+  };
+
+  // New appointment modal handlers
+  const handleOpenAppointmentModal = () => {
+    // Initialize with patient info
+    setNewAppointment({
+      ...newAppointment,
+      firstName: patient.name.split(' ')[0] || '',
+      lastName: patient.name.split(' ').slice(1).join(' ') || '',
+      age: patient.age || '',
+      phone_number: patient.phone.replace(/\+91 /, '') || '',
+      sex: patient.gender === 'Male' ? 'M' : patient.gender === 'Female' ? 'F' : 'O',
+    });
+    
+    // Suggest token number (this would typically come from your API)
+    setSuggestedToken(Math.floor(Math.random() * 90) + 10); // For demo, random number between 10-99
+    setOpen(true);
+  };
+
+  const handleCloseAppointmentModal = () => {
+    resetAppointmentForm();
+    setOpen(false);
+  };
+
+  const resetAppointmentForm = () => {
+    setNewAppointment({
+      id: "",
+      token: "",
+      appointment_id: "",
+      firstName: "",
+      lastName: "",
+      checkin: false,
+      paid: false,
+      mode: "cash",
+      fees_paid: 0,
+      status: "pending",
+      disease: "",
+      age: "",
+      phone_number: "",
+      location: "",
+      sex: "",
+      guardian: "",
+      appointment_type: "New",
+    });
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewAppointment((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSexChange = (event, newSex) => {
+    if (newSex !== null) {
+      setNewAppointment((prev) => ({ ...prev, sex: newSex }));
+    }
+  };
+
+  const handleAddAppointment = async () => {
+    try {
+      setIsAdding(true);
+      setError("");
+
+      // Here you would typically call your API to add the appointment
+      // For demo purposes, we'll just simulate a successful API call
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Success notification would go here
+      
+      handleCloseAppointmentModal();
+      
+      // Optionally reload the page or update the state to show the new appointment
+      // For demo purposes, we'll just add the appointment to currentAppointment
+      setCurrentAppointment({
+        token: newAppointment.token || suggestedToken,
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toLocaleTimeString(),
+        doctor: "Dr. Amit Mittal",
+        type: newAppointment.appointment_type,
+        status: "Pending",
+        id: "AP" + Math.floor(Math.random() * 10000),
+        reason: newAppointment.disease,
+        department: "General",
+      });
+
+    } catch (error) {
+      console.error("Error adding appointment:", error);
+      setError("Failed to add appointment. Please try again.");
+    } finally {
+      setIsAdding(false);
+    }
   };
 
   return (
@@ -928,7 +1092,7 @@ const PatientInfoPage = () => {
                   variant="outlined" 
                   color="primary"
                   startIcon={<Add />}
-                  onClick={() => navigate('/add-appointment', { state: { patientInfo } })}
+                  onClick={handleOpenAppointmentModal}
                   sx={{ mt: 1 }}
                 >
                   Schedule New Appointment
@@ -949,12 +1113,10 @@ const PatientInfoPage = () => {
             <TableHead>
               <TableRow>
                 <TableCell>Date</TableCell>
-                <TableCell>Token</TableCell>
-                <TableCell>Doctor</TableCell>
-                <TableCell>Department</TableCell>
                 <TableCell>Type</TableCell>
-                <TableCell>Diagnosis</TableCell>
-                <TableCell>Status</TableCell>
+                <TableCell>Payment</TableCell>
+                <TableCell>Mode</TableCell>
+                <TableCell>Checkup Status</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -964,11 +1126,15 @@ const PatientInfoPage = () => {
                   <TableCell>
                     <Typography variant="body2">{appointment.date}</Typography>
                   </TableCell>
-                  <TableCell>#{appointment.token}</TableCell>
-                  <TableCell>{appointment.doctor}</TableCell>
-                  <TableCell>{appointment.department}</TableCell>
                   <TableCell>{appointment.appointmentType}</TableCell>
-                  <TableCell>{appointment.diagnosis}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={appointment.paid ? "Paid" : "Unpaid"}
+                      size="small"
+                      color={appointment.paid ? "success" : "error"}
+                    />
+                  </TableCell>
+                  <TableCell>{appointment.mode ? appointment.mode.charAt(0).toUpperCase() + appointment.mode.slice(1) : "N/A"}</TableCell>
                   <TableCell>
                     <Chip
                       label={appointment.status}
@@ -1458,6 +1624,208 @@ const PatientInfoPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* New Appointment Modal */}
+      <Modal open={open} onClose={handleCloseAppointmentModal}>
+        <Box sx={modalStyle}>
+          <Typography variant="h5" sx={{ mb: 2 }}>
+            New Appointment
+          </Typography>
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+
+          <div
+            style={{
+              display: "grid",
+              gap: "16px",
+              gridTemplateColumns: "1fr 1fr",
+            }}
+          >
+            <TextField
+              fullWidth
+              label="Token Number"
+              name="token"
+              type="number"
+              value={newAppointment.token}
+              onChange={handleInputChange}
+              required
+              helperText={`Suggested token: ${suggestedToken}`}
+            />
+            <TextField
+              label="Mobile"
+              name="phone_number"
+              value={newAppointment.phone_number}
+              onChange={handleInputChange}
+              slotProps={{ input: { maxLength: 10 } }}
+              fullWidth
+            />
+            <TextField
+              label="First Name"
+              name="firstName"
+              value={newAppointment.firstName}
+              onChange={handleInputChange}
+              required
+            />
+            <TextField
+              label="Last Name"
+              name="lastName"
+              value={newAppointment.lastName}
+              onChange={handleInputChange}
+              required
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={newAppointment.checkin}
+                  onChange={(e) =>
+                    setNewAppointment((prev) => ({
+                      ...prev,
+                      checkin: e.target.checked,
+                    }))
+                  }
+                />
+              }
+              label={
+                <Typography 
+                  variant="body1" 
+                  sx={{ 
+                    fontWeight: newAppointment.checkin ? 'bold' : 'normal',
+                    color: newAppointment.checkin ? 'primary.main' : 'text.primary'
+                  }}
+                >
+                  Present in Clinic
+                </Typography>
+              }
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={newAppointment.paid}
+                  onChange={(e) =>
+                    setNewAppointment((prev) => ({
+                      ...prev,
+                      paid: e.target.checked,
+                      mode: e.target.checked ? "cash" : "",
+                    }))
+                  }
+                />
+              }
+              label={
+                <Typography 
+                  variant="body1" 
+                  sx={{ 
+                    fontWeight: newAppointment.paid ? 'bold' : 'normal',
+                    color: newAppointment.paid ? 'primary.main' : 'text.primary'
+                  }}
+                >
+                  Payment Done
+                </Typography>
+              }
+            />
+            {newAppointment.paid && (
+              <>
+                <FormControl fullWidth>
+                  <InputLabel>Payment Mode</InputLabel>
+                  <Select
+                    name="mode"
+                    value={newAppointment.mode}
+                    onChange={handleInputChange}
+                    label="Payment Mode"
+                  >
+                    <MenuItem value="cash">Cash</MenuItem>
+                    <MenuItem value="online">Online</MenuItem>
+                  </Select>
+                </FormControl>
+                <TextField
+                  fullWidth
+                  label="Fees"
+                  name="fees_paid"
+                  type="number"
+                  value={newAppointment.fees_paid}
+                  onChange={handleInputChange}
+                  InputProps={{ inputProps: { min: 0 } }}
+                />
+              </>
+            )}
+            <TextField
+              label="Age"
+              name="age"
+              type="number"
+              value={newAppointment.age}
+              onChange={handleInputChange}
+            />
+            <FormControl component="fieldset">
+              <ToggleButtonGroup
+                value={newAppointment.sex}
+                exclusive
+                onChange={handleSexChange}
+                color="primary"
+              >
+                <ToggleButton value="M" color="primary">
+                  Male
+                </ToggleButton>
+                <ToggleButton value="F" color="secondary">
+                  Female
+                </ToggleButton>
+                <ToggleButton value="O">Other</ToggleButton>
+              </ToggleButtonGroup>
+            </FormControl>
+            <TextField
+              label="Guardian"
+              name="guardian"
+              value={newAppointment.guardian}
+              onChange={handleInputChange}
+            />
+            <TextField
+              label="Place"
+              name="location"
+              value={newAppointment.location}
+              onChange={handleInputChange}
+            />
+            <FormControl fullWidth>
+              <InputLabel>Appointment Type *</InputLabel>
+              <Select
+                name="appointment_type"
+                value={newAppointment.appointment_type}
+                onChange={handleInputChange}
+                label="Appointment Type"
+              >
+                <MenuItem value="New">New</MenuItem>
+                <MenuItem value="Follow-up">Follow-up</MenuItem>
+                <MenuItem value="Emergency">Emergency</MenuItem>
+                <MenuItem value="Routine">Routine</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              label="Complaint"
+              name="disease"
+              value={newAppointment.disease}
+              onChange={handleInputChange}
+            />
+          </div>
+
+          <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end" }}>
+            <Button onClick={handleCloseAppointmentModal} sx={{ mr: 2 }} disabled={isAdding}>
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleAddAppointment}
+              disabled={isAdding}
+            >
+              {isAdding ? (
+                <CircularProgress size={24} color="inherit" />
+              ) : (
+                "Add Appointment"
+              )}
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
     </Container>
   );
 };

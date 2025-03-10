@@ -634,20 +634,63 @@ export const PrescriptionForm = ({
   
   // Function to copy medications from a past prescription
   const copyMedicationsFromPast = (pastMedications) => {
-    // Add isEditing property to each medication
-    const medicationsWithEditing = pastMedications.map(med => ({
-      ...med,
+    console.log('Copying medications:', pastMedications);
+    
+    // Filter out medications that already exist in the current list
+    const existingMedicineNames = medications.map(med => med.medicine.toLowerCase());
+    const newMedications = pastMedications.filter(med => 
+      !existingMedicineNames.includes(med.medicine.toLowerCase())
+    );
+    
+    console.log('New medications to add (duplicates filtered):', newMedications);
+    
+    // Skip if no new medications to add (silently ignore duplicates)
+    if (newMedications.length === 0) {
+      return;
+    }
+    
+    // Add isEditing property to each medication and ensure all required fields are present
+    const medicationsWithEditing = newMedications.map(med => ({
+      medicine: med.medicine || '',
+      dose: med.dose || '',
+      timing: med.timing || '',
+      frequency: med.frequency || '',
+      duration: med.duration || '',
+      notes: med.notes || '',
       isEditing: false
     }));
     
+    // Check if we have exactly one row that's empty
+    const hasEmptyFirstRow = medications.length === 1 &&
+      !medications[0].medicine &&
+      !medications[0].dose &&
+      !medications[0].timing &&
+      !medications[0].frequency &&
+      !medications[0].duration;
+    
+    // If the first row is empty, replace it with the new medications
+    // Otherwise, append the new medications to the existing ones
+    let updatedMedications = hasEmptyFirstRow
+      ? medicationsWithEditing
+      : [...medications, ...medicationsWithEditing];
+    
+    // Add an empty row at the end for new entries
+    updatedMedications.push({
+      medicine: '',
+      dose: '',
+      timing: '',
+      frequency: '',
+      duration: '',
+      notes: '',
+      isEditing: false
+    });
+    
     // Set the medications state
-    setMedications(medicationsWithEditing);
+    setMedications(updatedMedications);
+    console.log('Updated medications state with new medications');
     
-    // Close the modal
-    setPastPrescriptionsOpen(false);
-    
-    // Update the parent component
-    updateParent();
+    // Don't close the modal - allow user to copy from multiple past prescriptions
+    // Don't update the parent component to avoid triggering form submission
   };
 
   return (
@@ -1346,79 +1389,71 @@ export const PrescriptionForm = ({
               <Typography>No past prescriptions found for this patient.</Typography>
             </Box>
           ) : (
-            <Box>
+            <Box sx={{ maxHeight: '75vh', overflowY: 'auto' }}>
               {pastPrescriptions.map((prescription, index) => (
-                <Accordion key={prescription.id}>
-                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                    <Typography>
-                      <strong>{new Date(prescription.date).toLocaleDateString()}</strong> - {prescription.doctor}
+                <Paper 
+                  key={prescription.id} 
+                  elevation={0} 
+                  variant="outlined" 
+                  sx={{ 
+                    mb: 4, 
+                    p: 3,
+                    backgroundColor: '#fff',
+                  }}
+                >
+                  {/* Prescription Header with Date */}
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    borderBottom: '2px solid #2196f3',
+                    pb: 1,
+                    mb: 3
+                  }}>
+                    <Typography variant="h6" sx={{ fontWeight: 'medium', color: '#2196f3' }}>
+                      {new Date(prescription.date).toLocaleDateString()}
                     </Typography>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <Box mb={2}>
-                      <Typography variant="subtitle2" gutterBottom>Diagnoses:</Typography>
-                      <List dense>
-                        {prescription.diagnoses.map((diag, i) => (
-                          <ListItem key={i}>
-                            <ListItemText 
-                              primary={diag.diagnosis} 
-                              secondary={`${diag.duration}${diag.notes ? ` - ${diag.notes}` : ''}`} 
-                            />
-                          </ListItem>
-                        ))}
-                      </List>
-                    </Box>
-                    
-                    <Box mb={2}>
-                      <Typography variant="subtitle2" gutterBottom>Medications:</Typography>
-                      <TableContainer component={Paper} variant="outlined">
-                        <Table size="small">
-                          <TableHead>
-                            <TableRow>
-                              <TableCell>Medicine</TableCell>
-                              <TableCell>Dose</TableCell>
-                              <TableCell>Timing</TableCell>
-                              <TableCell>Frequency</TableCell>
-                              <TableCell>Duration</TableCell>
-                              <TableCell>Notes</TableCell>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      size="small"
+                      startIcon={<ContentCopyIcon />}
+                      onClick={() => copyMedicationsFromPast(prescription.medications)}
+                    >
+                      Copy Medications
+                    </Button>
+                  </Box>
+                  
+                  <Box mb={2}>
+                    <Typography variant="subtitle2" gutterBottom>Medications:</Typography>
+                    <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow sx={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
+                            <TableCell>Medicine</TableCell>
+                            <TableCell>Dose</TableCell>
+                            <TableCell>Timing</TableCell>
+                            <TableCell>Frequency</TableCell>
+                            <TableCell>Duration</TableCell>
+                            <TableCell>Notes</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {prescription.medications.map((med, i) => (
+                            <TableRow key={i}>
+                              <TableCell>{med.medicine}</TableCell>
+                              <TableCell>{med.dose}</TableCell>
+                              <TableCell>{med.timing}</TableCell>
+                              <TableCell>{med.frequency}</TableCell>
+                              <TableCell>{med.duration}</TableCell>
+                              <TableCell>{med.notes}</TableCell>
                             </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {prescription.medications.map((med, i) => (
-                              <TableRow key={i}>
-                                <TableCell>{med.medicine}</TableCell>
-                                <TableCell>{med.dose}</TableCell>
-                                <TableCell>{med.timing}</TableCell>
-                                <TableCell>{med.frequency}</TableCell>
-                                <TableCell>{med.duration}</TableCell>
-                                <TableCell>{med.notes}</TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
-                      
-                      <Box display="flex" justifyContent="flex-end" mt={1}>
-                        <Button
-                          variant="contained"
-                          color="primary"
-                          size="small"
-                          startIcon={<ContentCopyIcon />}
-                          onClick={() => copyMedicationsFromPast(prescription.medications)}
-                        >
-                          Copy Medications
-                        </Button>
-                      </Box>
-                    </Box>
-                    
-                    {prescription.instructions && (
-                      <Box>
-                        <Typography variant="subtitle2" gutterBottom>Instructions:</Typography>
-                        <Typography variant="body2">{prescription.instructions}</Typography>
-                      </Box>
-                    )}
-                  </AccordionDetails>
-                </Accordion>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Box>
+                </Paper>
               ))}
             </Box>
           )}
