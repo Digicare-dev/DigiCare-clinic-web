@@ -660,19 +660,19 @@ export const PrescriptionForm = ({
       isEditing: false
     }));
     
-    // Check if we have exactly one row that's empty
-    const hasEmptyFirstRow = medications.length === 1 &&
-      !medications[0].medicine &&
-      !medications[0].dose &&
-      !medications[0].timing &&
-      !medications[0].frequency &&
-      !medications[0].duration;
+    // Remove any empty rows from current medications
+    const nonEmptyMedications = medications.filter(med => 
+      med.medicine || med.dose || med.timing || med.frequency || med.duration || med.notes
+    );
     
-    // If the first row is empty, replace it with the new medications
-    // Otherwise, append the new medications to the existing ones
-    let updatedMedications = hasEmptyFirstRow
+    // Check if we have an empty table (no non-empty rows)
+    const hasEmptyTable = nonEmptyMedications.length === 0;
+    
+    // If table is empty, just use the new medications
+    // Otherwise, append the new medications to the existing non-empty ones
+    let updatedMedications = hasEmptyTable
       ? medicationsWithEditing
-      : [...medications, ...medicationsWithEditing];
+      : [...nonEmptyMedications, ...medicationsWithEditing];
     
     // Add an empty row at the end for new entries
     updatedMedications.push({
@@ -885,12 +885,9 @@ export const PrescriptionForm = ({
                       <TableRow 
                         key={index}
                         onClick={(e) => {
-                          e.stopPropagation(); // Prevent click propagation
-                          const updatedComplaints = complaints.map((c, i) => ({
-                            ...c,
-                            isEditing: i === index
-                          }));
-                          setComplaints(updatedComplaints);
+                          // No longer activate editing at the row level
+                          // Editing will only be activated by clicking on the specific inputs
+                          e.stopPropagation();
                         }}
                         sx={{ '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }, '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}
                       >
@@ -902,8 +899,19 @@ export const PrescriptionForm = ({
                             options={commonComplaints}
                             value={row.complaint}
                             open={row.isEditing}
-                            onClose={() => handleClickAway(index)}
-                            onChange={(_, value) => handleComplaintChange(index, 'complaint', value)}
+                            onClose={(e, reason) => {
+                              // Only close when clicking away, not when selecting an item
+                              if (reason === 'escape' || reason === 'blur') {
+                                handleClickAway(index);
+                              }
+                            }}
+                            onChange={(_, value) => {
+                              handleComplaintChange(index, 'complaint', value);
+                              // Keep isEditing true after selection
+                              const updatedComplaints = [...complaints];
+                              updatedComplaints[index].isEditing = true;
+                              setComplaints(updatedComplaints);
+                            }}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
@@ -912,6 +920,14 @@ export const PrescriptionForm = ({
                                 onFocus={(e) => {
                                   if (e.target === document.activeElement) {
                                     e.stopPropagation();
+                                    const updatedComplaints = [...complaints];
+                                    updatedComplaints[index].isEditing = true;
+                                    setComplaints(updatedComplaints);
+                                  }
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!readOnly && (row.complaint || index !== complaints.length - 1)) {
                                     const updatedComplaints = [...complaints];
                                     updatedComplaints[index].isEditing = true;
                                     setComplaints(updatedComplaints);
@@ -929,13 +945,32 @@ export const PrescriptionForm = ({
                             options={severityLevels}
                             value={row.severity}
                             open={row.isEditing}
-                            onClose={() => handleClickAway(index)}
-                            onChange={(_, value) => handleComplaintChange(index, 'severity', value)}
+                            onClose={(e, reason) => {
+                              // Only close when clicking away, not when selecting an item
+                              if (reason === 'escape' || reason === 'blur') {
+                                handleClickAway(index);
+                              }
+                            }}
+                            onChange={(_, value) => {
+                              handleComplaintChange(index, 'severity', value);
+                              // Keep isEditing true after selection
+                              const updatedComplaints = [...complaints];
+                              updatedComplaints[index].isEditing = true;
+                              setComplaints(updatedComplaints);
+                            }}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
                                 variant="standard"
                                 placeholder="Select severity"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!readOnly && (row.complaint || index !== complaints.length - 1)) {
+                                    const updatedComplaints = [...complaints];
+                                    updatedComplaints[index].isEditing = true;
+                                    setComplaints(updatedComplaints);
+                                  }
+                                }}
                               />
                             )}
                           />
@@ -948,13 +983,32 @@ export const PrescriptionForm = ({
                             options={durationSuggestions}
                             value={row.duration}
                             open={row.isEditing}
-                            onClose={() => handleClickAway(index)}
-                            onChange={(_, value) => handleComplaintChange(index, 'duration', value)}
+                            onClose={(e, reason) => {
+                              // Only close when clicking away, not when selecting an item
+                              if (reason === 'escape' || reason === 'blur') {
+                                handleClickAway(index);
+                              }
+                            }}
+                            onChange={(_, value) => {
+                              handleComplaintChange(index, 'duration', value);
+                              // Keep isEditing true after selection
+                              const updatedComplaints = [...complaints];
+                              updatedComplaints[index].isEditing = true;
+                              setComplaints(updatedComplaints);
+                            }}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
                                 variant="standard"
                                 placeholder="Select duration"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!readOnly && (row.complaint || index !== complaints.length - 1)) {
+                                    const updatedComplaints = [...complaints];
+                                    updatedComplaints[index].isEditing = true;
+                                    setComplaints(updatedComplaints);
+                                  }
+                                }}
                               />
                             )}
                           />
@@ -1000,12 +1054,9 @@ export const PrescriptionForm = ({
                       <TableRow 
                         key={index}
                         onClick={(e) => {
+                          // No longer activate editing at the row level
+                          // Editing will only be activated by clicking on the specific inputs
                           e.stopPropagation();
-                          const updatedDiagnoses = diagnoses.map((d, i) => ({
-                            ...d,
-                            isEditing: i === index
-                          }));
-                          setDiagnoses(updatedDiagnoses);
                         }}
                         sx={{ '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }, '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}
                       >
@@ -1017,8 +1068,19 @@ export const PrescriptionForm = ({
                             options={commonDiagnosisList}
                             value={row.diagnosis}
                             open={row.isEditing}
-                            onClose={() => handleDiagnosisClickAway(index)}
-                            onChange={(_, value) => handleDiagnosisChange(index, 'diagnosis', value)}
+                            onClose={(e, reason) => {
+                              // Only close when clicking away, not when selecting an item
+                              if (reason === 'escape' || reason === 'blur') {
+                                handleDiagnosisClickAway(index);
+                              }
+                            }}
+                            onChange={(_, value) => {
+                              handleDiagnosisChange(index, 'diagnosis', value);
+                              // Keep isEditing true after selection
+                              const updatedDiagnoses = [...diagnoses];
+                              updatedDiagnoses[index].isEditing = true;
+                              setDiagnoses(updatedDiagnoses);
+                            }}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
@@ -1027,6 +1089,14 @@ export const PrescriptionForm = ({
                                 onFocus={(e) => {
                                   if (e.target === document.activeElement) {
                                     e.stopPropagation();
+                                    const updatedDiagnoses = [...diagnoses];
+                                    updatedDiagnoses[index].isEditing = true;
+                                    setDiagnoses(updatedDiagnoses);
+                                  }
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!readOnly && (row.diagnosis || index !== diagnoses.length - 1)) {
                                     const updatedDiagnoses = [...diagnoses];
                                     updatedDiagnoses[index].isEditing = true;
                                     setDiagnoses(updatedDiagnoses);
@@ -1044,13 +1114,32 @@ export const PrescriptionForm = ({
                             options={diagnosisDurationSuggestions}
                             value={row.duration}
                             open={row.isEditing}
-                            onClose={() => handleDiagnosisClickAway(index)}
-                            onChange={(_, value) => handleDiagnosisChange(index, 'duration', value)}
+                            onClose={(e, reason) => {
+                              // Only close when clicking away, not when selecting an item
+                              if (reason === 'escape' || reason === 'blur') {
+                                handleDiagnosisClickAway(index);
+                              }
+                            }}
+                            onChange={(_, value) => {
+                              handleDiagnosisChange(index, 'duration', value);
+                              // Keep isEditing true after selection
+                              const updatedDiagnoses = [...diagnoses];
+                              updatedDiagnoses[index].isEditing = true;
+                              setDiagnoses(updatedDiagnoses);
+                            }}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
                                 variant="standard"
                                 placeholder="Select duration"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!readOnly && (row.diagnosis || index !== diagnoses.length - 1)) {
+                                    const updatedDiagnoses = [...diagnoses];
+                                    updatedDiagnoses[index].isEditing = true;
+                                    setDiagnoses(updatedDiagnoses);
+                                  }
+                                }}
                               />
                             )}
                           />
@@ -1124,12 +1213,9 @@ export const PrescriptionForm = ({
                       <TableRow 
                         key={index}
                         onClick={(e) => {
+                          // No longer activate editing at the row level
+                          // Editing will only be activated by clicking on the specific inputs
                           e.stopPropagation();
-                          const updatedMedications = medications.map((m, i) => ({
-                            ...m,
-                            isEditing: i === index
-                          }));
-                          setMedications(updatedMedications);
                         }}
                         sx={{ '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }, '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}
                       >
@@ -1141,8 +1227,19 @@ export const PrescriptionForm = ({
                             options={dummyDrugs.map(drug => drug.label)}
                             value={row.medicine}
                             open={row.isEditing}
-                            onClose={() => handleMedicationClickAway(index)}
-                            onChange={(_, value) => handleMedicationChange(index, 'medicine', value)}
+                            onClose={(e, reason) => {
+                              // Only close when clicking away, not when selecting an item
+                              if (reason === 'escape' || reason === 'blur') {
+                                handleMedicationClickAway(index);
+                              }
+                            }}
+                            onChange={(_, value) => {
+                              handleMedicationChange(index, 'medicine', value);
+                              // Keep isEditing true after selection
+                              const updatedMedications = [...medications];
+                              updatedMedications[index].isEditing = true;
+                              setMedications(updatedMedications);
+                            }}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
@@ -1151,6 +1248,14 @@ export const PrescriptionForm = ({
                                 onFocus={(e) => {
                                   if (e.target === document.activeElement) {
                                     e.stopPropagation();
+                                    const updatedMedications = [...medications];
+                                    updatedMedications[index].isEditing = true;
+                                    setMedications(updatedMedications);
+                                  }
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!readOnly && (row.medicine || index !== medications.length - 1)) {
                                     const updatedMedications = [...medications];
                                     updatedMedications[index].isEditing = true;
                                     setMedications(updatedMedications);
@@ -1168,13 +1273,32 @@ export const PrescriptionForm = ({
                             options={medicineDosePatterns}
                             value={row.dose}
                             open={row.isEditing}
-                            onClose={() => handleMedicationClickAway(index)}
-                            onChange={(_, value) => handleMedicationChange(index, 'dose', value)}
+                            onClose={(e, reason) => {
+                              // Only close when clicking away, not when selecting an item
+                              if (reason === 'escape' || reason === 'blur') {
+                                handleMedicationClickAway(index);
+                              }
+                            }}
+                            onChange={(_, value) => {
+                              handleMedicationChange(index, 'dose', value);
+                              // Keep isEditing true after selection
+                              const updatedMedications = [...medications];
+                              updatedMedications[index].isEditing = true;
+                              setMedications(updatedMedications);
+                            }}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
                                 variant="standard"
                                 placeholder="Select dose"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!readOnly && (row.medicine || index !== medications.length - 1)) {
+                                    const updatedMedications = [...medications];
+                                    updatedMedications[index].isEditing = true;
+                                    setMedications(updatedMedications);
+                                  }
+                                }}
                               />
                             )}
                           />
@@ -1187,13 +1311,32 @@ export const PrescriptionForm = ({
                             options={medicineTimings}
                             value={row.timing}
                             open={row.isEditing}
-                            onClose={() => handleMedicationClickAway(index)}
-                            onChange={(_, value) => handleMedicationChange(index, 'timing', value)}
+                            onClose={(e, reason) => {
+                              // Only close when clicking away, not when selecting an item
+                              if (reason === 'escape' || reason === 'blur') {
+                                handleMedicationClickAway(index);
+                              }
+                            }}
+                            onChange={(_, value) => {
+                              handleMedicationChange(index, 'timing', value);
+                              // Keep isEditing true after selection
+                              const updatedMedications = [...medications];
+                              updatedMedications[index].isEditing = true;
+                              setMedications(updatedMedications);
+                            }}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
                                 variant="standard"
                                 placeholder="Select timing"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!readOnly && (row.medicine || index !== medications.length - 1)) {
+                                    const updatedMedications = [...medications];
+                                    updatedMedications[index].isEditing = true;
+                                    setMedications(updatedMedications);
+                                  }
+                                }}
                               />
                             )}
                           />
@@ -1206,13 +1349,32 @@ export const PrescriptionForm = ({
                             options={medicineFrequency}
                             value={row.frequency}
                             open={row.isEditing}
-                            onClose={() => handleMedicationClickAway(index)}
-                            onChange={(_, value) => handleMedicationChange(index, 'frequency', value)}
+                            onClose={(e, reason) => {
+                              // Only close when clicking away, not when selecting an item
+                              if (reason === 'escape' || reason === 'blur') {
+                                handleMedicationClickAway(index);
+                              }
+                            }}
+                            onChange={(_, value) => {
+                              handleMedicationChange(index, 'frequency', value);
+                              // Keep isEditing true after selection
+                              const updatedMedications = [...medications];
+                              updatedMedications[index].isEditing = true;
+                              setMedications(updatedMedications);
+                            }}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
                                 variant="standard"
                                 placeholder="Select frequency"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!readOnly && (row.medicine || index !== medications.length - 1)) {
+                                    const updatedMedications = [...medications];
+                                    updatedMedications[index].isEditing = true;
+                                    setMedications(updatedMedications);
+                                  }
+                                }}
                               />
                             )}
                           />
@@ -1225,13 +1387,32 @@ export const PrescriptionForm = ({
                             options={medicineDuration}
                             value={row.duration}
                             open={row.isEditing}
-                            onClose={() => handleMedicationClickAway(index)}
-                            onChange={(_, value) => handleMedicationChange(index, 'duration', value)}
+                            onClose={(e, reason) => {
+                              // Only close when clicking away, not when selecting an item
+                              if (reason === 'escape' || reason === 'blur') {
+                                handleMedicationClickAway(index);
+                              }
+                            }}
+                            onChange={(_, value) => {
+                              handleMedicationChange(index, 'duration', value);
+                              // Keep isEditing true after selection
+                              const updatedMedications = [...medications];
+                              updatedMedications[index].isEditing = true;
+                              setMedications(updatedMedications);
+                            }}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
                                 variant="standard"
                                 placeholder="Select duration"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!readOnly && (row.medicine || index !== medications.length - 1)) {
+                                    const updatedMedications = [...medications];
+                                    updatedMedications[index].isEditing = true;
+                                    setMedications(updatedMedications);
+                                  }
+                                }}
                               />
                             )}
                           />
@@ -1250,13 +1431,14 @@ export const PrescriptionForm = ({
                           />
                         </TableCell>
                         <TableCell>
-                          {medications.length > 1 && index !== medications.length - 1 && (
+                          {!readOnly && (
                             <IconButton
                               size="small"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setMedications(medications.filter((_, i) => i !== index));
                               }}
+                              style={{ visibility: (medications.length > 1 && index !== medications.length - 1) ? 'visible' : 'hidden' }}
                             >
                               <RemoveCircleOutline fontSize="small" color="error" />
                             </IconButton>
