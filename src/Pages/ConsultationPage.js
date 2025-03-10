@@ -72,7 +72,11 @@ import {
   Description,
   InsertDriveFile,
   Edit,
+  Upload,
+  CloudUpload,
 } from '@mui/icons-material';
+
+import ReportLink from '../components/ReportLink';
 
 const ConsultationPage = () => {
   const navigate = useNavigate();
@@ -155,30 +159,43 @@ const ConsultationPage = () => {
   const [isEditingVitals, setIsEditingVitals] = useState(false);
   const [editedVitals, setEditedVitals] = useState({...vitalsInfo});
 
-  // Add this for attachments
+  // Update the attachments to include the ECG report as a PDF
   const [attachments, setAttachments] = useState([
-    // Sample attachments - in a real app, these would come from the API
-    { id: 1, name: 'Blood Test Results.pdf', type: 'pdf', date: '2024-03-10', size: '1.2 MB' },
-    { id: 2, name: 'ECG Report.jpg', type: 'image', date: '2024-03-10', size: '3.5 MB' },
+    { id: 1, name: 'Blood Test Results.pdf', type: 'pdf', reportType: 'blood-test', date: '2024-03-10', size: '1.2 MB' },
+    { id: 2, name: 'ECG Report.pdf', type: 'pdf', reportType: 'ecg-test', date: '2024-03-10', size: '3.5 MB' },
   ]);
 
-  // Add this helper function to get the appropriate icon for each attachment type
+  // Get the PDF viewer context
+  // const { openPdfViewer } = usePDFViewerContext();
+
+  // Update the getAttachmentIcon function to make the icons more prominent
   const getAttachmentIcon = (type) => {
-    switch(type) {
+    switch (type) {
       case 'pdf':
-        return <PictureAsPdf fontSize="small" color="error" />;
+        return <PictureAsPdf sx={{ fontSize: '1.5rem', color: '#f44336' }} />;
       case 'image':
-        return <Image fontSize="small" color="primary" />;
+        return <Image sx={{ fontSize: '1.5rem', color: '#2196f3' }} />;
       case 'document':
-        return <Description fontSize="small" color="info" />;
+        return <Description sx={{ fontSize: '1.5rem', color: '#03a9f4' }} />;
       default:
-        return <InsertDriveFile fontSize="small" />;
+        return <InsertDriveFile sx={{ fontSize: '1.5rem', color: '#757575' }} />;
     }
   };
 
+  // Update the handleOpenAttachment function to directly open PDFs in a new tab
   const handleOpenAttachment = (attachment) => {
-    setSelectedAttachment(attachment);
-    setOpenAttachmentDialog(true);
+    if (attachment.type === 'pdf') {
+      // Open the PDF directly in a new tab
+      const pdfUrl = attachment.reportType === 'ecg-test' 
+        ? require('../assets/dummy-ecg-test-report.pdf')
+        : require('../assets/dummy-blood-test-report.pdf');
+      
+      window.open(pdfUrl, '_blank');
+    } else {
+      // Use the existing dialog for other types of attachments
+      setSelectedAttachment(attachment);
+      setOpenAttachmentDialog(true);
+    }
   };
 
   const handleCloseAttachmentDialog = () => {
@@ -244,9 +261,13 @@ const ConsultationPage = () => {
         respiratoryRate: '16',
         spO2: '97',
       },
+      diagnoses: [
+        { diagnosis: 'Hypertension', duration: '30 days', notes: 'Stage 1 hypertension, monitoring required' },
+        { diagnosis: 'Hyperlipidemia', duration: '30 days', notes: 'Borderline high cholesterol' }
+      ],
       medications: [
-        { medicine: 'Amlodipine', dose: '5mg', timing: 'Morning', frequency: 'Once daily', duration: '30 days' },
-        { medicine: 'Hydrochlorothiazide', dose: '12.5mg', timing: 'Morning', frequency: 'Once daily', duration: '30 days' }
+        { medicine: 'Amlodipine', dose: '5mg', timing: 'Morning', frequency: 'Once daily', duration: '30 days', notes: 'Take with food' },
+        { medicine: 'Hydrochlorothiazide', dose: '12.5mg', timing: 'Morning', frequency: 'Once daily', duration: '30 days', notes: 'Monitor potassium levels' }
       ],
       tests: ['Complete Blood Count', 'Lipid Profile'],
       instructions: 'Reduce salt intake. Regular exercise recommended.',
@@ -264,15 +285,88 @@ const ConsultationPage = () => {
         respiratoryRate: '18',
         spO2: '96',
       },
+      diagnoses: [
+        { diagnosis: 'Upper Respiratory Infection', duration: '7 days', notes: 'Viral etiology suspected' }
+      ],
       medications: [
-        { medicine: 'Azithromycin', dose: '500mg', timing: 'After meals', frequency: 'Once daily', duration: '5 days' },
-        { medicine: 'Paracetamol', dose: '500mg', timing: 'As needed', frequency: 'Every 6 hours', duration: '3 days' }
+        { medicine: 'Azithromycin', dose: '500mg', timing: 'After meals', frequency: 'Once daily', duration: '5 days', notes: 'Complete full course' },
+        { medicine: 'Paracetamol', dose: '500mg', timing: 'As needed', frequency: 'Every 6 hours', duration: '3 days', notes: 'For fever and pain relief' }
       ],
       tests: ['Throat Swab Culture'],
       instructions: 'Plenty of fluids. Rest advised.',
       followUp: '1 week if symptoms persist'
     }
   ]);
+
+  // Add state for the file upload modal
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadFileName, setUploadFileName] = useState('');
+  const [uploadFileType, setUploadFileType] = useState('pdf');
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Add function to handle opening the upload modal
+  const handleOpenUploadModal = () => {
+    setUploadModalOpen(true);
+  };
+  
+  // Add function to handle closing the upload modal
+  const handleCloseUploadModal = () => {
+    setUploadModalOpen(false);
+    setUploadFile(null);
+    setUploadFileName('');
+    setUploadFileType('pdf');
+    setIsDragging(false);
+  };
+  
+  // Add function to handle file drop
+  const handleFileDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      handleFileSelect(file);
+    }
+  };
+  
+  // Add function to handle file selection
+  const handleFileSelect = (file) => {
+    setUploadFile(file);
+    
+    // Set default file name from the file (without extension)
+    const fileName = file.name.split('.').slice(0, -1).join('.');
+    setUploadFileName(fileName);
+    
+    // Determine file type
+    const fileType = file.type.includes('pdf') ? 'pdf' : 
+                    file.type.includes('image') ? 'image' : 'document';
+    setUploadFileType(fileType);
+  };
+  
+  // Add function to handle file upload
+  const handleFileUpload = () => {
+    // In a real app, you would upload the file to a server here
+    // For now, we'll just add it to the attachments array
+    
+    const newAttachment = {
+      id: attachments.length + 1,
+      name: `${uploadFileName}.${uploadFileType === 'pdf' ? 'pdf' : uploadFileType === 'image' ? 'jpg' : 'doc'}`,
+      type: uploadFileType,
+      reportType: 'custom',
+      date: new Date().toISOString().split('T')[0],
+      size: `${(uploadFile.size / (1024 * 1024)).toFixed(1)} MB`
+    };
+    
+    // Update the attachments array with the new attachment
+    setAttachments([...attachments, newAttachment]);
+    
+    // Close the modal
+    handleCloseUploadModal();
+    
+    // Show a success message (in a real app)
+    alert('File uploaded successfully!');
+  };
 
   return (
     <Container maxWidth="xl" sx={{ mt: 2, mb: 4, pb: 8 }}>
@@ -476,72 +570,90 @@ const ConsultationPage = () => {
           </Paper>
         </Box>
         
-        {/* Attachments with Report Names */}
+        {/* Attachments with Report Names - Improved layout */}
         <Box sx={{ mt: 4 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
             <Description color="primary" sx={{ mr: 1 }} />
             <Typography variant="subtitle1" sx={{ fontWeight: 'medium', color: 'primary.main' }}>
               Attachments
             </Typography>
+            <Button 
+              variant="text" 
+              color="primary" 
+              size="small"
+              startIcon={<Upload fontSize="small" />}
+              onClick={handleOpenUploadModal}
+              sx={{ ml: 1, p: 0.5 }}
+            >
+              Upload
+            </Button>
           </Box>
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Box 
               sx={{ 
-                display: 'flex', 
-                flexWrap: 'wrap', 
-                gap: 1.5,
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
+                gap: 2,
                 p: 0.5,
               }}
             >
               {attachments.map((attachment) => (
-                <Chip
+                <Box
                   key={attachment.id}
-                  icon={getAttachmentIcon(attachment.type)}
-                  label={
-                    <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontSize: '0.7rem' }}>
-                        {attachment.type === 'pdf' ? 'Blood Test Report' : 'ECG Report'}
-                      </Typography>
-                      {attachment.name}
-                    </Box>
-                  }
-                  size="medium"
-                  variant="outlined"
-                  onClick={() => handleOpenAttachment(attachment)}
                   sx={{ 
-                    p: 0.5,
-                    height: 'auto',
-                    '& .MuiChip-label': {
-                      whiteSpace: 'normal',
-                      overflow: 'visible',
-                      display: 'block',
-                      padding: '4px 0'
+                    border: '1px solid #e0e0e0',
+                    borderRadius: 1,
+                    p: 1.5,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    transition: 'all 0.2s',
+                    '&:hover': { 
+                      bgcolor: 'rgba(0, 0, 0, 0.03)',
+                      borderColor: 'primary.light'
                     }
                   }}
-                />
-              ))}
-              <Chip
-                icon={<Add fontSize="small" />}
-                label={
-                  <Box sx={{ textAlign: 'center' }}>
+                  onClick={() => handleOpenAttachment(attachment)}
+                >
+                  {getAttachmentIcon(attachment.type)}
+                  <Box sx={{ ml: 1.5, flex: 1, overflow: 'hidden' }}>
                     <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontSize: '0.7rem' }}>
-                      New Report
+                      {attachment.reportType === 'ecg-test' ? 'ECG Test Report' : 
+                       attachment.reportType === 'blood-test' ? 'Blood Test Report' : 
+                       attachment.type === 'pdf' ? 'PDF Document' :
+                       attachment.type === 'image' ? 'Image' : 'Document'}
                     </Typography>
-                    Add New Report
+                    <Typography variant="body2" sx={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {attachment.name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {attachment.date} • {attachment.size}
+                    </Typography>
                   </Box>
-                }
-                size="medium"
-                color="primary"
-                variant="outlined"
-                onClick={() => {/* Handle add attachment */}}
+                </Box>
+              ))}
+              <Box
                 sx={{ 
-                  p: 0.5,
-                  height: 'auto',
-                  '& .MuiChip-label': {
-                    padding: '4px 0'
+                  border: '1px dashed #2196f3',
+                  borderRadius: 1,
+                  p: 1.5,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexDirection: 'column',
+                  transition: 'all 0.2s',
+                  '&:hover': { 
+                    bgcolor: 'rgba(33, 150, 243, 0.04)'
                   }
                 }}
-              />
+                onClick={handleOpenUploadModal}
+              >
+                <Add color="primary" />
+                <Typography variant="body2" color="primary" sx={{ mt: 0.5, fontWeight: 500 }}>
+                  Add New Report
+                </Typography>
+              </Box>
             </Box>
           </Paper>
         </Box>
@@ -626,22 +738,58 @@ const ConsultationPage = () => {
                       {prescription.doctor}
                     </Typography>
                   </Grid>
-                  <Grid item xs={6} sm={8}>
+                  <Grid item xs={6} sm={4}>
                     <Typography variant="body2">
                       Diagnosis: <Chip 
                         label={prescription.diagnosis} 
-                size="small"
+                        size="small"
                         color="primary" 
                         variant="outlined"
                         sx={{ ml: 0.5 }}
-              />
+                      />
                     </Typography>
-            </Grid>
-          </Grid>
+                  </Grid>
+                  <Grid item xs={6} sm={4}>
+                    <Typography variant="body2">
+                      Medications: {prescription.medications.length > 0 ? (
+                        <Tooltip 
+                          title={
+                            <React.Fragment>
+                              {prescription.medications.map((med, i) => (
+                                <Typography key={i} variant="body2" component="div">
+                                  {med.medicine} {med.dose}
+                                </Typography>
+                              ))}
+                            </React.Fragment>
+                          } 
+                          arrow
+                        >
+                          <Chip 
+                            label={prescription.medications.length > 1 
+                              ? `${prescription.medications[0].medicine} +${prescription.medications.length - 1} more` 
+                              : prescription.medications[0].medicine}
+                            size="small"
+                            color="secondary" 
+                            variant="outlined"
+                            sx={{ ml: 0.5 }}
+                          />
+                        </Tooltip>
+                      ) : (
+                        <Chip 
+                          label="None" 
+                          size="small"
+                          color="default" 
+                          variant="outlined"
+                          sx={{ ml: 0.5 }}
+                        />
+                      )}
+                    </Typography>
+                  </Grid>
+                </Grid>
               </AccordionSummary>
               <AccordionDetails sx={{ p: 3, pt: 1 }}>
                 {/* Patient Details for this appointment */}
-                <Box sx={{ mb: 3 }}>
+                <Box sx={{ mb: 2 }}>
                   <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
                     Patient Details
                   </Typography>
@@ -664,7 +812,7 @@ const ConsultationPage = () => {
                 </Box>
 
                 {/* Vitals Section */}
-                <Box sx={{ mt: 3, mb: 3 }}>
+                <Box sx={{ mt: 2, mb: 2 }}>
                   <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
                     Vitals
                   </Typography>
@@ -695,11 +843,11 @@ const ConsultationPage = () => {
                 </Box>
 
                 {/* Complaints Section */}
-                <Box sx={{ mt: 3 }}>
+                <Box sx={{ mt: 2 }}>
                   <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
             Complaints
           </Typography>
-                  <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+                  <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
                     <TableContainer>
             <Table size="small">
               <TableHead>
@@ -739,17 +887,18 @@ const ConsultationPage = () => {
                 </Box>
 
                 {/* Diagnosis Section */}
-                <Box sx={{ mt: 3 }}>
+                <Box sx={{ mt: 2 }}>
                   <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
             Diagnosis
           </Typography>
-                  <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+                  <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
                     <TableContainer>
             <Table size="small">
               <TableHead>
                 <TableRow>
                   <TableCell>Diagnosis</TableCell>
                   <TableCell>Duration</TableCell>
+                  <TableCell>Notes</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -758,12 +907,14 @@ const ConsultationPage = () => {
                               <TableRow key={idx} hover>
                                 <TableCell>{diagnosis.diagnosis}</TableCell>
                                 <TableCell>{diagnosis.duration}</TableCell>
+                                <TableCell>{diagnosis.notes}</TableCell>
                               </TableRow>
                             ))
                           ) : (
                             <TableRow hover>
                               <TableCell>{prescription.diagnosis}</TableCell>
                               <TableCell>Not specified</TableCell>
+                              <TableCell>No notes provided</TableCell>
                   </TableRow>
                           )}
               </TableBody>
@@ -773,11 +924,11 @@ const ConsultationPage = () => {
                 </Box>
 
                 {/* Medications Section */}
-                <Box sx={{ mt: 3 }}>
+                <Box sx={{ mt: 2 }}>
                   <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
             Medications
           </Typography>
-                  <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+                  <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
                     <TableContainer>
             <Table size="small">
               <TableHead>
@@ -787,6 +938,7 @@ const ConsultationPage = () => {
                   <TableCell>Timing</TableCell>
                   <TableCell>Frequency</TableCell>
                   <TableCell>Duration</TableCell>
+                  <TableCell>Notes</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -797,6 +949,7 @@ const ConsultationPage = () => {
                               <TableCell>{med.timing}</TableCell>
                               <TableCell>{med.frequency}</TableCell>
                               <TableCell>{med.duration}</TableCell>
+                              <TableCell>{med.notes}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -806,11 +959,11 @@ const ConsultationPage = () => {
           </Box>
           
                 {/* Tests Section */}
-                <Box sx={{ mt: 3 }}>
+                <Box sx={{ mt: 2 }}>
                   <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
                     Tests
-                        </Typography>
-                  <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+                  </Typography>
+                  <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
                     {prescription.tests && prescription.tests.length > 0 ? (
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                         {prescription.tests.map((test, idx) => (
@@ -826,7 +979,7 @@ const ConsultationPage = () => {
                       </Box>
                       
                 {/* Instructions & Follow-up Section */}
-                <Box sx={{ mt: 3 }}>
+                <Box sx={{ mt: 2 }}>
                   <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
                     Instructions & Follow-up
                   </Typography>
@@ -845,25 +998,157 @@ const ConsultationPage = () => {
                       </Box>
                       
                 {/* Action buttons */}
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3, gap: 1 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2, gap: 1 }}>
                   <Button 
                     size="small" 
                     variant="outlined" 
                     startIcon={<Print />}
+                    onClick={() => {
+                      // Create a new window for printing
+                      const printWindow = window.open('', '_blank');
+                      
+                      // Generate prescription HTML content
+                      const prescriptionContent = `
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                          <title>Prescription - ${prescription.date}</title>
+                          <style>
+                            body { font-family: Arial, sans-serif; margin: 20px; }
+                            .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+                            .section { margin-bottom: 15px; }
+                            h1 { font-size: 24px; margin-bottom: 10px; }
+                            h2 { font-size: 18px; margin-bottom: 8px; color: #2196f3; }
+                            table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+                            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                            th { background-color: #f5f5f5; }
+                            .footer { margin-top: 30px; text-align: right; }
+                            @media print {
+                              button { display: none; }
+                              body { margin: 0; }
+                            }
+                          </style>
+                        </head>
+                        <body>
+                          <div class="header">
+                            <div>
+                              <h1>Medical Prescription</h1>
+                              <p>Date: ${prescription.date}</p>
+                              <p>Doctor: ${prescription.doctor}</p>
+                            </div>
+                          </div>
+                          
+                          <div class="section">
+                            <h2>Vitals</h2>
+                            <p>Blood Pressure: ${prescription.vitals.bloodPressure} mmHg | 
+                               Heart Rate: ${prescription.vitals.heartRate} bpm | 
+                               Temperature: ${prescription.vitals.temperature} °F | 
+                               Respiratory Rate: ${prescription.vitals.respiratoryRate || "16"} bpm | 
+                               SpO2: ${prescription.vitals.spO2 || "98"}%</p>
+                          </div>
+                          
+                          <div class="section">
+                            <h2>Diagnosis</h2>
+                            <table>
+                              <thead>
+                                <tr>
+                                  <th>Diagnosis</th>
+                                  <th>Duration</th>
+                                  <th>Notes</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                ${prescription.diagnoses ? 
+                                  prescription.diagnoses.map(diag => `
+                                    <tr>
+                                      <td>${diag.diagnosis}</td>
+                                      <td>${diag.duration}</td>
+                                      <td>${diag.notes || ''}</td>
+                                    </tr>
+                                  `).join('') : 
+                                  `<tr>
+                                    <td>${prescription.diagnosis}</td>
+                                    <td>Not specified</td>
+                                    <td>No notes provided</td>
+                                  </tr>`
+                                }
+                              </tbody>
+                            </table>
+                          </div>
+                          
+                          <div class="section">
+                            <h2>Medications</h2>
+                            <table>
+                              <thead>
+                                <tr>
+                                  <th>Medicine</th>
+                                  <th>Dose</th>
+                                  <th>Timing</th>
+                                  <th>Frequency</th>
+                                  <th>Duration</th>
+                                  <th>Notes</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                ${prescription.medications.map(med => `
+                                  <tr>
+                                    <td>${med.medicine}</td>
+                                    <td>${med.dose}</td>
+                                    <td>${med.timing}</td>
+                                    <td>${med.frequency}</td>
+                                    <td>${med.duration}</td>
+                                    <td>${med.notes || ''}</td>
+                                  </tr>
+                                `).join('')}
+                              </tbody>
+                            </table>
+                          </div>
+                          
+                          ${prescription.tests && prescription.tests.length > 0 ? `
+                            <div class="section">
+                              <h2>Tests</h2>
+                              <ul>
+                                ${prescription.tests.map(test => `<li>${test}</li>`).join('')}
+                              </ul>
+                            </div>
+                          ` : ''}
+                          
+                          <div class="section">
+                            <h2>Instructions & Follow-up</h2>
+                            <p><strong>Instructions:</strong> ${prescription.instructions || "No specific instructions"}</p>
+                            <p><strong>Follow-up:</strong> ${prescription.followUp || "No follow-up scheduled"}</p>
+                          </div>
+                          
+                          <div class="footer">
+                            <p>Signature: ${prescription.doctor}</p>
+                          </div>
+                          
+                          <button onclick="window.print(); window.close();" style="margin-top: 20px; padding: 8px 16px;">
+                            Print Prescription
+                          </button>
+                        </body>
+                        </html>
+                      `;
+                      
+                      // Write the content to the new window
+                      printWindow.document.open();
+                      printWindow.document.write(prescriptionContent);
+                      printWindow.document.close();
+                      
+                      // Automatically trigger print when content is loaded
+                      printWindow.onload = function() {
+                        printWindow.focus();
+                        // Uncomment to automatically print
+                        // printWindow.print();
+                      };
+                    }}
                   >
                     Print
                   </Button>
-                        <Button 
-                          size="small" 
-                          variant="outlined" 
-                          startIcon={<Description />}
-                        >
-                    View Full
-                        </Button>
-                      </Box>
-                    </AccordionDetails>
-                  </Accordion>
-            ))}
+                </Box>
+              </AccordionDetails>
+            </Accordion>
+          ))}
         </Paper>
       )}
 
@@ -928,6 +1213,132 @@ const ConsultationPage = () => {
           </Button>
           <Button onClick={confirmDoneConsultation} color="primary" variant="contained">
             Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* File Upload Modal */}
+      <Dialog
+        open={uploadModalOpen}
+        onClose={handleCloseUploadModal}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <CloudUpload color="primary" sx={{ mr: 1 }} />
+            Upload Medical Record
+          </Box>
+          <IconButton size="small" onClick={handleCloseUploadModal}>
+            <Close fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ p: 2 }}>
+            {/* File Drop Area */}
+            <Box
+              sx={{
+                border: isDragging ? '2px dashed #2196f3' : '2px dashed #ccc',
+                borderRadius: 1,
+                p: 3,
+                mb: 3,
+                textAlign: 'center',
+                bgcolor: isDragging ? 'rgba(33, 150, 243, 0.04)' : 'transparent',
+                transition: 'all 0.2s',
+                cursor: 'pointer'
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                setIsDragging(false);
+              }}
+              onDrop={handleFileDrop}
+              onClick={() => document.getElementById('file-upload-input').click()}
+            >
+              <input
+                id="file-upload-input"
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    handleFileSelect(e.target.files[0]);
+                  }
+                }}
+              />
+              <CloudUpload color="primary" sx={{ fontSize: '3rem', mb: 1 }} />
+              <Typography variant="body1" sx={{ mb: 1 }}>
+                {uploadFile ? uploadFile.name : 'Drag and drop a file here or click to browse'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Supported file types: PDF, JPG, PNG, DOC
+              </Typography>
+            </Box>
+            
+            {/* File Details Form */}
+            {uploadFile && (
+              <Box sx={{ mt: 3 }}>
+                <TextField
+                  fullWidth
+                  label="File Name"
+                  value={uploadFileName}
+                  onChange={(e) => setUploadFileName(e.target.value)}
+                  margin="normal"
+                  required
+                  helperText="Enter a name for this medical record"
+                />
+                
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    File Type
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Chip
+                      label="PDF"
+                      variant={uploadFileType === 'pdf' ? 'filled' : 'outlined'}
+                      color={uploadFileType === 'pdf' ? 'primary' : 'default'}
+                      onClick={() => setUploadFileType('pdf')}
+                      sx={{ cursor: 'pointer' }}
+                    />
+                    <Chip
+                      label="Image"
+                      variant={uploadFileType === 'image' ? 'filled' : 'outlined'}
+                      color={uploadFileType === 'image' ? 'primary' : 'default'}
+                      onClick={() => setUploadFileType('image')}
+                      sx={{ cursor: 'pointer' }}
+                    />
+                    <Chip
+                      label="Document"
+                      variant={uploadFileType === 'document' ? 'filled' : 'outlined'}
+                      color={uploadFileType === 'document' ? 'primary' : 'default'}
+                      onClick={() => setUploadFileType('document')}
+                      sx={{ cursor: 'pointer' }}
+                    />
+                  </Box>
+                </Box>
+                
+                <Box sx={{ mt: 3, display: 'flex', alignItems: 'center' }}>
+                  <Typography variant="body2" color="text.secondary">
+                    File Size: {(uploadFile.size / (1024 * 1024)).toFixed(2)} MB
+                  </Typography>
+                </Box>
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseUploadModal}>Cancel</Button>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            startIcon={<CloudUpload />}
+            onClick={handleFileUpload}
+            disabled={!uploadFile || !uploadFileName}
+          >
+            Upload File
           </Button>
         </DialogActions>
       </Dialog>

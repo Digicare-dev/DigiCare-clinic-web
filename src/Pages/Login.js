@@ -38,6 +38,7 @@ const Login = () => {
     message: "",
     severity: "error",
   });
+  const [error, setError] = useState("");
 
   if (user) {
     return <Navigate to="/" replace />;
@@ -53,38 +54,31 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError("");
+
     try {
-      const data = await loginService(credential.username, credential.password);
-      localStorage.setItem("user", JSON.stringify(data));
-      setUser(data);
-
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      navigate("/", { state: { freshLogin: true } }, { replace: true });
-    } catch (error) {
-      let errorMessage = "Login failed. Please try again.";
-
-      if (error.response) {
-        switch (error.response.status) {
-          case 401:
-            errorMessage = "Invalid credentials";
-            break;
-          case 403:
-            errorMessage = "Account locked";
-            break;
-          case 500:
-            errorMessage = "Server error";
-            break;
-        }
-      } else if (error.message.includes("Network Error")) {
-        errorMessage = "Network error";
+      // Import dummy login service
+      const { dummyLogin } = await import('../services/dummyDataService');
+      
+      // Attempt login with dummy credentials
+      const response = await dummyLogin({ username: credential.username, password: credential.password });
+      
+      if (response.success) {
+        // Store user in localStorage
+        localStorage.setItem("user", JSON.stringify(response.user));
+        localStorage.setItem("token", response.token);
+        
+        // Update context
+        setUser(response.user);
+        
+        // Redirect to home
+        navigate("/");
+      } else {
+        setError(response.message || "Login failed. Please try again.");
       }
-
-      setSnackbar({
-        open: true,
-        message: errorMessage,
-        severity: "error",
-      });
+    } catch (error) {
+      console.error("Login error:", error);
+      setError("An error occurred during login. Please try again.");
     } finally {
       setLoading(false);
     }

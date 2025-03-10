@@ -13,22 +13,23 @@ import {
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { fetchAppointments } from "../services/api";
+// Using dummy data instead of API
+// import { fetchAppointments } from "../services/api";
 
 import { useNavigate, useLocation } from "react-router-dom";
 
-// Dummy data generator
+// Dummy data generator for fallback
 const generateDummyData = (date) => {
   const baseDate = new Date(date);
-  return Array.from({ length: 50 }, (_, i) => ({
+  return Array.from({ length: 10 }, (_, i) => ({
     id: i + 1,
-    token: i + 1,
+    token: (i + 1).toString(),
     appointment_id: `APP-${baseDate.getDate()}${i + 1}`,
     firstName: `Patient${i + 1}`,
     lastName: `Last${i + 1}`,
-    checkin: Math.random() > 0.2,
-    paid: Math.random() > 0.3,
-    status: ["pending", "done_checkup", "cancelled"][i % 3],
+    checkin: true,
+    paid: true,
+    status: "done_checkup",
     disease: ["Flu", "Fever", "Injury"][i % 3],
     age: 20 + (i % 40),
     phone_number: `98765432${10 + i}`,
@@ -38,7 +39,8 @@ const generateDummyData = (date) => {
     appointment_type: ["New", "Follow-up", "Emergency"][i % 3],
     mode: ["cash", "online"][i % 2],
     fees_paid: [250, 300, 200][i % 3],
-    date: baseDate.toISOString(),
+    date: baseDate.toISOString().split('T')[0],
+    time: `${9 + Math.floor(i / 2)}:${i % 2 === 0 ? '00' : '30'} AM`,
   }));
 };
 
@@ -67,6 +69,9 @@ const columns = [
   { field: "status", headerName: "Status", width: 100 },
 ];
 
+// Key for storing state in sessionStorage
+const PAST_APPOINTMENTS_STATE_KEY = 'pastAppointmentsState';
+
 export default function PastAppointments() {
   const user = JSON.parse(localStorage.getItem("user"));
   const cabinId = user?.checkupcabindata?.[0]?.id;
@@ -75,34 +80,83 @@ export default function PastAppointments() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [selectedDate, setSelectedDate] = useState(
-    location.state?.selectedDate || new Date()
-  );
-  const [searchQuery, setSearchQuery] = useState("");
-  const [rows, setRows] = useState(location.state?.rows || []);
+  // Initialize state from sessionStorage or defaults
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const savedState = sessionStorage.getItem(PAST_APPOINTMENTS_STATE_KEY);
+    if (savedState) {
+      const parsedState = JSON.parse(savedState);
+      return parsedState.selectedDate ? new Date(parsedState.selectedDate) : new Date();
+    }
+    return new Date();
+  });
+  
+  const [searchQuery, setSearchQuery] = useState(() => {
+    const savedState = sessionStorage.getItem(PAST_APPOINTMENTS_STATE_KEY);
+    if (savedState) {
+      const parsedState = JSON.parse(savedState);
+      return parsedState.searchQuery || "";
+    }
+    return "";
+  });
+  
+  const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [matchingSlots, setMatchingSlots] = useState([]);
-  const [selectedSlot, setSelectedSlot] = useState(
-    location.state?.selectedSlot || null
-  );
+  
+  const [selectedSlot, setSelectedSlot] = useState(() => {
+    const savedState = sessionStorage.getItem(PAST_APPOINTMENTS_STATE_KEY);
+    if (savedState) {
+      const parsedState = JSON.parse(savedState);
+      return parsedState.selectedSlot || null;
+    }
+    return null;
+  });
+
+  // Save state to sessionStorage whenever relevant state changes
+  useEffect(() => {
+    const stateToSave = {
+      selectedDate: selectedDate ? selectedDate.toISOString() : null,
+      selectedSlot,
+      searchQuery
+    };
+    sessionStorage.setItem(PAST_APPOINTMENTS_STATE_KEY, JSON.stringify(stateToSave));
+  }, [selectedDate, selectedSlot, searchQuery]);
+
   useEffect(() => {
     if (!selectedDate) return;
 
     // Find matching slots for the selected date
     const selectedDateString = selectedDate.toISOString().split("T")[0]; // Get date in YYYY-MM-DD format
-    const slots = cabinSlots
-      .filter((slot) => slot.startsWith(selectedDateString))
-      .sort((a, b) => a.localeCompare(b));
-    setMatchingSlots(slots);
-    slots ? setSelectedSlot(slots[0]) : setSelectedSlot(null);
-    setRows([]);
+    
+    // For demo, create dummy slots for the selected date
+    const dummySlots = [
+      `${selectedDateString}T09:00:00.000Z`,
+      `${selectedDateString}T14:00:00.000Z`
+    ];
+    
+    setMatchingSlots(dummySlots);
+    
+    // Only set the selected slot if it's not already set or if it doesn't match the current date
+    if (!selectedSlot || !selectedSlot.includes(selectedDateString)) {
+      setSelectedSlot(dummySlots[0]); // Always select the first slot
+      // Directly fetch appointments for the selected date
+      getAppointments(dummySlots[0]);
+    } else {
+      // If the slot is already set and matches the date, use it
+      getAppointments(selectedSlot);
+    }
   }, [selectedDate]);
 
-  useEffect(() => {
-    if (selectedSlot) {
-      getAppointments(selectedSlot); // Fetch appointments for the selected slot
-    }
-  }, [selectedSlot]);
+  // Handle date change
+  const handleDateChange = (newDate) => {
+    setSelectedDate(newDate);
+    // The slots and data will be updated by the useEffect that depends on selectedDate
+  };
+
+  // Handle search query change
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+  };
 
   // Handle slot selection
   const handleSlotClick = (slot) => {
@@ -111,21 +165,28 @@ export default function PastAppointments() {
   };
 
   const handleRowClick = (params) => {
-    navigate("/appointment-details", {
-      state: {
-        appointment: params.row,
-        selectedDate,
-        selectedSlot,
-        rows,
-      },
-    });
+    console.log('Row clicked:', params.row);
+    // Use the handleAppointmentClick function to format the data correctly
+    handleAppointmentClick(params.row);
   };
 
   const getAppointments = async (dateTime) => {
     setLoading(true);
     try {
-      const data = await fetchAppointments(cabinId, dateTime);
-      if (data.length !== 0) {
+      // Import dummy data service dynamically
+      const { fetchDummyPastAppointments } = await import('../services/dummyDataService');
+      
+      // Format date from dateTime string
+      const date = new Date(dateTime).toISOString().split('T')[0];
+      
+      console.log("Fetching past appointments for date:", date); // Debug log
+      
+      // Fetch dummy past appointments
+      const data = await fetchDummyPastAppointments(date);
+      
+      if (data && data.length !== 0) {
+        console.log("Received past appointments data:", data); // Debug log
+        
         const formattedData = data.map((item) => {
           const [firstName, ...lastNameParts] = item.name.split(" ");
           return {
@@ -134,8 +195,8 @@ export default function PastAppointments() {
             appointment_id: item.appointment_id,
             firstName: firstName || "",
             lastName: lastNameParts.join(" ") || "",
-            checkin: item.checkin,
-            paid: item.paid,
+            checkin: true, // Past appointments were checked in
+            paid: true, // Past appointments were paid
             status: item.status,
             disease: item.disease !== null ? item.disease : "",
             age: item.patient ? item.patient.age : "",
@@ -148,32 +209,31 @@ export default function PastAppointments() {
               item.appointment_type?.slice(1).toLowerCase(),
             mode: item.mode || "",
             fees_paid: item.fees_paid || 0,
+            date: item.date,
+            time: item.time
           };
         });
-        setRows(formattedData.sort((a, b) => a.token - b.token));
+        
+        console.log("Formatted past appointments data:", formattedData); // Debug log
+        setRows(formattedData);
+      } else {
+        console.log("No past appointments data received or empty data array"); // Debug log
+        
+        // If no data for the selected date, generate some dummy data
+        const dummyData = generateDummyData(selectedDate);
+        console.log("Generated dummy data:", dummyData); // Debug log
+        setRows(dummyData);
       }
     } catch (error) {
-      console.error("Error fetching appointments:", error);
+      console.error("Error fetching past appointments:", error);
+      // If error, generate some dummy data
+      const dummyData = generateDummyData(selectedDate);
+      console.log("Generated dummy data due to error:", dummyData); // Debug log
+      setRows(dummyData);
     } finally {
       setLoading(false);
     }
   };
-
-  // useEffect(() => {
-  //   const fetchData = async () => {
-  //     setLoading(true);
-  //     try {
-  //       await new Promise((resolve) => setTimeout(resolve, 500));
-  //       const dummyData = generateDummyData(selectedDate);
-  //       setRows(dummyData);
-  //     } catch (error) {
-  //       console.error("Error loading appointments:", error);
-  //     }
-  //     setLoading(false);
-  //   };
-
-  //   fetchData();
-  // }, [selectedDate]);
 
   // Filter rows based on search query
   const filteredRows = rows.filter((row) =>
@@ -202,35 +262,46 @@ export default function PastAppointments() {
     [rows]
   );
 
-  // Add this function to handle clicking on an appointment
+  // Function to handle clicking on an appointment
   const handleAppointmentClick = (appointment) => {
-    // Extract patient information from the appointment
+    console.log('Handling appointment click:', appointment);
+    
+    // Create patient information from the appointment data
     const patientInfo = {
-      id: appointment.patient_id || appointment.id,
-      name: appointment.patient_name || appointment.name,
-      age: appointment.age || appointment.patient_age,
-      gender: appointment.gender || appointment.sex,
-      phone: appointment.phone_number || appointment.mobile || appointment.contact,
-      email: appointment.email || '',
-      guardianName: appointment.guardian_name || '',
+      id: appointment.id,
+      name: `${appointment.firstName} ${appointment.lastName}`.trim(),
+      age: appointment.age || '',
+      gender: appointment.sex === 'M' ? 'Male' : 
+              appointment.sex === 'F' ? 'Female' : 'Other',
+      phone: appointment.phone_number || '',
+      location: appointment.location || 'Not specified',
+      guardianName: appointment.guardian !== 'NULL' ? appointment.guardian : '',
+      // Add default values for potentially missing fields
+      email: '',  // Not in the API data
+      bloodGroup: '',  // Not in the API data
     };
     
     // Format appointment information
     const appointmentInfo = {
       id: appointment.appointment_id,
-      date: appointment.date || appointment.appointment_date,
-      time: appointment.time || appointment.appointment_time,
-      status: appointment.status || 'completed',
+      date: appointment.date || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      time: appointment.time || '09:00 AM',
+      status: appointment.status === 'done_checkup' ? 'Completed' : 
+              appointment.status === 'pending' ? 'Pending' : 
+              appointment.status === 'cancelled' ? 'Cancelled' : 'Unknown',
       type: appointment.appointment_type || 'Consultation',
-      reason: appointment.disease || appointment.reason,
-      doctor: appointment.doctor_name || 'Current Doctor',
-      token: appointment.token || appointment.position,
-      department: appointment.department || 'General',
+      reason: appointment.disease || 'Not specified',
+      doctor: 'Current Doctor',
+      token: appointment.token,
+      department: 'General',
       fees: appointment.fees_paid || 0,
-      paymentMode: appointment.payment_mode || 'cash',
-      paid: appointment.paid === true || appointment.payment_status === 'paid',
-      notes: appointment.notes || appointment.additional_notes || '',
+      paymentMode: appointment.mode || 'cash',
+      paid: appointment.paid === true,
+      checkin: appointment.checkin === true,
+      notes: appointment.notes || '',
     };
+    
+    console.log('Navigating to appointment details with:', { appointmentInfo, patientInfo });
     
     // Navigate to appointment details with this data
     navigate('/appointment-details', {
@@ -248,51 +319,52 @@ export default function PastAppointments() {
         style={{
           height: "90vh",
           width: "96%",
+          margin: "0 auto",
           padding: "16px",
           display: "flex",
           flexDirection: "column",
         }}
       >
-        {/* Header Section */}
+        {/* Header with Title, Stats, Search, and Date Picker */}
         <Box
           sx={{
-            mb: 2,
-            p: 2,
-            border: "1px solid #e0e0e0",
-            borderRadius: 1,
-            backgroundColor: "#fafafa",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            gap: 4,
+            flexWrap: "wrap",
+            mb: 3,
+            gap: 2,
           }}
         >
-          {/* Summary Section - Left Side */}
-          <Box
-            sx={{
-              flex: 2,
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-              gap: 2,
-            }}
-          >
-            <Box>
-              <Typography variant="subtitle2" color="textSecondary">
-                Total Patients
-              </Typography>
-              <Typography variant="h6">{totals.totalPatients}</Typography>
-            </Box>
-            <Box>
-              <Typography variant="subtitle2" color="textSecondary">
-                Pending
-              </Typography>
-              <Typography variant="h6">{totals.totalPending}</Typography>
-            </Box>
-            <Box>
-              <Typography variant="subtitle2" color="textSecondary">
-                Total Collection
-              </Typography>
-              <Typography variant="h6">₹{totals.totalCollection}</Typography>
+          {/* Title and Stats - Left Side */}
+          <Box>
+            <Typography variant="h5" sx={{ mb: 2 }}>
+              Past Appointments
+            </Typography>
+            <Box
+              sx={{
+                display: "flex",
+                gap: 4,
+              }}
+            >
+              <Box>
+                <Typography variant="subtitle2" color="textSecondary">
+                  Total Patients
+                </Typography>
+                <Typography variant="h6">{totals.totalPatients}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" color="textSecondary">
+                  Pending
+                </Typography>
+                <Typography variant="h6">{totals.totalPending}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" color="textSecondary">
+                  Total Collection
+                </Typography>
+                <Typography variant="h6">₹{totals.totalCollection}</Typography>
+              </Box>
             </Box>
           </Box>
 
@@ -312,63 +384,73 @@ export default function PastAppointments() {
               size="small"
               sx={{ width: 250 }}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchChange}
             />
             <DatePicker
               label="Select Date"
               value={selectedDate}
-              onChange={(newDate) => setSelectedDate(newDate)}
+              onChange={handleDateChange}
               maxDate={new Date()}
-              renderInput={(params) => (
-                <TextField {...params} size="small" sx={{ width: 200 }} />
-              )}
+              slotProps={{ textField: { size: 'small', sx: { width: 200 } } }}
             />
             {loading && <CircularProgress size={24} />}
           </Box>
+          
+          {/* Slot selector */}
           {matchingSlots.length > 0 && (
-            <Box sx={{ mb: 2, display: "flex", gap: 2 }}>
-              {matchingSlots.map((slot, index) => (
-                <Button
-                  key={slot}
-                  variant={selectedSlot === slot ? "contained" : "outlined"}
-                  onClick={() => handleSlotClick(slot)}
-                >
-                  Slot {index + 1}
-                </Button>
-              ))}
+            <Box sx={{ mb: 2, display: "flex", gap: 2, width: '100%' }}>
+              {matchingSlots.map((slot, index) => {
+                // Format the time for display
+                const slotDate = new Date(slot);
+                const timeStr = slotDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
+                return (
+                  <Button
+                    key={slot}
+                    variant={selectedSlot === slot ? "contained" : "outlined"}
+                    onClick={() => handleSlotClick(slot)}
+                  >
+                    {timeStr}
+                  </Button>
+                );
+              })}
             </Box>
           )}
         </Box>
 
-        {/* Data Grid Container */}
-        <div style={{ flex: 1, minHeight: 0 }}>
+        {/* DataGrid */}
+        <div style={{ flexGrow: 1, width: "100%" }}>
           <DataGrid
             rows={filteredRows}
             columns={columns}
+            initialState={{
+              pagination: {
+                paginationModel: { pageSize: 10, page: 0 },
+              },
+            }}
+            pageSizeOptions={[10, 25, 50]}
+            checkboxSelection={false}
+            disableRowSelectionOnClick
+            onRowClick={handleRowClick}
             loading={loading}
             components={{
               Toolbar: GridToolbar,
             }}
-            onRowClick={handleRowClick}
             sx={{
-              "& .MuiDataGrid-virtualScroller": {
-                overflow: "auto",
-                minHeight: "200px",
-              },
               "& .MuiDataGrid-columnHeaders": {
-                position: "sticky",
-                top: 0,
                 backgroundColor: "#f5f5f5",
-                zIndex: 1,
+                borderBottom: "2px solid #e0e0e0",
+                fontWeight: "bold",
+                fontSize: "0.875rem",
               },
-              height: "100%",
-              cursor: "pointer",
-            }}
-            getRowClassName={(params) => {
-              if (params.row.status === "cancelled") return "cancelled-row";
-              if (params.row.status === "done_checkup")
-                return "done-checkup-row";
-              return "";
+              "& .MuiDataGrid-cell:focus": { outline: "none" },
+              "& .MuiDataGrid-columnHeader:focus": { outline: "none" },
+              "& .MuiDataGrid-cell": {
+                borderBottom: "1px solid #f0f0f0",
+                whiteSpace: "normal !important",
+                wordWrap: "break-word",
+                cursor: "pointer",
+              },
             }}
           />
         </div>

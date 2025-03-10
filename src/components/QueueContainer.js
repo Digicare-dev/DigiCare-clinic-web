@@ -16,6 +16,8 @@ import {
   DialogTitle,
   Dialog,
   CircularProgress,
+  Typography,
+  Box,
 } from "@mui/material";
 
 const QueueContainer = ({
@@ -40,7 +42,7 @@ const QueueContainer = ({
 
   useEffect(() => {
     const sortedPatients = [...patients]
-      .filter((p) => p.status === "pending")
+      .filter((p) => p.status === "pending" || p.status === "late")
       .sort((a, b) => a.position - b.position);
 
     setMergedGroup(sortedPatients);
@@ -89,15 +91,28 @@ const QueueContainer = ({
         <div className="skeleton-container">
           {[...Array(5)].map((_, index) => (
             <div key={index} className="skeleton-item">
-              <Skeleton
-                variant="rectangular"
-                width="100%"
-                height={100}
-                sx={{ borderRadius: 2, mb: 2, bgcolor: "grey.200" }}
-              />
+              <Skeleton variant="rectangular" height={100} />
             </div>
           ))}
         </div>
+      ) : mergedGroup.length === 0 ? (
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: '100%',
+          flexDirection: 'column',
+          gap: 2,
+          p: 4,
+          textAlign: 'center'
+        }}>
+          <Typography variant="h6" color="text.secondary">
+            No patients in queue
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            All patients have been processed or no appointments are scheduled.
+          </Typography>
+        </Box>
       ) : (
         <DndContext
           modifiers={[restrictToVerticalAxis]}
@@ -108,17 +123,19 @@ const QueueContainer = ({
             items={mergedGroup.map((p) => p.appointment.appointment_id)}
             strategy={verticalListSortingStrategy}
           >
-            {mergedGroup.map((slot) => (
+            {mergedGroup.map((patient) => (
               <PatientItem
-                key={slot.appointment.appointment_id}
-                {...slot}
+                key={patient.appointment.appointment_id}
+                position={patient.position}
+                appointment={patient.appointment}
+                late={patient.status === "late"}
                 currentPosition={currentPosition}
                 handleNextPatient={handleNextPatient}
                 handleLatePatient={handleLatePatient}
-                isDraggable={slot.position > currentPosition + 3}
-                paid={slot.paid}
-                status={slot.status}
-                checkin={slot.checkin}
+                isDraggable={patient.position > currentPosition}
+                paid={patient.paid}
+                status={patient.status}
+                checkin={patient.checkin}
               />
             ))}
           </SortableContext>

@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState, useCallback } from "react";
+import React,  { useContext, useEffect, useState, useCallback, createContext } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Box } from "@mui/material";
 import { AuthContext } from "./context/AuthContext";
@@ -39,104 +39,47 @@ import Dashboard from './Pages/Dashboard';
 import { getLatestCabinSlot } from './utils/dateUtils';
 import PatientInfoPage from './Pages/PatientInfoPage';
 import ConsultationPage from './Pages/ConsultationPage';
+import DemoBanner from './components/DemoBanner';
+import PDFViewer from './components/PDFViewer';
+import usePDFViewer from './hooks/usePDFViewer';
+
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 const App = () => {
   const { user } = useContext(AuthContext);
   const isMobile = window.innerWidth <= 768;
-  const [currentPosition, setCurrentPosition] = useState(null);
+  const [currentPosition, setCurrentPosition] = useState(1);
   const [patients, setPatients] = useState([]);
   const [currentPatient, setCurrentPatient] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [currentCabinSlot, setCurrentCabinSlot] = useState(null);
+  const [currentCabinSlot, setCurrentCabinSlot] = useState("2024-03-10T09:00:00.000Z");
+  const { pdfViewerState, openPdfViewer, closePdfViewer } = usePDFViewer();
 
   useEffect(() => {
     const fetchInitialData = async () => {
-      if (user?.checkupcabindata?.[0]?.id && currentCabinSlot) {
-        console.log('starting')
-        setLoading(true);
-        try {
-          setPatients([]);
-          setCurrentPosition(null);
-
-          await fetchPatientsData();
-          await fetchCurrentPositionData();
-          console.log('apicallscomplete')
-        } catch (error) {
-          console.error("Initial data fetch error:", error);
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchInitialData();
-  }, [user?.checkupcabindata?.[0]?.id, currentCabinSlot]);
-
-  let eventSource;
-
-  useEffect(() => {
-    if (!user?.checkupcabindata?.[0]?.id || loading) return;
-
-    const doctorId = user.checkupcabindata[0].id;
-    const date = new Date(currentCabinSlot);
-    const formattedDate = date
-      .toISOString()
-      .replace(".000", "")
-      .replace("T", " ")
-      .replace("Z", "+00:00");
-    const encodedDate = encodeURIComponent(formattedDate);
-    const sseUrl = `${API_BASE_URL}/doctorinfo/queue_updates/${doctorId}/${encodedDate}`;
-
-    eventSource = new EventSource(sseUrl, { withCredentials: true });
-
-    eventSource.onmessage = (event) => {
+      setLoading(true);
       try {
-        const parsedData = JSON.parse(event.data);
-        console.log("SSE Data received:", parsedData);
-
-        if (parsedData.queue) {
-          setPatients((prevPatients) => {
-            const updatedPatient = {
-              appointment: parsedData.queue.appointment,
-              paid: parsedData.queue.paid || false,
-              checkin: parsedData.queue.checkin || false,
-              status: parsedData.queue.status || "pending",
-              position: parsedData.queue.position,
-            };
-
-            const existingIndex = prevPatients.findIndex(
-              (p) => p.appointment.appointment_id === updatedPatient.appointment.appointment_id
-            );
-
-            const newPatients = [...prevPatients];
-            if (existingIndex !== -1) {
-              newPatients[existingIndex] = updatedPatient;
-            } else {
-              newPatients.push(updatedPatient);
-            }
-            return newPatients.sort((a, b) => a.position - b.position);
-          });
-        } else if (parsedData.cabinslot) {
-          setCurrentPosition(parsedData.cabinslot.current_number);
-        }
+        // Import dummy data service dynamically to avoid circular dependencies
+        const { fetchDummyPatients, fetchDummyCurrentPosition } = await import('./services/dummyDataService');
+        
+        // Fetch dummy patients
+        const dummyPatients = await fetchDummyPatients();
+        setPatients(dummyPatients);
+        
+        // Fetch dummy current position
+        const { current_number } = await fetchDummyCurrentPosition();
+        setCurrentPosition(current_number);
       } catch (error) {
-        console.error("Error processing SSE data:", error);
+        console.error("Error loading dummy data:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
-    eventSource.onerror = (error) => {
-      // console.error("EventSource failed:", error);
-      eventSource.close();
-    };
-
-    return () => {
-      if (eventSource) {
-        eventSource.close();
-        // console.log("SSE connection cleaned up");
-      }
-    };
-  }, [user?.checkupcabindata, loading]);
+    if (user) {
+      fetchInitialData();
+    }
+  }, [user]);
 
   useEffect(() => {
     if (patients.length > 0 && currentPosition !== null) {
@@ -146,85 +89,188 @@ const App = () => {
   }, [patients, currentPosition]);
 
   useEffect(() => {
-    if (user?.checkupcabindata?.[0]?.cabin_slots) {
-      const latestSlot = getLatestCabinSlot(user.checkupcabindata[0].cabin_slots);
-      setCurrentCabinSlot(latestSlot);
-    }
-  }, [user?.checkupcabindata]);
+    if (!user) return;
+    
+    // Simulate real-time updates every 30 seconds
+    const updateInterval = setInterval(() => {
+      // Randomly update a patient's status (e.g., check-in status)
+      if (patients.length > 0) {
+        const randomIndex = Math.floor(Math.random() * patients.length);
+        const updatedPatients = [...patients];
+        
+        // Toggle checkin status for a random patient
+        updatedPatients[randomIndex] = {
+          ...updatedPatients[randomIndex],
+          checkin: !updatedPatients[randomIndex].checkin
+        };
+        
+        setPatients(updatedPatients);
+      }
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(updateInterval);
+  }, [user, patients]);
 
   const fetchPatientsData = useCallback(async () => {
-    if (!currentCabinSlot) return;
-    
+    setLoading(true);
     try {
-      setLoading(true);
-      console.log('Fetching patients data');
-      const data = await fetchPatients(
-        user.checkupcabindata[0].id,
-        currentCabinSlot
-      );
-      console.log('Raw patient data:', data);
-
-      if (Array.isArray(data)) {
-        data.sort((a, b) => a.position - b.position);
-        setPatients(data);
-      } else {
-        console.error('Received non-array patient data:', data);
-        setPatients([]);
-      }
+      // Import dummy data service
+      const { fetchDummyPatients } = await import('./services/dummyDataService');
+      
+      // Fetch dummy patients
+      const dummyPatients = await fetchDummyPatients();
+      setPatients(dummyPatients);
     } catch (error) {
-      console.error("Error fetching patients:", error);
-      setPatients([]);
+      console.error("Error fetching dummy patients:", error);
     } finally {
       setLoading(false);
     }
-  }, [user, currentCabinSlot]);
+  }, []);
 
   const fetchCurrentPositionData = useCallback(async () => {
-    if (!currentCabinSlot) return;
-    
+    setLoading(true);
     try {
-      setLoading(true);
-      const { current_number } = await fetchCurrentPosition(
-        user.checkupcabindata[0].id,
-        currentCabinSlot
-      );
-
+      // Import dummy data service
+      const { fetchDummyCurrentPosition } = await import('./services/dummyDataService');
+      
+      // Fetch dummy current position
+      const { current_number } = await fetchDummyCurrentPosition();
       setCurrentPosition(current_number);
       return current_number;
     } catch (error) {
-      console.error("Error fetching current position:", error);
+      console.error("Error fetching dummy current position:", error);
     } finally {
-      setTimeout(() => {
-        setLoading(false);
-      }, 200);
+      setLoading(false);
     }
-  }, [user, currentCabinSlot]);
+  }, []);
 
   const handleNextPatient = async (id) => {
-    const result = await markPatientAsDone(id);
+    // Import dummy data service
+    const { dummyMarkPatientAsDone } = await import('./services/dummyDataService');
+    
+    // Mark patient as done
+    const result = await dummyMarkPatientAsDone(id);
+    
+    // Update local state
+    if (result.success) {
+      // Find the patient with the given appointment ID
+      const patientIndex = patients.findIndex(p => p.appointment.appointment_id === id);
+      
+      if (patientIndex !== -1) {
+        const updatedPatients = [...patients];
+        updatedPatients[patientIndex] = {
+          ...updatedPatients[patientIndex],
+          status: "done_checkup"
+        };
+        
+        setPatients(updatedPatients);
+        
+        // Move to next patient
+        if (currentPosition < patients.length) {
+          setCurrentPosition(currentPosition + 1);
+        }
+      }
+    }
+    
     return result;
   };
 
   const handleLatePatient = async (id) => {
-    const result = await markPatientAsLate(id);
+    // Import dummy data service
+    const { dummyMarkPatientAsLate } = await import('./services/dummyDataService');
+    
+    // Mark patient as late
+    const result = await dummyMarkPatientAsLate(id);
+    
+    // Update local state
+    if (result.success) {
+      // Find the patient with the given appointment ID
+      const patientIndex = patients.findIndex(p => p.appointment.appointment_id === id);
+      
+      if (patientIndex !== -1) {
+        const updatedPatients = [...patients];
+        updatedPatients[patientIndex] = {
+          ...updatedPatients[patientIndex],
+          status: "late"
+        };
+        
+        setPatients(updatedPatients);
+      }
+    }
+    
     return result;
   };
 
   const shufflePosition = async (payload) => {
-    await shufflePatientPosition(payload);
+    // Import dummy data service
+    const { dummyShufflePatientPosition } = await import('./services/dummyDataService');
+    
+    // Shuffle patient position
+    const result = await dummyShufflePatientPosition(payload);
+    
+    // Update local state
+    if (result.success) {
+      // Find the patient with the given appointment ID
+      const patientIndex = patients.findIndex(p => p.appointment.appointment_id === payload.appointment_id);
+      const targetPosition = payload.new_position;
+      
+      if (patientIndex !== -1) {
+        const updatedPatients = [...patients];
+        
+        // Update positions
+        const oldPosition = updatedPatients[patientIndex].position;
+        
+        // Update all patients' positions accordingly
+        updatedPatients.forEach(patient => {
+          if (oldPosition < targetPosition && patient.position > oldPosition && patient.position <= targetPosition) {
+            patient.position--;
+          } else if (oldPosition > targetPosition && patient.position < oldPosition && patient.position >= targetPosition) {
+            patient.position++;
+          }
+        });
+        
+        // Update the moved patient's position
+        updatedPatients[patientIndex].position = targetPosition;
+        
+        // Sort by position
+        updatedPatients.sort((a, b) => a.position - b.position);
+        
+        setPatients(updatedPatients);
+      }
+    }
   };
 
   const addNewAppointment = async (pid, disease, appointmentType) => {
-    const payload = {
-      cabinId: user.checkupcabindata[0].id,
+    // Import dummy data service
+    const { dummyAddAppointment } = await import('./services/dummyDataService');
+    
+    // Add new appointment
+    const result = await dummyAddAppointment({
       patientId: pid,
-      paid: "False",
       disease: disease,
-      slot: currentCabinSlot,
-      username: user.username,
-      appointment_type: appointmentType,
-    };
-    const result = await addAppointment(payload);
+      appointment_type: appointmentType
+    });
+    
+    // Update local state
+    if (result.success && result.appointment) {
+      const newPatient = {
+        appointment: result.appointment,
+        paid: false,
+        checkin: false,
+        status: "pending",
+        position: patients.length + 1,
+        patient: {
+          age: Math.floor(20 + Math.random() * 50),
+          gender: Math.random() > 0.5 ? "M" : "F",
+          phone_number: `9${Math.floor(Math.random() * 1000000000)}`,
+          location: "Demo City",
+          guardian: "NULL"
+        }
+      };
+      
+      setPatients([...patients, newPatient]);
+    }
+    
     return result;
   };
 
@@ -235,11 +281,7 @@ const App = () => {
           {user !== null && (
             <Header 
               patients={patients || []} 
-              closeEventSource={() => {
-                if (eventSource) {
-                  eventSource.close();
-                }
-              }} 
+              closeEventSource={() => {}} 
             />
           )}
           <Box
@@ -385,9 +427,43 @@ const App = () => {
             </Box>
           </Box>
           {user !== null && isMobile && <BottomNavigator />}
+          
+          {/* Add Demo Banner */}
+          <DemoBanner />
+          
+          {/* Add PDF Viewer */}
+          <PDFViewer 
+            open={pdfViewerState.open}
+            onClose={closePdfViewer}
+            pdfUrl={pdfViewerState.pdfUrl}
+            title={pdfViewerState.title}
+          />
         </Box>
       </Router>
     </ThemeProvider>
+  );
+};
+
+// Export the PDF viewer context to make it available throughout the app
+export const PDFViewerContext = React.createContext({
+  openPdfViewer: () => {},
+  closePdfViewer: () => {}
+});
+
+// Create a PDF viewer provider component
+export const PDFViewerProvider = ({ children }) => {
+  const pdfViewerHook = usePDFViewer();
+  
+  return (
+    <PDFViewerContext.Provider value={pdfViewerHook}>
+      {children}
+      <PDFViewer 
+        open={pdfViewerHook.pdfViewerState.open}
+        onClose={pdfViewerHook.closePdfViewer}
+        pdfUrl={pdfViewerHook.pdfViewerState.pdfUrl}
+        title={pdfViewerHook.pdfViewerState.title}
+      />
+    </PDFViewerContext.Provider>
   );
 };
 

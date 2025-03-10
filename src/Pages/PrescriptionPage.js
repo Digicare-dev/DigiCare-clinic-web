@@ -279,14 +279,14 @@ export const PrescriptionForm = ({
   // Initialize diagnoses with initialData or default
   const [diagnoses, setDiagnoses] = useState(
     initialData.diagnoses || [
-    { diagnosis: '', duration: '', isEditing: false }
+    { diagnosis: '', duration: '', notes: '', isEditing: false }
     ]
   );
 
   // Initialize medications with initialData or default
   const [medications, setMedications] = useState(
     initialData.medications || [
-    { medicine: '', dose: '', timing: '', frequency: '', duration: '', isEditing: false }
+    { medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false }
     ]
   );
 
@@ -449,7 +449,8 @@ export const PrescriptionForm = ({
     const updatedDiagnoses = [...diagnoses];
     updatedDiagnoses[index][field] = value;
     
-    if (value) {
+    // Only proceed with auto-focus and dropdown logic if not editing notes
+    if (value && field !== 'notes') {
       const currentRow = updatedDiagnoses[index];
       
       // Auto-focus next field with unique IDs
@@ -478,7 +479,8 @@ export const PrescriptionForm = ({
     const updatedMedications = [...medications];
     updatedMedications[index][field] = value;
     
-    if (value) {
+    // Only proceed with auto-focus and dropdown logic if not editing notes
+    if (value && field !== 'notes') {
       const currentRow = updatedMedications[index];
       
       // Auto-focus next field logic with unique IDs
@@ -523,7 +525,7 @@ export const PrescriptionForm = ({
     setDiagnoses(updatedDiagnoses); // Update state to close dropdown
 
     setTimeout(() => {
-        setDiagnoses(prev => [...prev, { diagnosis: '', duration: '', isEditing: false }]);
+        setDiagnoses(prev => [...prev, { diagnosis: '', duration: '', notes: '', isEditing: false }]);
         const newIndex = diagnoses.length;
         const element = document.querySelector(`#diagnosis-${newIndex}`);
         if (element && element.querySelector('input')) {
@@ -542,7 +544,7 @@ export const PrescriptionForm = ({
 
     setTimeout(() => {
         setMedications(prev => [...prev, { 
-            medicine: '', dose: '', timing: '', frequency: '', duration: '', isEditing: false 
+            medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false 
         }]);
         const newIndex = medications.length;
         const element = document.querySelector(`#med-medicine-${newIndex}`);
@@ -858,6 +860,7 @@ export const PrescriptionForm = ({
                     <TableRow sx={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
                       <TableCell>Diagnosis</TableCell>
                       <TableCell>Duration</TableCell>
+                      <TableCell>Notes</TableCell>
                       <TableCell width="50px" sx={{ borderRight: 'none' }}></TableCell>
                     </TableRow>
                   </TableHead>
@@ -922,6 +925,19 @@ export const PrescriptionForm = ({
                           />
                         </TableCell>
                         <TableCell>
+                          <TextField
+                            id={`diagnosis-notes-${index}`}
+                            size="small"
+                            variant="standard"
+                            placeholder="Add notes"
+                            value={row.notes || ''}
+                            onChange={(e) => handleDiagnosisChange(index, 'notes', e.target.value)}
+                            onClick={(e) => e.stopPropagation()} // Prevent row click event
+                            onFocus={(e) => e.stopPropagation()} // Prevent opening dropdown
+                            fullWidth
+                          />
+                        </TableCell>
+                        <TableCell>
                           {diagnoses.length > 1 && index !== diagnoses.length - 1 && (
                             <IconButton
                               size="small"
@@ -955,6 +971,7 @@ export const PrescriptionForm = ({
                       <TableCell>Timing</TableCell>
                       <TableCell>Frequency</TableCell>
                       <TableCell>Duration</TableCell>
+                      <TableCell>Notes</TableCell>
                       <TableCell width="50px" sx={{ borderRight: 'none' }}></TableCell>
                     </TableRow>
                   </TableHead>
@@ -1076,6 +1093,19 @@ export const PrescriptionForm = ({
                           />
                         </TableCell>
                         <TableCell>
+                          <TextField
+                            id={`med-notes-${index}`}
+                            size="small"
+                            variant="standard"
+                            placeholder="Add notes"
+                            value={row.notes || ''}
+                            onChange={(e) => handleMedicationChange(index, 'notes', e.target.value)}
+                            onClick={(e) => e.stopPropagation()} // Prevent row click event
+                            onFocus={(e) => e.stopPropagation()} // Prevent opening dropdown
+                            fullWidth
+                          />
+                        </TableCell>
+                        <TableCell>
                           {medications.length > 1 && index !== medications.length - 1 && (
                             <IconButton
                               size="small"
@@ -1105,6 +1135,7 @@ export const PrescriptionForm = ({
                 freeSolo
                 options={dummyTests}
                 value={prescription.tests}
+                disableCloseOnSelect={true}
                 onChange={(e, value) => {
                   setPrescription({
                     ...prescription,

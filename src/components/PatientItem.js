@@ -28,8 +28,11 @@ import {
   LocalHospital,
   SupervisorAccount,
   MeetingRoom,
+  DoneAll,
+  Schedule,
 } from "@mui/icons-material";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
+import ReportLink from '../components/ReportLink';
 
 // Add custom styles for clickable elements
 const clickableStyle = {
@@ -57,10 +60,9 @@ const PatientItem = ({
 
   // Determine if this is the current patient based on position
   const isCurrent = position === currentPosition;
+  const isLate = late || status === "late";
+  const isDone = status === "done_checkup" || status === "done";
   
-  // Use the late flag directly from the props
-  const isLate = late;
-
   // Log the data structure for debugging
   useEffect(() => {
     console.log('PatientItem received data:', {
@@ -213,7 +215,7 @@ const PatientItem = ({
           cursor: 'pointer', // Add cursor pointer to indicate clickable
         }}
         className={`patient-item ${isCurrent ? "current" : ""} ${isLate ? "late" : ""} ${
-          status === "done" ? "done" : ""
+          isDone ? "done" : ""
         }`}
         onClick={handlePatientClick} // Add the click handler
     >
@@ -229,63 +231,40 @@ const PatientItem = ({
               </Typography>
               
               <div className="status-tags">
-                {appointment.disease && (
-                    <Chip
-                    icon={<LocalHospital fontSize="small" />}
-                    label={appointment.disease} 
-                      size="small"
-                    color="primary"
-                      variant="outlined"
-                    />
-                )}
-                
-                {appointment.appointment_type && (
-                    <Chip
-                    label={appointment.appointment_type} 
-                      size="small"
-                    color="default"
-                      variant="outlined"
-                    />
-                )}
-
-                {/* Simplified paid/unpaid indicator without dollar sign */}
+                {status === "pending" && (
                   <Chip
-                  icon={paid ? <Paid fontSize="small" /> : null}
-                    label={paid ? "Paid" : "Unpaid"}
+                    icon={<PendingActions fontSize="small" />}
+                    label="Pending"
                     size="small"
-                    color={paid ? "success" : "error"}
+                    color="primary"
                     variant="outlined"
                   />
-
-                {/* Changed "Checked In" to "Inside Clinic" */}
-                {checkin && (
-                    <Chip
-                    icon={<MeetingRoom fontSize="small" />}
-                    label="Inside Clinic" 
-                      size="small"
-                    color="success"
-                      variant="outlined"
-                    />
                 )}
-
-                {/* Late indicator */}
                 {isLate && (
-                    <Chip
-                      icon={<AccessTime fontSize="small" />}
-                      label="Late"
-                      size="small"
-                      color="warning"
-                    sx={{ fontWeight: 'bold' }}
-                    />
+                  <Chip
+                    icon={<AccessTime fontSize="small" />}
+                    label="Late"
+                    size="small"
+                    color="error"
+                    variant="outlined"
+                  />
                 )}
-                
-                {/* Current patient indicator */}
+                {isDone && (
+                  <Chip
+                    icon={<CheckCircle fontSize="small" />}
+                    label="Done"
+                    size="small"
+                    color="success"
+                    variant="outlined"
+                  />
+                )}
                 {isCurrent && (
-                  <Chip 
-                    label="Current" 
-                    size="small" 
-                    color="primary"
-                    sx={{ fontWeight: 'bold' }}
+                  <Chip
+                    icon={<MedicalServices fontSize="small" />}
+                    label="Current"
+                    size="small"
+                    color="secondary"
+                    variant="outlined"
                   />
                 )}
               </div>
@@ -300,47 +279,69 @@ const PatientItem = ({
                 </Typography>
               </Box>
               )}
+
+            <div className="appointment-meta">
+              <div className="meta-item">
+                <ReportLink 
+                  type="blood-test" 
+                  variant="text" 
+                />
+              </div>
+              <div className="meta-item">
+                <ReportLink 
+                  type="ecg-test" 
+                  variant="text" 
+                />
+              </div>
             </div>
+          </div>
           
           <div className="action-buttons">
-            {isCurrent && (
-            <MuiButton
-              variant="contained"
-                color="primary"
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setConfirmAction("next");
-                }}
-                disabled={loadingType === "next"}
-              >
-                {loadingType === "next" ? (
-                  <CircularProgress size={24} color="inherit" />
-                ) : (
-                  "Done Checkup"
-                )}
-            </MuiButton>
-        )}
+            {/* Mark Done button - show for all patients that aren't already done */}
+            {!isDone && (
+              <Tooltip title="Mark as Done">
+                <MuiButton
+                  variant={isCurrent ? "contained" : "outlined"}
+                  color="primary"
+                  size="small"
+                  startIcon={<DoneAll />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmAction("next");
+                  }}
+                  disabled={loadingType === "next" || isDone}
+                  sx={{ mr: 1 }}
+                >
+                  {loadingType === "next" ? (
+                    <CircularProgress size={20} color="inherit" />
+                  ) : (
+                    "Done"
+                  )}
+                </MuiButton>
+              </Tooltip>
+            )}
             
-            {!isCurrent && !isLate && (
-            <MuiButton
-                variant="outlined"
-                color="secondary"
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setConfirmAction("late");
-                }}
-                disabled={loadingType === "late" || isLate}
-              >
-                {loadingType === "late" ? (
-                  <CircularProgress size={24} color="inherit" />
-                ) : isLate ? (
-                  "Marked Late"
-                ) : (
-                  "Mark Late"
-                )}
-            </MuiButton>
+            {/* Mark Late button - show for all patients that aren't already late or done */}
+            {!isLate && !isDone && (
+              <Tooltip title="Mark as Late">
+                <MuiButton
+                  variant="outlined"
+                  color="secondary"
+                  size="small"
+                  startIcon={<Schedule />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmAction("late");
+                  }}
+                  disabled={loadingType === "late" || isLate || isDone}
+                >
+                  {loadingType === "late" ? (
+                    <CircularProgress size={20} color="inherit" />
+                  ) : (
+                    "Late"
+                  )}
+                </MuiButton>
+              </Tooltip>
             )}
           </div>
           
@@ -366,7 +367,8 @@ const PatientItem = ({
           <MuiButton
             onClick={handleConfirm}
             color="primary"
-            disabled={!!loadingType}
+            variant="contained"
+            disabled={loadingType}
           >
             {loadingType ? (
               <CircularProgress size={24} color="inherit" />

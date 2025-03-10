@@ -177,34 +177,46 @@ const MobileAppointmentTable = () => {
 
   const fetchAppointmentsData = async () => {
     try {
-      const data = await fetchAppointments(
-        user.checkupcabindata[0].id,
-        user.checkupcabindata[0].cabin_slots[0]
-      );
-      const formatted = data.map((item) => ({
-        id: item.token,
-        token: item.token,
-        patientName: item.name,
-        checkin: item.checkin || false,
-        paid: item.paid || false,
-        status: item.status === "done_checkup" ? "done" : item.status,
-        guardian: item?.patient?.guardian || "N/A",
-        isPlaceholder: false,
-        appointment_id: item.appointment_id,
-        mode: item.mode || "",
-        fees_paid: item.fees_paid || 0,
-        disease: item.disease || null,
-        appointment_type: item.appointment_type || "New",
-        phone_number: item?.patient?.phone_number || "",
-        age: item?.patient?.age || "",
-        sex: item?.patient?.gender || "",
-        location: item?.patient?.location || "",
-      }));
+      // Import dummy data service dynamically
+      const { fetchDummyAppointmentTable } = await import('../services/dummyDataService');
+      
+      // Fetch dummy appointment data
+      const data = await fetchDummyAppointmentTable();
+      
+      if (data && data.length > 0) {
+        console.log("Received mobile dummy data:", data); // Debug log
+        
+        const formatted = data.map((item) => ({
+          id: item.token,
+          token: item.token,
+          patientName: item.name || '',
+          checkin: item.status === "done_checkup" ? true : Math.random() > 0.3, // Randomize for demo
+          paid: item.status === "done_checkup" ? true : Math.random() > 0.2, // Randomize for demo
+          status: item.status === "done_checkup" ? "done" : (item.status || "pending"),
+          guardian: item?.patient?.guardian || "N/A",
+          isPlaceholder: false,
+          appointment_id: item.appointment_id,
+          mode: item.mode || "cash",
+          fees_paid: item.fees_paid || 0,
+          disease: item.disease || null,
+          appointment_type: item.appointment_type || "New",
+          phone_number: item?.patient?.phone_number || "",
+          age: item?.patient?.age || "",
+          sex: item?.patient?.gender || "",
+          location: item?.patient?.location || "",
+        }));
 
-      setAppointments(formatted);
+        console.log("Formatted mobile data:", formatted); // Debug log
+        setAppointments(formatted);
+      } else {
+        console.log("No mobile data received or empty data array"); // Debug log
+        setAppointments([]);
+      }
       setLoading(false);
     } catch (err) {
+      console.error("Failed to load appointments:", err);
       setError("Failed to load appointments");
+      setAppointments([]);
       setLoading(false);
     }
   };

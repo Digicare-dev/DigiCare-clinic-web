@@ -15,13 +15,18 @@ import {
   Box,
   Typography,
   Avatar,
+  Chip,
 } from "@mui/material";
 import logo from "../assets/DigiCare__logo.png";
 import LogoutIcon from "@mui/icons-material/Logout";
 import SearchIcon from "@mui/icons-material/Search";
 import PersonIcon from "@mui/icons-material/Person";
 import PhoneIcon from "@mui/icons-material/Phone";
+import EmailIcon from "@mui/icons-material/Email";
+import LocalHospitalIcon from "@mui/icons-material/LocalHospital";
+import EventIcon from "@mui/icons-material/Event";
 import "./Header.module.css";
+import { patientProfiles } from "../services/dummyDataService";
 
 function Header({ closeEventSource, patients = [] }) {
   const isMobile = window.innerWidth <= 768;
@@ -31,59 +36,11 @@ function Header({ closeEventSource, patients = [] }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   
-  // Log patients when they change
-  useEffect(() => {
-    console.log('Header received patients:', patients);
-  }, [patients]);
-  
-  // Format patients data for search
-  const formattedPatients = useMemo(() => {
-    console.log('Formatting patients for search:', patients);
-    
-    if (!Array.isArray(patients)) {
-      console.error('Patients is not an array:', patients);
-      return [];
-    }
-    
-    return patients.filter(item => {
-      // Check if item has appointment with name
-      return item && (
-        (item.name) || 
-        (item.appointment && item.appointment.name)
-      );
-    }).map((item) => {
-      // Get the name from either the item directly or from the appointment property
-      const name = item.name || (item.appointment && item.appointment.name) || '';
-      const [firstName, ...lastNameParts] = name.split(" ");
-      
-      // Get appointment data from either the item directly or from the appointment property
-      const appointmentData = item.appointment || item;
-      
-      return {
-        id: item.token || appointmentData.token,
-        token: item.token || appointmentData.token,
-        appointment_id: appointmentData.appointment_id,
-        firstName: firstName || "",
-        lastName: lastNameParts.join(" ") || "",
-        fullName: name,
-        checkin: item.checkin || false,
-        paid: item.paid || false,
-        status: item.status || '',
-        disease: appointmentData.disease !== null ? appointmentData.disease : "",
-        age: item.patient ? item.patient.age : "",
-        phone_number: item.patient ? item.patient.phone_number : "",
-        location: item.patient ? item.patient.location : "",
-        sex: item.patient?.gender || "",
-        guardian: item.patient ? item.patient.guardian : "",
-        appointment_type: appointmentData.appointment_type?.charAt(0).toUpperCase() +
-          appointmentData.appointment_type?.slice(1).toLowerCase() || '',
-        mode: appointmentData.mode || "",
-        fees_paid: appointmentData.fees_paid || 0,
-        position: item.position || 0,
-        patient: item.patient || null,
-      };
-    });
-  }, [patients]);
+  // Use the patientProfiles database instead of the current patients
+  const patientDatabase = useMemo(() => {
+    console.log('Using patient profiles database for search');
+    return patientProfiles;
+  }, []);
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -99,103 +56,27 @@ function Header({ closeEventSource, patients = [] }) {
     handleClose();
   };
 
-  // Handle patient selection
   const handlePatientSelect = (event, patient) => {
-    if (!patient) {
-      console.error('Invalid patient data:', patient);
-      return;
-    }
+    if (!patient) return;
     
     try {
-      // Format patient information for PatientInfoPage
-      const patientInfo = {
-        name: `${patient.firstName} ${patient.lastName}`.trim(),
-        age: patient.age || '',
-        gender: patient.sex === 'M' ? 'Male' : 
-                patient.sex === 'F' ? 'Female' : 'Other',
-        phone: patient.phone_number || '',
-        email: '',
-        location: patient.location || 'Not specified',
-        guardianName: patient.guardian !== 'NULL' ? patient.guardian : '',
-        id: patient.id || patient.token,
-        bloodGroup: '',
-        allergies: [],
-        chronicConditions: [],
-      };
+      console.log('Selected patient:', patient);
       
-      // Extract date and time from appointment_id
-      const appointmentId = patient.appointment_id;
-      console.log('Processing appointment ID:', appointmentId);
-      
-      // Handle different appointment_id formats
-      let date = '';
-      let time = '';
-      
-      if (appointmentId && appointmentId.includes(' ')) {
-        // Format: "8059842025-03-08 14:20:18.281977"
-        const [datePart, timePart] = appointmentId.split(' ');
-        
-        if (datePart && datePart.includes('-')) {
-          const dateComponents = datePart.split('-');
-          if (dateComponents.length >= 3) {
-            // Format: YYYY-MM-DD
-            date = `${dateComponents[0]}-${dateComponents[1]}-${dateComponents[2]}`;
-          }
-        }
-        
-        if (timePart) {
-          const timeComponents = timePart.split(':');
-          if (timeComponents.length >= 2) {
-            // Format: HH:MM
-            time = `${timeComponents[0]}:${timeComponents[1]}`;
-          }
-        }
-      } else if (appointmentId && appointmentId.includes('_')) {
-        // Format: "YYYYMMDD_HHMM"
-        const datePart = appointmentId.split('_')[0] || '';
-        const timePart = appointmentId.split('_')[1] || '';
-        
-        if (datePart && datePart.length >= 8) {
-          date = `${datePart.substring(0, 4)}-${datePart.substring(4, 6)}-${datePart.substring(6, 8)}`;
-        }
-        
-        if (timePart && timePart.length >= 4) {
-          time = `${timePart.substring(0, 2)}:${timePart.substring(2, 4)}`;
-        }
-      }
-      
-      console.log('Extracted date and time:', { date, time });
-      
-      const appointmentInfo = {
-        id: patient.appointment_id,
-        date: date,
-        time: time,
-        doctor: 'Current Doctor',
-        status: patient.status === 'pending' ? 'Pending' : 
-                patient.status === 'done_checkup' ? 'Completed' : 
-                patient.status === 'cancelled' ? 'Cancelled' : 
-                patient.status === 'late' ? 'Late' : patient.status,
-        type: patient.appointment_type || 'Consultation',
-        reason: patient.disease || 'Not specified',
-        department: 'General',
-        token: patient.token,
-        disease: patient.disease || '',
-        fees: patient.fees_paid || 0,
-        paymentMode: patient.mode || 'cash',
-        paid: patient.paid === true,
-        checkin: patient.checkin === true,
-        position: patient.position || 0,
-      };
-      
-      console.log('Navigating to patient info page with:', { patientInfo, appointmentInfo });
-      
-      // Navigate to patient info page
-      navigate('/patient-info', {
-        state: {
-          patientInfo,
-          appointmentInfo,
-          fromSearch: true,
-        }
+      // Navigate to patient info page with the selected patient data
+      navigate('/patient-info', { 
+        state: { 
+          patientInfo: {
+            id: patient.id,
+            name: patient.fullName,
+            age: patient.age,
+            gender: patient.gender,
+            phone: patient.phone_number,
+            email: patient.email,
+            address: patient.address,
+            bloodGroup: patient.bloodGroup
+          },
+          appointmentInfo: undefined // Explicitly set to undefined to indicate no current appointment
+        } 
       });
     } catch (error) {
       console.error('Error processing patient selection:', error);
@@ -220,11 +101,15 @@ function Header({ closeEventSource, patients = [] }) {
       const phoneMatch = option.phone_number && 
                          option.phone_number.toString().includes(searchTerm);
       
-      // Search by token
-      const tokenMatch = option.token && 
-                         option.token.toString() === searchTerm;
+      // Search by ID
+      const idMatch = option.id && 
+                      option.id.toString().toLowerCase().includes(searchTerm);
       
-      return nameMatch || phoneMatch || tokenMatch;
+      // Search by email
+      const emailMatch = option.email && 
+                         option.email.toLowerCase().includes(searchTerm);
+      
+      return nameMatch || phoneMatch || idMatch || emailMatch;
     });
   };
 
@@ -246,7 +131,7 @@ function Header({ closeEventSource, patients = [] }) {
       >
         <Autocomplete
           id="patient-search"
-          options={formattedPatients}
+          options={patientDatabase}
           getOptionLabel={(option) => option.fullName || ''}
           filterOptions={filterOptions}
           onChange={handlePatientSelect}
@@ -255,7 +140,7 @@ function Header({ closeEventSource, patients = [] }) {
           renderInput={(params) => (
             <TextField
               {...params}
-              placeholder="Search patients by name or phone..."
+              placeholder="Search patients by name, ID, phone or email..."
               variant="outlined"
               size="small"
               fullWidth
@@ -279,29 +164,36 @@ function Header({ closeEventSource, patients = [] }) {
                       {option.firstName.charAt(0)}
                     </Avatar>
                     <Typography variant="body1">{option.fullName}</Typography>
-                    <Typography 
-                      variant="caption" 
-                      sx={{ 
-                        ml: 'auto', 
-                        bgcolor: option.status === 'pending' ? 'warning.light' : 
-                                 option.status === 'done_checkup' ? 'success.light' : 
-                                 option.status === 'cancelled' ? 'error.light' : 'info.light',
-                        px: 1,
-                        py: 0.5,
-                        borderRadius: 1
-                      }}
-                    >
-                      Token #{option.token}
-                    </Typography>
+                    <Chip 
+                      label={option.id}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                      sx={{ ml: 'auto' }}
+                    />
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
                     <PhoneIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="text.secondary" sx={{ mr: 2 }}>
                       {option.phone_number || 'No phone'}
                     </Typography>
-                    <PersonIcon fontSize="small" sx={{ ml: 2, mr: 0.5, color: 'text.secondary' }} />
+                    <EmailIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
                     <Typography variant="caption" color="text.secondary">
-                      {option.age ? `${option.age} yrs` : ''} {option.sex || ''}
+                      {option.email || 'No email'}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                    <PersonIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
+                    <Typography variant="caption" color="text.secondary" sx={{ mr: 2 }}>
+                      {option.age} yrs, {option.gender}
+                    </Typography>
+                    <LocalHospitalIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
+                    <Typography variant="caption" color="text.secondary" sx={{ mr: 2 }}>
+                      {option.bloodGroup}
+                    </Typography>
+                    <EventIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
+                    <Typography variant="caption" color="text.secondary">
+                      Last visit: {option.lastVisit}
                     </Typography>
                   </Box>
                 </Box>
