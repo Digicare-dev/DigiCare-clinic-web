@@ -74,6 +74,8 @@ import {
   Edit,
   Upload,
   CloudUpload,
+  Cancel as CancelIcon,
+  ContentCopy as ContentCopyIcon,
 } from '@mui/icons-material';
 
 import ReportLink from '../components/ReportLink';
@@ -92,6 +94,9 @@ const ConsultationPage = () => {
     id: 'PT12345',
     bloodGroup: 'O+',
   };
+
+  // Log patient info for debugging
+  console.log("ConsultationPage - Patient Info:", patientInfo);
 
   const appointmentInfo = location.state?.appointmentInfo || {
     date: new Date().toISOString().split('T')[0],
@@ -366,6 +371,69 @@ const ConsultationPage = () => {
     
     // Show a success message (in a real app)
     alert('File uploaded successfully!');
+  };
+
+  // Render the PrescriptionForm with the patient ID
+  const renderPrescriptionForm = () => (
+    <PrescriptionForm 
+      initialData={prefilledPrescriptionData}
+      onSubmit={handlePrescriptionSubmit}
+      showPrintButton={true}
+      hidePatientDetails={hidePatientDetails}
+      patientInfo={{
+        id: patientInfo.id,
+        patientName: patientInfo.name,
+        age: patientInfo.age,
+        gender: patientInfo.gender,
+        weight: editedVitals.weight,
+      }}
+      // Add custom styling to reduce clutter and add vertical spacing
+      formSx={{
+        '& .MuiGrid-container': { mb: 5 },
+        '& .MuiTableCell-root': { p: 2 },
+        '& .MuiTableContainer-root': { mb: 5 },
+        '& .MuiDivider-root': { my: 5 },
+        '& .MuiButton-root': { mx: 0.5 },
+      }}
+    />
+  );
+
+  // Add state for the past prescriptions modal
+  const [pastPrescriptionsOpen, setPastPrescriptionsOpen] = useState(false);
+  const [isLoadingPrescriptions, setIsLoadingPrescriptions] = useState(false);
+  const [pastPrescriptions, setPastPrescriptions] = useState([]);
+
+  // Add function to handle opening the past prescriptions modal
+  const handleOpenPastPrescriptions = async () => {
+    setIsLoadingPrescriptions(true);
+    try {
+      // Fetch previous prescriptions from the backend
+      const response = await fetch('/api/patients/previous-prescriptions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ patientId: patientInfo.id }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPastPrescriptions(data);
+      } else {
+        console.error('Error fetching previous prescriptions');
+      }
+    } catch (error) {
+      console.error('Error loading previous prescriptions:', error);
+    } finally {
+      setIsLoadingPrescriptions(false);
+    }
+    setPastPrescriptionsOpen(true);
+  };
+
+  // Add function to copy medications from a past prescription
+  const copyMedicationsFromPast = (medications) => {
+    // Implement the logic to copy medications from the past prescription to the current prescription
+    console.log('Copying medications:', medications);
   };
 
   return (
@@ -670,29 +738,7 @@ const ConsultationPage = () => {
         <Divider sx={{ mb: 4 }} />
         
         {/* Prescription Form with more vertical spacing */}
-        <PrescriptionForm 
-          initialData={prefilledPrescriptionData}
-          onSubmit={handlePrescriptionSubmit}
-          showPrintButton={true}
-          hidePatientDetails={hidePatientDetails}
-          patientInfo={{
-            patientName: patientInfo.name,
-            age: patientInfo.age,
-            gender: patientInfo.gender,
-            weight: editedVitals.weight,
-          }}
-          // Add custom styling to reduce clutter and add vertical spacing
-          formSx={{
-            '& .MuiGrid-container': { mb: 5 },
-            '& .MuiTableCell-root': { p: 2 },
-            '& .MuiTableContainer-root': { mb: 5 },
-            '& .MuiDivider-root': { my: 5 },
-            '& .MuiButton-root': { mx: 0.5 },
-            '& .MuiTypography-subtitle1': { mb: 2 },
-            '& .MuiPaper-root': { p: 2, mb: 4 },
-            '& .section-header': { mt: 5, mb: 2 }
-          }}
-        />
+        {renderPrescriptionForm()}
       </Paper>
 
       {/* SECTION 3: Past Appointments */}
@@ -1340,6 +1386,112 @@ const ConsultationPage = () => {
           >
             Upload File
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Past Prescriptions Modal */}
+      <Dialog
+        open={pastPrescriptionsOpen}
+        onClose={() => setPastPrescriptionsOpen(false)}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">Previous Medications</Typography>
+            <IconButton onClick={() => setPastPrescriptionsOpen(false)}>
+              <CancelIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent dividers>
+          {isLoadingPrescriptions ? (
+            <Box display="flex" justifyContent="center" p={3}>
+              <Typography>Loading previous medications...</Typography>
+            </Box>
+          ) : pastPrescriptions.length === 0 ? (
+            <Box display="flex" justifyContent="center" p={3}>
+              <Typography>No previous medications found for this patient.</Typography>
+            </Box>
+          ) : (
+            <Box>
+              {pastPrescriptions.map((prescription, index) => (
+                <Paper key={prescription.id} elevation={0} variant="outlined" sx={{ mb: 2, p: 2 }}>
+                  <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
+                      {new Date(prescription.date).toLocaleDateString()} - {prescription.doctor}
+                    </Typography>
+                  </Box>
+                  
+                  <Box mb={2}>
+                    <Typography variant="subtitle2" gutterBottom>Diagnoses:</Typography>
+                    <List dense>
+                      {prescription.diagnoses.map((diag, i) => (
+                        <ListItem key={i}>
+                          <ListItemText 
+                            primary={diag.diagnosis} 
+                            secondary={`${diag.duration}${diag.notes ? ` - ${diag.notes}` : ''}`} 
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Box>
+                  
+                  <Box mb={2}>
+                    <Typography variant="subtitle2" gutterBottom>Medications:</Typography>
+                    <TableContainer component={Paper} variant="outlined">
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Medicine</TableCell>
+                            <TableCell>Dose</TableCell>
+                            <TableCell>Timing</TableCell>
+                            <TableCell>Frequency</TableCell>
+                            <TableCell>Duration</TableCell>
+                            <TableCell>Notes</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {prescription.medications.map((med, i) => (
+                            <TableRow key={i}>
+                              <TableCell>{med.medicine}</TableCell>
+                              <TableCell>{med.dose}</TableCell>
+                              <TableCell>{med.timing}</TableCell>
+                              <TableCell>{med.frequency}</TableCell>
+                              <TableCell>{med.duration}</TableCell>
+                              <TableCell>{med.notes}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                    
+                    <Box display="flex" justifyContent="flex-end" mt={1}>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        size="small"
+                        startIcon={<ContentCopyIcon />}
+                        onClick={() => copyMedicationsFromPast(prescription.medications)}
+                      >
+                        Copy Medications
+                      </Button>
+                    </Box>
+                  </Box>
+                  
+                  {prescription.instructions && (
+                    <Box>
+                      <Typography variant="subtitle2" gutterBottom>Instructions:</Typography>
+                      <Typography variant="body2">{prescription.instructions}</Typography>
+                    </Box>
+                  )}
+                </Paper>
+              ))}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPastPrescriptionsOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Container>

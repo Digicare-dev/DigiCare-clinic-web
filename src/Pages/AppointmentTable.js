@@ -296,7 +296,8 @@ export default function AppointmentTable() {
             fees_paid: item.fees_paid || 0,
             date: item.date || new Date().toISOString().split('T')[0],
             time: item.time || "09:00 AM",
-            isPlaceholder: false
+            isPlaceholder: false,
+            patientId: item.patientId || item.patient?.id // Preserve patient ID
           };
         });
         
@@ -308,7 +309,7 @@ export default function AppointmentTable() {
       }
     } catch (error) {
       console.error("Error fetching appointments:", error);
-      setRows([]); // Set empty array on error
+      setRows([]);
     } finally {
       setLoading(false);
     }
@@ -581,6 +582,7 @@ export default function AppointmentTable() {
           appointment_type: newEntry.appointment_type,
           mode: newEntry.paid ? newEntry.mode : "",
           fees_paid: newEntry.paid ? newEntry.fees_paid : 0,
+          patientId: result.patientId // Store the patient ID
         };
         
         // Add to rows
@@ -588,7 +590,7 @@ export default function AppointmentTable() {
         
         // Show appropriate success message
         if (newEntry.phone_number) {
-          handleOpenSnackbar("Appointment added successfully and patient profile created. Patient added to queue with token " + newEntry.token);
+          handleOpenSnackbar("Appointment added successfully and patient profile created with past prescriptions. Patient added to queue with token " + newEntry.token);
           
           // Update the global patients state in App.js
           // This will refresh the queue display
@@ -793,9 +795,12 @@ export default function AppointmentTable() {
     // Extract date and time from appointment_id
     const { date, time } = formatAppointmentDateTime(appointment.appointment_id);
     
+    // Log the appointment data for debugging
+    console.log("Appointment clicked:", appointment);
+    
     // Create patient information from the flattened appointment data
     const patientInfo = {
-      id: appointment.id,
+      id: appointment.patientId || appointment.patient?.id || `PT${appointment.id.toString().padStart(3, '0')}`,
       name: `${appointment.firstName} ${appointment.lastName}`.trim(),
       age: appointment.age || '',
       gender: appointment.sex === 'M' ? 'Male' : 
@@ -808,6 +813,9 @@ export default function AppointmentTable() {
       bloodGroup: '',  // Not in the API data
     };
     
+    // Log the patient info for debugging
+    console.log("Patient info being passed to ConsultationPage:", patientInfo);
+    
     // Format appointment information
     const appointmentInfo = {
       id: appointment.appointment_id,
@@ -815,22 +823,19 @@ export default function AppointmentTable() {
       time: time,
       status: mapStatusToReadable(appointment.status),
       type: appointment.appointment_type || 'Consultation',
-      reason: appointment.disease || 'Not specified',
-      token: appointment.token,
-      fees: appointment.fees_paid || 0,
-      paymentMode: appointment.mode || 'Not specified',
-      paid: appointment.paid === true,
-      checkin: appointment.checkin === true,
+      doctor: 'Dr. Smith',
+      fees: appointment.fees_paid || 500,
+      paymentStatus: appointment.paid ? 'Paid' : 'Pending',
+      paymentMode: appointment.mode || 'Cash',
     };
     
-    console.log('Navigating to appointment details with:', { appointmentInfo, patientInfo });
-    
-    // Navigate to appointment details with this data
-    navigate('/appointment-details', {
-      state: {
+    // Navigate to the appointment details page with the patient and appointment info
+    navigate('/consultation', { 
+      state: { 
+        patientInfo, 
         appointmentInfo,
-        patientInfo,
-      }
+        from: 'appointment-table'
+      } 
     });
   };
   

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   TextField,
   Button,
@@ -21,6 +21,17 @@ import {
   TableCell,
   Paper,
   Box,
+  Modal,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  List,
+  ListItem,
+  ListItemText,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from "@mui/material";
 import {
   AddCircleOutline,
@@ -28,6 +39,9 @@ import {
   Cancel as CancelIcon,
   CheckCircle,
   MedicalInformation as MedicalInformationIcon,
+  History as HistoryIcon,
+  ContentCopy as ContentCopyIcon,
+  ExpandMore as ExpandMoreIcon,
 } from "@mui/icons-material";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -289,6 +303,28 @@ export const PrescriptionForm = ({
     { medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false }
     ]
   );
+
+  // Add new state variables for past prescriptions
+  const [pastPrescriptionsOpen, setPastPrescriptionsOpen] = useState(false);
+  const [pastPrescriptions, setPastPrescriptions] = useState([]);
+  const [isLoadingPrescriptions, setIsLoadingPrescriptions] = useState(false);
+
+  // Function to update parent component with current form data
+  const updateParent = () => {
+    if (onSubmit) {
+      // Prepare the complete data to send to parent component
+      const formData = {
+        ...prescription,
+        complaints,
+        diagnoses,
+        medications,
+        signature
+      };
+      
+      // Call the onSubmit function passed as prop
+      onSubmit(formData);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -560,6 +596,58 @@ export const PrescriptionForm = ({
     const updatedDiagnoses = [...diagnoses];
     updatedDiagnoses[index].isEditing = false;
     setDiagnoses(updatedDiagnoses);
+  };
+
+  // Function to load past prescriptions
+  const loadPastPrescriptions = async () => {
+    if (!patientInfo || !patientInfo.id) {
+      console.warn("No patient information available", patientInfo);
+      return;
+    }
+    
+    console.log("Loading prescriptions for patient:", patientInfo);
+    
+    setIsLoadingPrescriptions(true);
+    try {
+      // Import the fetchPastPrescriptions function from the fixed service
+      const { fetchPastPrescriptions } = await import('../services/dummyDataServiceFixed');
+      
+      // Fetch past prescriptions for the patient
+      console.log("Calling fetchPastPrescriptions with ID:", patientInfo.id);
+      const prescriptions = await fetchPastPrescriptions(patientInfo.id);
+      console.log("Fetched prescriptions:", prescriptions);
+      
+      if (prescriptions && prescriptions.length > 0) {
+        setPastPrescriptions(prescriptions);
+      } else {
+        console.warn("No prescriptions returned for patient ID:", patientInfo.id);
+      }
+    } catch (error) {
+      console.error("Error loading past prescriptions:", error);
+    } finally {
+      setIsLoadingPrescriptions(false);
+    }
+    
+    // Open the modal
+    setPastPrescriptionsOpen(true);
+  };
+  
+  // Function to copy medications from a past prescription
+  const copyMedicationsFromPast = (pastMedications) => {
+    // Add isEditing property to each medication
+    const medicationsWithEditing = pastMedications.map(med => ({
+      ...med,
+      isEditing: false
+    }));
+    
+    // Set the medications state
+    setMedications(medicationsWithEditing);
+    
+    // Close the modal
+    setPastPrescriptionsOpen(false);
+    
+    // Update the parent component
+    updateParent();
   };
 
   return (
@@ -958,9 +1046,22 @@ export const PrescriptionForm = ({
             </Grid>
 
             <Grid item xs={12} sx={{ mt: 0, mb: 3 }}>
-              <Typography variant="h6" className="section-header" sx={{ mt: 0, mb: 2 }}>
-                Medications
-              </Typography>
+              <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                <Typography variant="h6" className="section-header" sx={{ mt: 0 }}>
+                  Medications
+                </Typography>
+                
+                {!readOnly && patientInfo && patientInfo.id && (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<HistoryIcon />}
+                    onClick={loadPastPrescriptions}
+                  >
+                    Load Previous
+                  </Button>
+                )}
+              </Box>
               
               <TableContainer component={Paper} className="compact-table" sx={{ mb: 0.5, border: '1px solid rgba(224, 224, 224, 1)' }}>
                 <Table size="small" sx={{ '& .MuiTableCell-root': { borderRight: '1px solid rgba(224, 224, 224, 1)' } }}>
@@ -1219,6 +1320,113 @@ export const PrescriptionForm = ({
           </Box>
         </form>
       </Container>
+
+      {/* Past Prescriptions Modal */}
+      <Dialog
+        open={pastPrescriptionsOpen}
+        onClose={() => setPastPrescriptionsOpen(false)}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">Past Prescriptions</Typography>
+            <IconButton onClick={() => setPastPrescriptionsOpen(false)}>
+              <CancelIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent dividers>
+          {isLoadingPrescriptions ? (
+            <Box display="flex" justifyContent="center" p={3}>
+              <Typography>Loading past prescriptions...</Typography>
+            </Box>
+          ) : pastPrescriptions.length === 0 ? (
+            <Box display="flex" justifyContent="center" p={3}>
+              <Typography>No past prescriptions found for this patient.</Typography>
+            </Box>
+          ) : (
+            <Box>
+              {pastPrescriptions.map((prescription, index) => (
+                <Accordion key={prescription.id}>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <Typography>
+                      <strong>{new Date(prescription.date).toLocaleDateString()}</strong> - {prescription.doctor}
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Box mb={2}>
+                      <Typography variant="subtitle2" gutterBottom>Diagnoses:</Typography>
+                      <List dense>
+                        {prescription.diagnoses.map((diag, i) => (
+                          <ListItem key={i}>
+                            <ListItemText 
+                              primary={diag.diagnosis} 
+                              secondary={`${diag.duration}${diag.notes ? ` - ${diag.notes}` : ''}`} 
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Box>
+                    
+                    <Box mb={2}>
+                      <Typography variant="subtitle2" gutterBottom>Medications:</Typography>
+                      <TableContainer component={Paper} variant="outlined">
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>Medicine</TableCell>
+                              <TableCell>Dose</TableCell>
+                              <TableCell>Timing</TableCell>
+                              <TableCell>Frequency</TableCell>
+                              <TableCell>Duration</TableCell>
+                              <TableCell>Notes</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {prescription.medications.map((med, i) => (
+                              <TableRow key={i}>
+                                <TableCell>{med.medicine}</TableCell>
+                                <TableCell>{med.dose}</TableCell>
+                                <TableCell>{med.timing}</TableCell>
+                                <TableCell>{med.frequency}</TableCell>
+                                <TableCell>{med.duration}</TableCell>
+                                <TableCell>{med.notes}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                      
+                      <Box display="flex" justifyContent="flex-end" mt={1}>
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          size="small"
+                          startIcon={<ContentCopyIcon />}
+                          onClick={() => copyMedicationsFromPast(prescription.medications)}
+                        >
+                          Copy Medications
+                        </Button>
+                      </Box>
+                    </Box>
+                    
+                    {prescription.instructions && (
+                      <Box>
+                        <Typography variant="subtitle2" gutterBottom>Instructions:</Typography>
+                        <Typography variant="body2">{prescription.instructions}</Typography>
+                      </Box>
+                    )}
+                  </AccordionDetails>
+                </Accordion>
+              ))}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPastPrescriptionsOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </LocalizationProvider>
   );
 };

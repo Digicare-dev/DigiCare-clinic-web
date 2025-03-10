@@ -476,10 +476,13 @@ export const dummyAddAppointment = (payload) => {
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
       
+      // Default patient ID (if no phone number provided)
+      let patientId = null;
+      
       // Create a new patient profile if phone number is provided
       if (payload.phone_number) {
         // Generate a unique patient ID
-        const patientId = `PT${String(patientProfiles.length + 1).padStart(3, '0')}`;
+        patientId = `PT${String(patientProfiles.length + 1).padStart(3, '0')}`;
         
         // Create new patient profile
         const newPatientProfile = {
@@ -503,6 +506,46 @@ export const dummyAddAppointment = (payload) => {
         // Add to patient profiles
         patientProfiles.push(newPatientProfile);
         
+        // Create past prescriptions for the new patient
+        const pastDate1 = new Date();
+        pastDate1.setDate(pastDate1.getDate() - 30); // 30 days ago
+        
+        const pastDate2 = new Date();
+        pastDate2.setDate(pastDate2.getDate() - 90); // 90 days ago
+        
+        // Create dummy past prescriptions for the new patient
+        const newPatientPrescriptions = [
+          {
+            id: `PRESC_${patientId}_1`,
+            date: pastDate1.toISOString().split('T')[0],
+            doctor: "Dr. Johnson",
+            diagnoses: [
+              { diagnosis: payload.disease || "General Checkup", duration: "2 weeks", notes: "Initial diagnosis" }
+            ],
+            medications: [
+              { medicine: "Paracetamol", dose: "500mg", timing: "After meals", frequency: "Three times daily", duration: "7 days", notes: "For fever and pain" },
+              { medicine: "Vitamin C", dose: "1000mg", timing: "Morning", frequency: "Once daily", duration: "30 days", notes: "Immunity booster" }
+            ],
+            instructions: "Rest well. Drink plenty of fluids. Follow up in 2 weeks."
+          },
+          {
+            id: `PRESC_${patientId}_2`,
+            date: pastDate2.toISOString().split('T')[0],
+            doctor: "Dr. Smith",
+            diagnoses: [
+              { diagnosis: "Seasonal Allergies", duration: "Seasonal", notes: "Triggered by pollen" }
+            ],
+            medications: [
+              { medicine: "Cetirizine", dose: "10mg", timing: "Night", frequency: "Once daily", duration: "14 days", notes: "For allergic symptoms" },
+              { medicine: "Nasal Spray", dose: "2 sprays", timing: "Morning and Night", frequency: "Twice daily", duration: "14 days", notes: "For nasal congestion" }
+            ],
+            instructions: "Avoid allergens. Use air purifier if possible. Return if symptoms worsen."
+          }
+        ];
+        
+        // Add the prescriptions to the dummyPastPrescriptions object
+        dummyPastPrescriptions[patientId] = newPatientPrescriptions;
+        
         // Create new patient for queue
         const newPatient = {
           appointment: {
@@ -519,6 +562,7 @@ export const dummyAddAppointment = (payload) => {
           status: "pending",
           position: dummyPatients.length + 1,
           patient: {
+            id: patientId,
             age: payload.age || 30,
             gender: payload.gender || "Not specified",
             phone_number: payload.phone_number,
@@ -543,12 +587,14 @@ export const dummyAddAppointment = (payload) => {
           date: new Date().toISOString().split('T')[0],
           time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
           patient: {
+            id: patientId,
             age: payload.age || 30,
             gender: payload.gender?.charAt(0) || "Not specified",
             phone_number: payload.phone_number,
             location: payload.location || "Not provided",
             guardian: payload.guardian || "NULL"
-          }
+          },
+          patientId: patientId
         };
         
         // Add to appointment table data
@@ -566,7 +612,8 @@ export const dummyAddAppointment = (payload) => {
           appointment_type: payload.appointment_type || "Consultation",
           fees_paid: payload.fees_paid || 500,
           mode: payload.mode || "cash"
-        }
+        },
+        patientId: patientId
       });
     }, 1000);
   });
@@ -958,4 +1005,117 @@ export const patientProfiles = [
     registrationDate: "2023-01-20",
     lastVisit: "2024-02-25"
   }
-]; 
+];
+
+// Dummy past prescriptions data for patients
+export const dummyPastPrescriptions = {
+  // Patient IDs as keys
+  "PT001": [
+    {
+      id: "PRESC001",
+      date: "2024-02-15",
+      doctor: "Dr. Smith",
+      diagnoses: [
+        { diagnosis: "Hypertension", duration: "Chronic", notes: "Monitor regularly" },
+        { diagnosis: "Seasonal Allergies", duration: "2 weeks", notes: "Triggered by pollen" }
+      ],
+      medications: [
+        { medicine: "Amlodipine", dose: "5mg", timing: "Morning", frequency: "Once daily", duration: "30 days", notes: "Take after breakfast" },
+        { medicine: "Cetirizine", dose: "10mg", timing: "Night", frequency: "Once daily", duration: "14 days", notes: "Take if allergies worsen" }
+      ],
+      instructions: "Avoid salty foods. Stay hydrated. Follow up in 1 month."
+    },
+    {
+      id: "PRESC002",
+      date: "2024-01-10",
+      doctor: "Dr. Johnson",
+      diagnoses: [
+        { diagnosis: "Common Cold", duration: "1 week", notes: "Viral infection" }
+      ],
+      medications: [
+        { medicine: "Paracetamol", dose: "500mg", timing: "As needed", frequency: "Up to 4 times daily", duration: "5 days", notes: "For fever and pain" },
+        { medicine: "Vitamin C", dose: "1000mg", timing: "Morning", frequency: "Once daily", duration: "10 days", notes: "To boost immunity" },
+        { medicine: "Chlorpheniramine", dose: "4mg", timing: "Night", frequency: "Once daily", duration: "5 days", notes: "For runny nose" }
+      ],
+      instructions: "Rest well. Drink plenty of fluids. Avoid cold beverages."
+    }
+  ],
+  "PT002": [
+    {
+      id: "PRESC003",
+      date: "2024-03-01",
+      doctor: "Dr. Williams",
+      diagnoses: [
+        { diagnosis: "Asthma exacerbation", duration: "Acute", notes: "Triggered by recent weather change" }
+      ],
+      medications: [
+        { medicine: "Salbutamol", dose: "2 puffs", timing: "As needed", frequency: "Up to 4 times daily", duration: "PRN", notes: "For breathlessness" },
+        { medicine: "Prednisolone", dose: "20mg", timing: "Morning", frequency: "Once daily", duration: "5 days", notes: "Tapering dose" },
+        { medicine: "Montelukast", dose: "10mg", timing: "Night", frequency: "Once daily", duration: "30 days", notes: "Continue regular medication" }
+      ],
+      instructions: "Avoid triggers. Use peak flow meter daily. Follow up in 2 weeks."
+    }
+  ],
+  "PT003": [
+    {
+      id: "PRESC004",
+      date: "2024-02-20",
+      doctor: "Dr. Brown",
+      diagnoses: [
+        { diagnosis: "Bacterial Sinusitis", duration: "10 days", notes: "Severe congestion" }
+      ],
+      medications: [
+        { medicine: "Amoxicillin", dose: "500mg", timing: "After meals", frequency: "Three times daily", duration: "10 days", notes: "Complete full course" },
+        { medicine: "Pseudoephedrine", dose: "60mg", timing: "Morning and Night", frequency: "Twice daily", duration: "7 days", notes: "For nasal congestion" }
+      ],
+      instructions: "Steam inhalation twice daily. Complete full course of antibiotics."
+    }
+  ],
+  // Default prescriptions for any new patient
+  "DEFAULT": [
+    {
+      id: "PRESC_DEFAULT_1",
+      date: "2024-02-10",
+      doctor: "Dr. Default",
+      diagnoses: [
+        { diagnosis: "General Checkup", duration: "N/A", notes: "Routine examination" }
+      ],
+      medications: [
+        { medicine: "Multivitamin", dose: "1 tablet", timing: "Morning", frequency: "Once daily", duration: "30 days", notes: "With breakfast" },
+        { medicine: "Vitamin D", dose: "1000 IU", timing: "Morning", frequency: "Once daily", duration: "30 days", notes: "For deficiency" }
+      ],
+      instructions: "Maintain healthy diet and exercise regularly."
+    }
+  ]
+};
+
+// Function to fetch past prescriptions for a patient
+export const fetchPastPrescriptions = (patientId) => {
+  console.log("fetchPastPrescriptions called with patientId:", patientId);
+  
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      // Try to get prescriptions for the specific patient ID
+      let prescriptions = dummyPastPrescriptions[patientId];
+      
+      // If no prescriptions found and it's not the DEFAULT key itself
+      if ((!prescriptions || prescriptions.length === 0) && patientId !== "DEFAULT") {
+        // Use the default prescriptions but customize them for this patient
+        const defaultPrescriptions = JSON.parse(JSON.stringify(dummyPastPrescriptions["DEFAULT"]));
+        
+        // Customize the prescriptions for this patient
+        defaultPrescriptions.forEach(prescription => {
+          prescription.id = `PRESC_${patientId}_${Math.floor(Math.random() * 1000)}`;
+        });
+        
+        prescriptions = defaultPrescriptions;
+        
+        // Store these prescriptions for future use
+        dummyPastPrescriptions[patientId] = prescriptions;
+      }
+      
+      console.log("Returning prescriptions:", prescriptions);
+      resolve(prescriptions || []);
+    }, 500);
+  });
+}; 
