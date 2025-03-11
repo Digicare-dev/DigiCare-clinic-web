@@ -20,6 +20,7 @@ import MobileAppointmentTable from "./Pages/MobileAppointmentTable";
 import PastAppointmentsPage from "./Pages/PastAppointments";
 import { Navigate } from "react-router-dom";
 
+
 import PrescriptionTablePage from "./Pages/Prescriptiondemo";
 
 import AppointmentDetails from "./Pages/AppointmentDetails";
@@ -36,17 +37,20 @@ import {
 import { ThemeProvider } from '@mui/material/styles';
 import { theme } from './theme/theme';
 import Dashboard from './Pages/Dashboard';
-import { getLatestCabinSlot } from './utils/dateUtils';
+import { getLatestCabinSlot, getCabinInfoFromUser } from './utils/dateUtils';
 import PatientInfoPage from './Pages/PatientInfoPage';
 import ConsultationPage from './Pages/ConsultationPage';
-import DemoBanner from './components/DemoBanner';
 import PDFViewer from './components/PDFViewer';
 import usePDFViewer from './hooks/usePDFViewer';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 const App = () => {
-  const { user } = useContext(AuthContext);
+  const user = JSON.parse(localStorage.getItem("user"));
+  
+  // Extract cabin information using the new utility function
+  const { cabinId, selectedSlot } = getCabinInfoFromUser(user);
+  
   const isMobile = window.innerWidth <= 768;
   const [currentPosition, setCurrentPosition] = useState(1);
   const [patients, setPatients] = useState([]);
@@ -54,6 +58,9 @@ const App = () => {
   const [loading, setLoading] = useState(false);
   const [currentCabinSlot, setCurrentCabinSlot] = useState("2024-03-10T09:00:00.000Z");
   const { pdfViewerState, openPdfViewer, closePdfViewer } = usePDFViewer();
+  
+  // Declare eventSource at component level
+  let eventSource;
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -63,11 +70,12 @@ const App = () => {
         const { fetchDummyPatients, fetchDummyCurrentPosition } = await import('./services/dummyDataService');
         
         // Fetch dummy patients
-        const dummyPatients = await fetchDummyPatients();
+        const dummyPatients = await fetchPatients(cabinId, selectedSlot);
+        console.log(dummyPatients);
         setPatients(dummyPatients);
         
         // Fetch dummy current position
-        const { current_number } = await fetchDummyCurrentPosition();
+        const { current_number } = await fetchCurrentPosition(cabinId, selectedSlot);
         setCurrentPosition(current_number);
       } catch (error) {
         console.error("Error loading dummy data:", error);
@@ -79,7 +87,7 @@ const App = () => {
     if (user) {
       fetchInitialData();
     }
-  }, [user]);
+  }, [cabinId]);
 
   useEffect(() => {
     if (patients.length > 0 && currentPosition !== null) {
@@ -126,6 +134,75 @@ const App = () => {
     return () => clearInterval(updateInterval);
   }, [user, patients]);
 
+  // Add SSE for real-time queue updates
+  useEffect(() => {
+    if (!cabinId || loading) return;
+
+    const date = new Date(selectedSlot);
+    const formattedDate = date
+      .toISOString()
+      .replace(".000", "")
+      .replace("T", " ")
+      .replace("Z", "+00:00");
+    const encodedDate = encodeURIComponent(formattedDate);
+    const sseUrl = `${API_BASE_URL}/doctorinfo/queue_updates/${cabinId}/${encodedDate}`;
+
+    eventSource = new EventSource(sseUrl, { withCredentials: true });
+
+    eventSource.onmessage = (event) => {
+      try {
+        const parsedData = JSON.parse(event.data);
+
+        // console.log("SSE Data:", parsedData);
+
+        if (parsedData.queue) {
+          // Assuming the update is the whole patients array
+          setPatients((prevPatients) => {
+            // Find if the patient already exists
+            const existingIndex = prevPatients.findIndex(
+              (p) =>
+                p.appointment.appointment_id ===
+                parsedData.queue.appointment.appointment_id
+            );
+
+            // Create updated patient object with defaults
+            const updatedPatient = {
+              ...parsedData.queue,
+              paid: parsedData.queue.paid || false,
+              checkin: parsedData.queue.checkin || false,
+              status: parsedData.queue.status || "pending",
+              position: parsedData.queue.position,
+            };
+
+            const newPatients = [...prevPatients];
+            if (existingIndex !== -1) {
+              newPatients[existingIndex] = updatedPatient;
+            } else {
+              newPatients.push(updatedPatient);
+            }
+            return newPatients.sort((a, b) => a.position - b.position);
+          });
+        } else if (parsedData.cabinslot) {
+          setCurrentPosition(parsedData.cabinslot.current_number);
+        }
+      } catch (error) {
+        // console.error("Error parsing SSE data:", error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      // console.error("EventSource failed:", error);
+      eventSource.close();
+    };
+
+    return () => {
+      if (eventSource) {
+        eventSource.close();
+        // console.log("SSE connection cleaned up");
+      }
+    };
+  }, [cabinId]);
+
   const fetchPatientsData = useCallback(async () => {
     setLoading(true);
     try {
@@ -164,28 +241,7 @@ const App = () => {
     const { dummyMarkPatientAsDone } = await import('./services/dummyDataService');
     
     // Mark patient as done
-    const result = await dummyMarkPatientAsDone(id);
-    
-    // Update local state
-    if (result.success) {
-      // Find the patient with the given appointment ID
-      const patientIndex = patients.findIndex(p => p.appointment.appointment_id === id);
-      
-      if (patientIndex !== -1) {
-        const updatedPatients = [...patients];
-        updatedPatients[patientIndex] = {
-          ...updatedPatients[patientIndex],
-          status: "done_checkup"
-        };
-        
-        setPatients(updatedPatients);
-        
-        // Move to next patient
-        if (currentPosition < patients.length) {
-          setCurrentPosition(currentPosition + 1);
-        }
-      }
-    }
+    const result = await markPatientAsDone(id);
     
     return result;
   };
@@ -195,23 +251,7 @@ const App = () => {
     const { dummyMarkPatientAsLate } = await import('./services/dummyDataService');
     
     // Mark patient as late
-    const result = await dummyMarkPatientAsLate(id);
-    
-    // Update local state
-    if (result.success) {
-      // Find the patient with the given appointment ID
-      const patientIndex = patients.findIndex(p => p.appointment.appointment_id === id);
-      
-      if (patientIndex !== -1) {
-        const updatedPatients = [...patients];
-        updatedPatients[patientIndex] = {
-          ...updatedPatients[patientIndex],
-          status: "late"
-        };
-        
-        setPatients(updatedPatients);
-      }
-    }
+    const result = await markPatientAsLate(id);
     
     return result;
   };
@@ -221,38 +261,8 @@ const App = () => {
     const { dummyShufflePatientPosition } = await import('./services/dummyDataService');
     
     // Shuffle patient position
-    const result = await dummyShufflePatientPosition(payload);
+    const result = await shufflePatientPosition(payload);
     
-    // Update local state
-    if (result.success) {
-      // Find the patient with the given appointment ID
-      const patientIndex = patients.findIndex(p => p.appointment.appointment_id === payload.appointment_id);
-      const targetPosition = payload.new_position;
-      
-      if (patientIndex !== -1) {
-        const updatedPatients = [...patients];
-        
-        // Update positions
-        const oldPosition = updatedPatients[patientIndex].position;
-        
-        // Update all patients' positions accordingly
-        updatedPatients.forEach(patient => {
-          if (oldPosition < targetPosition && patient.position > oldPosition && patient.position <= targetPosition) {
-            patient.position--;
-          } else if (oldPosition > targetPosition && patient.position < oldPosition && patient.position >= targetPosition) {
-            patient.position++;
-          }
-        });
-        
-        // Update the moved patient's position
-        updatedPatients[patientIndex].position = targetPosition;
-        
-        // Sort by position
-        updatedPatients.sort((a, b) => a.position - b.position);
-        
-        setPatients(updatedPatients);
-      }
-    }
   };
 
   const addNewAppointment = async (pid, disease, appointmentType) => {
@@ -439,8 +449,7 @@ const App = () => {
           </Box>
           {user !== null && isMobile && <BottomNavigator />}
           
-          {/* Add Demo Banner */}
-          <DemoBanner />
+          {/* Remove Demo Banner */}
           
           {/* Add PDF Viewer */}
           <PDFViewer 

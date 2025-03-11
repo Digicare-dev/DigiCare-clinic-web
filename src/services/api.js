@@ -167,3 +167,59 @@ export const searchPatients = async (cabinId, slot, searchTerm) => {
     throw error;
   }
 };
+
+
+export const getAppointmentDetails = async (appointmentId) => {
+  try {
+    const response = await axiosInstance.get(
+      `/queueinfo/appointments/${appointmentId}/details/`,
+      { withCredentials: true }
+    )
+    debugger;
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching appointment details:", error);
+    throw error;
+  }
+};
+
+export const getPatientDetails = async (patientId) => {
+  try {
+    const response = await axiosInstance.get(
+      `/userinfo/patients/details/`,
+      { patient_id: patientId },
+      { withCredentials: true } 
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching patient details:", error);
+    throw error;
+  }
+};
+
+export const getPrescription = async (appointmentId) => {
+  try {
+    const response = await axiosInstance.get(
+      `/prescriptions/${appointmentId}`,
+      { withCredentials: true }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching prescription:", error);
+    throw error;
+  }
+};
+
+export const getPastPrescriptions = async (patient_id, cabin_id) => {
+  try {
+    const response = await axiosInstance.post(
+      `/prescriptions/list/`,
+      { patient_id: patient_id, cabin_id: cabin_id },
+      { withCredentials: true }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching past prescriptions:", error);
+    throw error;
+  }
+};

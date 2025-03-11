@@ -22,6 +22,18 @@ import {
   TableBody,
   TableRow,
   TableCell,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormControlLabel,
+  Checkbox,
+  ToggleButtonGroup,
+  ToggleButton,
+  CircularProgress,
+  DialogActions,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   CalendarToday,
@@ -51,6 +63,7 @@ import { Layout } from '../components/Layout';
 import { PageHeader } from '../components/common/PageHeader';
 import ReportLink from '../components/ReportLink';
 import dayjs from 'dayjs';
+import { getAppointmentDetails, updateAppointmentDetails, removeAppointment } from '../services/api';
 
 const AppointmentDetails = () => {
   const location = useLocation();
@@ -61,45 +74,80 @@ const AppointmentDetails = () => {
   const [prescriptionModalOpen, setPrescriptionModalOpen] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState(null);
   
+  // Add states for edit modal
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isCanceling, setIsCanceling] = useState(false);
+  const [cancelConfirmationOpen, setCancelConfirmationOpen] = useState(false);
+  
+  // Add snackbar state
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
+  
+  const fetchAppointmentDetails = async (appointmentId) => {
+    try {
+      const response = await getAppointmentDetails(appointmentId);
+      console.log('API Response:', response);
+      
+      if (response) {
+        // Extract patient info from the nested patient object
+        const extractedPatientInfo = {
+          id: response.patient.patient_id,
+          name: response.patient.name,
+          phone: response.patient.phone_number,
+          age: response.patient.age,
+          gender: response.patient.gender,
+          location: response.patient.location,
+          guardian: response.patient.guardian
+        };
+        
+        // Extract appointment info from the response
+        const extractedAppointmentInfo = {
+          id: response.appointment_id,
+          status: response.status,
+          checkin: response.checkin,
+          paid: response.paid,
+          token: response.token,
+          appointment_type: response.appointment_type,
+          disease: response.disease,
+          fees_paid: response.fees_paid,
+          mode: response.mode
+        };
+        
+        setPatientInfo(extractedPatientInfo);
+        setAppointmentInfo(extractedAppointmentInfo);
+      }
+    } catch (error) {
+      console.error('Error fetching appointment details:', error);
+    }
+  };
+
   useEffect(() => {
     // Get data from location state or fetch from API if available
     if (location.state) {
-      const { appointmentInfo, patientInfo, fromPastAppointments } = location.state;
+      const { appointmentInfo, fromPastAppointments } = location.state;
       
-      // Check if appointmentInfo exists
-      if (appointmentInfo) {
-        setAppointmentInfo(appointmentInfo);
+      if (appointmentInfo && appointmentInfo.id) {
+        // Fetch from API using the ID from location state
+        fetchAppointmentDetails(appointmentInfo.id);
+        setIsFromPastAppointments(fromPastAppointments || false);
       } else {
-        console.error('No appointment information provided');
+        console.error('No appointment ID provided');
       }
-      
-      // Check if patientInfo exists
-      if (patientInfo) {
-        setPatientInfo(patientInfo);
-      } else {
-        console.error('No patient information provided');
-        // Create a default patient info object to prevent errors
-        setPatientInfo({
-          id: 'unknown',
-          name: 'Unknown Patient',
-          age: '',
-          gender: '',
-          phone: '',
-          location: '',
-          guardianName: '',
-          email: '',
-        });
-      }
-      
-      setIsFromPastAppointments(fromPastAppointments || false);
-      
-      console.log('Received appointment data:', appointmentInfo);
-      console.log('Received patient data:', patientInfo);
-      console.log('From past appointments:', fromPastAppointments);
     } else {
-      // If no state is passed, you could fetch appointment data
-      console.log('No state data received, would need to fetch appointment details');
-      // fetchAppointmentDetails(appointmentId);
+      // If no location state, try to get ID from URL params
+      const params = new URLSearchParams(location.search);
+      const appointmentId = params.get('id');
+      
+      if (appointmentId) {
+        fetchAppointmentDetails(appointmentId);
+      } else {
+        console.error('No appointment ID provided in location state or URL');
+      }
     }
   }, [location]);
 
@@ -107,11 +155,7 @@ const AppointmentDetails = () => {
   if (!appointmentInfo) {
     return (
       <Layout>
-        <PageHeader title="Appointment Details" breadcrumbs={[
-          { text: 'Dashboard', href: '/' },
-          { text: 'Appointments', href: '/appointments' },
-          { text: 'Appointment Details' }
-        ]} />
+        <PageHeader title="Appointment Details" />
         <Box sx={{ p: 3, textAlign: 'center' }}>
           Loading appointment details...
         </Box>
@@ -517,7 +561,7 @@ const AppointmentDetails = () => {
             <div class="payment-details">
               <div class="detail-row"><span class="label">Appointment ID:</span> ${appointmentInfo.id}</div>
               <div class="detail-row"><span class="label">Appointment Date:</span> ${appointmentInfo.date}</div>
-              <div class="detail-row"><span class="label">Payment Method:</span> ${appointmentInfo.paymentMode || 'Cash'}</div>
+              <div class="detail-row"><span class="label">Payment Method:</span> ${appointmentInfo.mode || 'Cash'}</div>
               <div class="detail-row"><span class="label">Payment Status:</span> ${appointmentInfo.paid ? 'Paid' : 'Unpaid'}</div>
             </div>
           </div>
@@ -533,18 +577,18 @@ const AppointmentDetails = () => {
             </thead>
             <tbody>
               <tr>
-                <td>${appointmentInfo.type || 'Consultation'} - ${appointmentInfo.reason || 'General Checkup'}</td>
+                <td>${appointmentInfo.appointment_type || 'Consultation'} - ${appointmentInfo.disease || 'General Checkup'}</td>
                 <td>${appointmentInfo.doctor || 'Dr. Smith'}</td>
                 <td>${appointmentInfo.department || 'General Medicine'}</td>
-                <td>₹${appointmentInfo.fees}</td>
+                <td>₹${appointmentInfo.fees_paid}</td>
               </tr>
             </tbody>
           </table>
           
           <div class="amount-row">
-            <div class="detail-row"><span class="label">Subtotal:</span> ₹${appointmentInfo.fees}</div>
+            <div class="detail-row"><span class="label">Subtotal:</span> ₹${appointmentInfo.fees_paid}</div>
             <div class="detail-row"><span class="label">Tax (0%):</span> ₹0</div>
-            <div class="detail-row"><span class="label">Total Amount:</span> ₹${appointmentInfo.fees}</div>
+            <div class="detail-row"><span class="label">Total Amount:</span> ₹${appointmentInfo.fees_paid}</div>
           </div>
           
           <div class="paid-stamp">
@@ -579,17 +623,130 @@ const AppointmentDetails = () => {
     };
   };
 
+  // Add function to handle opening the edit modal
+  const handleOpenEditModal = () => {
+    // Create an object in the format expected by the edit modal
+    const appointmentToEdit = {
+      appointment_id: appointmentInfo.id,
+      token: appointmentInfo.token || '',
+      firstName: patientInfo?.name?.split(' ')[0] || '',
+      lastName: patientInfo?.name?.split(' ').slice(1).join(' ') || '',
+      checkin: appointmentInfo.checkin,
+      paid: appointmentInfo.paid,
+      status: appointmentInfo.status || 'Pending',
+      disease: appointmentInfo.disease || '',
+      age: patientInfo?.age || '',
+      phone_number: patientInfo?.phone || '',
+      location: patientInfo?.location || '',
+      sex: patientInfo?.gender?.charAt(0) || '',
+      guardian: patientInfo?.guardian || '',
+      appointment_type: appointmentInfo.appointment_type || '',
+      fees_paid: appointmentInfo.fees_paid || 0,
+      mode: appointmentInfo.mode || '',
+    };
+    
+    setSelectedAppointment(appointmentToEdit);
+    setEditModalOpen(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setEditModalOpen(false);
+    setSelectedAppointment(null);
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setSelectedAppointment((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSexChange = (event, newSex) => {
+    setSelectedAppointment((prev) => ({
+      ...prev,
+      sex: newSex || "",
+    }));
+  };
+
+  const handleUpdateAppointment = async () => {
+    if (!selectedAppointment) return;
+    setIsUpdating(true);
+    try {
+      // Prepare data for update
+      const updateData = {
+        token: selectedAppointment.token,
+        appointment_id: selectedAppointment.appointment_id,
+        name: `${selectedAppointment.firstName} ${selectedAppointment.lastName}`.trim().toUpperCase(),
+        checkin: selectedAppointment.checkin,
+        paid: selectedAppointment.paid,
+        status: selectedAppointment.status,
+        disease: selectedAppointment.disease,
+        age: selectedAppointment.age,
+        phone_number: selectedAppointment.phone_number,
+        location: selectedAppointment.location,
+        gender: selectedAppointment.sex || null,
+        guardian: `${selectedAppointment.guardian}`.toUpperCase(),
+        appointment_type: selectedAppointment.appointment_type,
+        mode: selectedAppointment.mode || "",
+        fees_paid: selectedAppointment.fees_paid || 0,
+      };
+      
+      await updateAppointmentDetails(updateData);
+      
+      // Refresh appointment details
+      fetchAppointmentDetails(appointmentInfo.id);
+      
+      // Close modal
+      handleCloseEditModal();
+    } catch (error) {
+      console.error("Error updating appointment:", error);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // Snackbar handlers
+  const handleOpenSnackbar = (message, severity = "success") => {
+    setSnackbar({ open: true, message, severity });
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
+
+  const handleCancelAppointment = async () => {
+    setIsCanceling(true);
+    try {
+      // Call the API to cancel the appointment
+      await removeAppointment({
+        appointment_id: appointmentInfo.id
+      });
+      
+      // Show success message
+      handleOpenSnackbar("Appointment cancelled successfully");
+      
+      // Close the dialogs
+      setCancelConfirmationOpen(false);
+      setEditModalOpen(false);
+      
+      // Navigate back to the appointment list
+      navigate(-1);
+    } catch (error) {
+      console.error("Error cancelling appointment:", error);
+      // Show error message
+      handleOpenSnackbar("Failed to cancel appointment", "error");
+    } finally {
+      setIsCanceling(false);
+    }
+  };
+
   return (
     <Layout>
       {/* Page Header with integrated Back Button */}
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, flexWrap: 'wrap' }}>
         <PageHeader 
           title="Appointment Details" 
-          breadcrumbs={[
-            { text: 'Dashboard', href: '/' },
-            { text: isFromPastAppointments ? 'Past Appointments' : 'Appointments', href: isFromPastAppointments ? '/past-appointments' : '/appointments' },
-            { text: 'Appointment Details' }
-          ]}
           showBackButton={true}
           backButtonVariant="icon"
           onBackButtonClick={handleBack}
@@ -597,24 +754,12 @@ const AppointmentDetails = () => {
       
         {/* Action Buttons moved to the top */}
         <Box sx={{ display: 'flex', gap: 2, ml: 'auto', mt: { xs: 2, md: 0 } }}>
-          {!isFromPastAppointments && appointmentInfo.status !== 'completed' && (
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<MedicalServices />}
-              onClick={() => navigate('/consultation', { 
-                state: { patientInfo, appointmentInfo } 
-              })}
-            >
-              Start Consultation
-            </Button>
-          )}
           
           {!isFromPastAppointments && (
             <Button
               variant="outlined"
               startIcon={<Edit />}
-              onClick={() => {/* Handle edit */}}
+              onClick={handleOpenEditModal}
             >
               Edit Appointment
             </Button>
@@ -626,7 +771,7 @@ const AppointmentDetails = () => {
               variant="outlined"
               color="error"
               startIcon={<Cancel />}
-              onClick={() => {/* Handle cancel */}}
+              onClick={() => setCancelConfirmationOpen(true)}
             >
               Cancel Appointment
             </Button>
@@ -675,7 +820,7 @@ const AppointmentDetails = () => {
                 <Box>
                   <Typography variant="h6">{patientInfo.name || 'Unknown Patient'}</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    ID: {patientInfo.id || 'Unknown'} | {patientInfo.age ? `${patientInfo.age} years` : 'Age not available'}, {patientInfo.gender || 'Gender not specified'}
+                    ID: {patientInfo.id || 'Unknown'} | {patientInfo.age!=="" ? `${patientInfo.age} years` : 'Age not available'}, {patientInfo.gender || 'Gender not specified'}
                   </Typography>
                 </Box>
                 <Button 
@@ -729,12 +874,12 @@ const AppointmentDetails = () => {
                   </Grid>
                 )}
                 
-                {patientInfo.guardianName && (
+                {patientInfo.guardian && (
                   <Grid item xs={12} sm={6} md={4}>
                     <TextField
                       fullWidth
                       label="Guardian Name"
-                      value={patientInfo.guardianName}
+                      value={patientInfo.guardian}
                       InputProps={{ readOnly: true }}
                       variant="outlined"
                       size="small"
@@ -757,28 +902,28 @@ const AppointmentDetails = () => {
             <Grid item xs={12} sm={6} md={4}>
               <Box sx={{ mb: 2 }}>
                 <Typography variant="subtitle2" color="text.secondary">
-                  Date
+                  Appointment Date
                 </Typography>
                 <Typography variant="body1">
                   {appointmentInfo.date || 'Not scheduled'}
                 </Typography>
               </Box>
               
-              <Box sx={{ mb: 2 }}>
+              {/* <Box sx={{ mb: 2 }}>
                 <Typography variant="subtitle2" color="text.secondary">
                   Time
                 </Typography>
                 <Typography variant="body1">
                   {appointmentInfo.time || 'Time not set'}
                 </Typography>
-              </Box>
+              </Box> */}
               
               <Box sx={{ mb: 2 }}>
                 <Typography variant="subtitle2" color="text.secondary">
                   Appointment Type
                 </Typography>
                 <Typography variant="body1">
-                  {appointmentInfo.type || 'General Checkup'}
+                  {appointmentInfo.appointment_type || 'General Checkup'}
                 </Typography>
               </Box>
             </Grid>
@@ -789,7 +934,7 @@ const AppointmentDetails = () => {
                   Reason for Visit
                 </Typography>
                 <Typography variant="body1">
-                  {appointmentInfo.reason || 'Not specified'}
+                  {appointmentInfo.disease || 'Not specified'}
                 </Typography>
               </Box>
               
@@ -821,14 +966,14 @@ const AppointmentDetails = () => {
             </Grid>
             
             <Grid item xs={12} sm={6} md={4}>
-              {appointmentInfo.fees > 0 && (
+              {appointmentInfo.fees_paid > 0 && (
                 <>
                   <Box sx={{ mb: 2 }}>
                     <Typography variant="subtitle2" color="text.secondary">
                       Amount
                     </Typography>
                     <Typography variant="body1">
-                      ₹{appointmentInfo.fees}
+                      ₹{appointmentInfo.fees_paid}
                     </Typography>
                   </Box>
                   
@@ -837,7 +982,7 @@ const AppointmentDetails = () => {
                       Payment Method
                     </Typography>
                     <Typography variant="body1">
-                      {appointmentInfo.paymentMode || 'Not specified'}
+                      {appointmentInfo.mode || 'Not specified'}
                     </Typography>
                   </Box>
                   
@@ -921,12 +1066,12 @@ const AppointmentDetails = () => {
             </Grid>
           </Box>
           
-          {appointmentInfo.notes && (
+          {appointmentInfo.checkin && (
             <Box sx={{ mt: 2, p: 2, backgroundColor: '#f9f9f9', borderRadius: 1 }}>
               <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                Additional Notes
+                Check-in Time
               </Typography>
-              <Typography variant="body1">{appointmentInfo.notes}</Typography>
+              <Typography variant="body1">{appointmentInfo.checkin}</Typography>
             </Box>
           )}
         </Box>
@@ -1093,6 +1238,269 @@ const AppointmentDetails = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Edit Appointment Modal */}
+      <Dialog
+        open={editModalOpen}
+        onClose={handleCloseEditModal}
+        fullWidth
+        maxWidth="md"
+        PaperProps={{
+          sx: {
+            width: "600px",
+            maxWidth: "90vw",
+            borderRadius: 2,
+            p: 3,
+          }
+        }}
+      >
+        <DialogTitle sx={{ position: "relative", pr: 6, p: 0, mb: 2 }}>
+          <Typography variant="h5">Edit Appointment</Typography>
+          <IconButton
+            aria-label="close"
+            onClick={handleCloseEditModal}
+            sx={{
+              position: "absolute",
+              right: 0,
+              top: 0,
+              color: (theme) => theme.palette.grey[500],
+            }}
+          >
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0, pt: 1 }}>
+          {selectedAppointment && (
+            <div
+              style={{
+                display: "grid",
+                gap: "16px",
+                gridTemplateColumns: "1fr 1fr",
+                paddingTop: "8px"
+              }}
+            >
+              <TextField
+                fullWidth
+                label="Token Number"
+                type="number"
+                name="token"
+                value={selectedAppointment.token}
+                InputProps={{ readOnly: true }}
+              />
+              <TextField
+                fullWidth
+                label="Mobile"
+                name="phone_number"
+                value={selectedAppointment.phone_number}
+                onChange={handleInputChange}
+                inputProps={{ maxLength: 10 }}
+              />
+              <TextField
+                fullWidth
+                label="First Name"
+                name="firstName"
+                value={selectedAppointment.firstName}
+                onChange={handleInputChange}
+              />
+              <TextField
+                fullWidth
+                label="Last Name"
+                name="lastName"
+                value={selectedAppointment.lastName}
+                onChange={handleInputChange}
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={selectedAppointment.checkin}
+                    onChange={(e) =>
+                      setSelectedAppointment((prev) => ({
+                        ...prev,
+                        checkin: e.target.checked,
+                      }))
+                    }
+                  />
+                }
+                label={
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      fontWeight: selectedAppointment.checkin ? 'bold' : 'normal',
+                      color: selectedAppointment.checkin ? 'primary.main' : 'text.primary'
+                    }}
+                  >
+                    Present in Clinic
+                  </Typography>
+                }
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={selectedAppointment.paid}
+                    onChange={(e) =>
+                      setSelectedAppointment((prev) => ({
+                        ...prev,
+                        paid: e.target.checked,
+                        mode: e.target.checked ? prev.mode || "cash" : "",
+                        fees_paid: e.target.checked ? prev.fees_paid || 250 : 0,
+                      }))
+                    }
+                  />
+                }
+                label={
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      fontWeight: selectedAppointment.paid ? 'bold' : 'normal',
+                      color: selectedAppointment.paid ? 'primary.main' : 'text.primary'
+                    }}
+                  >
+                    Payment Done
+                  </Typography>
+                }
+              />
+              {selectedAppointment.paid && (
+                <>
+                  <FormControl fullWidth>
+                    <InputLabel>Payment Mode</InputLabel>
+                    <Select
+                      value={selectedAppointment.mode}
+                      name="mode"
+                      onChange={handleInputChange}
+                      label="Payment Mode"
+                    >
+                      <MenuItem value="cash">Cash</MenuItem>
+                      <MenuItem value="online">Online</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <TextField
+                    fullWidth
+                    label="Fees"
+                    type="number"
+                    name="fees_paid"
+                    value={selectedAppointment.fees_paid}
+                    onChange={handleInputChange}
+                  />
+                </>
+              )}
+              <TextField
+                fullWidth
+                label="Age"
+                type="number"
+                name="age"
+                value={selectedAppointment.age}
+                onChange={handleInputChange}
+              />
+              <FormControl component="fieldset">
+                <ToggleButtonGroup
+                  value={selectedAppointment.sex}
+                  exclusive
+                  onChange={handleSexChange}
+                  color="primary"
+                >
+                  <ToggleButton value="M" color="primary">
+                    Male
+                  </ToggleButton>
+                  <ToggleButton value="F" color="secondary">
+                    Female
+                  </ToggleButton>
+                  <ToggleButton value="O">Other</ToggleButton>
+                </ToggleButtonGroup>
+              </FormControl>
+              <TextField
+                fullWidth
+                label="Guardian"
+                name="guardian"
+                value={selectedAppointment.guardian}
+                onChange={handleInputChange}
+              />
+              <TextField
+                fullWidth
+                label="Place"
+                name="location"
+                value={selectedAppointment.location}
+                onChange={handleInputChange}
+              />
+              <FormControl fullWidth>
+                <InputLabel>Appointment Type</InputLabel>
+                <Select
+                  value={selectedAppointment.appointment_type}
+                  name="appointment_type"
+                  onChange={handleInputChange}
+                  label="Appointment Type"
+                >
+                  <MenuItem value="New">New</MenuItem>
+                  <MenuItem value="Follow-up">Follow-up</MenuItem>
+                  <MenuItem value="Emergency">Emergency</MenuItem>
+                  <MenuItem value="Routine">Routine</MenuItem>
+                </Select>
+              </FormControl>
+              <TextField
+                fullWidth
+                label="Complaint"
+                name="disease"
+                value={selectedAppointment.disease}
+                onChange={handleInputChange}
+              />
+            </div>
+          )}
+        </DialogContent>
+        <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end" }}>
+          <Button
+            onClick={() => setCancelConfirmationOpen(true)}
+            color="error"
+            variant="outlined"
+            sx={{ 
+              mr: 2,
+              borderWidth: "2px",
+              '&:hover': {
+                borderWidth: "2px"
+              }
+            }}
+            disabled={isCanceling}
+          >
+            {isCanceling ? <CircularProgress size={24} /> : "Cancel Appointment"}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleUpdateAppointment}
+            disabled={isUpdating}
+          >
+            {isUpdating ? <CircularProgress size={24} /> : "Update"}
+          </Button>
+        </Box>
+      </Dialog>
+
+      {/* Cancel Confirmation Dialog */}
+      <Dialog
+        open={cancelConfirmationOpen}
+        onClose={() => setCancelConfirmationOpen(false)}
+      >
+        <DialogTitle>Cancel Appointment</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to cancel this appointment? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCancelConfirmationOpen(false)}>No, Keep It</Button>
+          <Button onClick={handleCancelAppointment} color="error" variant="contained">
+            Yes, Cancel Appointment
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Layout>
   );
 };

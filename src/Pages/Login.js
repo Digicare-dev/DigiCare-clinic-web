@@ -25,7 +25,8 @@ import "./Login.css";
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { user, setUser } = useContext(AuthContext);
+  const user = JSON.parse(localStorage.getItem("user"));
+  const { setUser } = useContext(AuthContext);
   const navigate = useNavigate();
   //
 
@@ -61,15 +62,15 @@ const Login = () => {
       const { dummyLogin } = await import('../services/dummyDataService');
       
       // Attempt login with dummy credentials
-      const response = await dummyLogin({ username: credential.username, password: credential.password });
-      
-      if (response.success) {
+      const response = await loginService( credential.username, credential.password );
+      console.log(response);
+      if (response.username) {
         // Store user in localStorage
-        localStorage.setItem("user", JSON.stringify(response.user));
-        localStorage.setItem("token", response.token);
+        localStorage.setItem("user", JSON.stringify(response));
+
         
         // Update context
-        setUser(response.user);
+        setUser(response);
         
         // Redirect to home
         navigate("/");

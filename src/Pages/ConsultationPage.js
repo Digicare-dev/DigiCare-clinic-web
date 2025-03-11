@@ -676,7 +676,7 @@ const ConsultationPage = () => {
         title="Patient Consultation"
         showBackButton={true}
         backButtonVariant="button"
-        backButtonText="Back to Patient List"
+        backButtonText="Back"
         onBackButtonClick={handleBackToPatient}
       />
 
@@ -694,7 +694,7 @@ const ConsultationPage = () => {
               <Chip 
                     size="small"
                     icon={<Person />} 
-                    label={`${patientInfo.gender}${patientInfo.age ? `, ${patientInfo.age} years` : ""}`} 
+                    label={`${patientInfo.gender}${patientInfo.age!=="" ? `, ${patientInfo.age} years` : ""}`} 
                     variant="outlined" 
                   />
                   {patientInfo.id && 
@@ -717,7 +717,7 @@ const ConsultationPage = () => {
               />
               <Chip 
                 size="small" 
-                    label="Blood: O+" 
+                    label={`${patientInfo?.blood_type!=='' ? `Blood: ${patientInfo?.blood_type}` : ''}`} 
                 variant="outlined"
                     color="error"
                   />

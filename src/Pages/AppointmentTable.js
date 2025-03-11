@@ -32,15 +32,16 @@ import CloseIcon from "@mui/icons-material/Close";
 import Tooltip from "@mui/material/Tooltip";
 import EditIcon from "@mui/icons-material/Edit";
 // Import dummy data service instead of API
-// import {
-//   fetchAppointments,
-//   addAppointment,
-//   updateAppointmentDetails,
-//   removeAppointment,
-// } from "../services/api";
+import {
+  fetchAppointments,
+  addAppointment,
+  updateAppointmentDetails,
+  removeAppointment,
+} from "../services/api";
 import CustomSnackbar from "../components/CustomSnackbar";
 import { getLatestCabinSlot } from '../utils/dateUtils';
 import { useNavigate } from "react-router-dom";
+import { EventSource } from "eventsource";
 
 const modalStyle = {
   position: "absolute",
@@ -111,6 +112,8 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 export default function AppointmentTable() {
   const user = JSON.parse(localStorage.getItem("user"));
+  const cabinId = user?.checkupcabindata?.[0]?.id;
+  const selectedSlot = getLatestCabinSlot(user?.checkupcabindata?.[0]?.cabin_slots);
   const [currentCabinSlot, setCurrentCabinSlot] = useState(null);
 
   const [rows, setRows] = React.useState([]);
@@ -127,7 +130,7 @@ export default function AppointmentTable() {
     checkin: false,
     paid: false,
     mode: "cash",
-    fee_paids: 0,
+    fees_paid: 0,
     status: "pending",
     disease: "",
     age: "",
@@ -233,28 +236,80 @@ export default function AppointmentTable() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user?.checkupcabindata?.[0]?.cabin_slots) {
-      // For demo, use a fixed slot
-      const demoSlot = "2024-03-10T09:00:00.000Z";
-      setCurrentCabinSlot(demoSlot);
-    }
-  }, [user?.checkupcabindata]);
-
-  useEffect(() => {
     if (!user) return;
     
     // Fetch appointments on component mount
     getAppointments();
     
-    // Set up a refresh interval to simulate real-time updates
-    const refreshInterval = setInterval(() => {
-      if (!open && !editModalOpen && !cancelConfirmationOpen) {
-        getAppointments();
-      }
-    }, 60000); // Refresh every minute
     
-    return () => clearInterval(refreshInterval);
   }, []); // Empty dependency array to run only on mount
+
+  // Add SSE for real-time appointment updates
+  useEffect(() => {
+    if (!user) return;
+    
+    // Create formatted date for the SSE URL
+    const date = new Date(selectedSlot);
+    const formattedDate = date
+      .toISOString()
+      .replace(".000", "")
+      .replace("T", " ")
+      .replace("Z", "+00:00");
+    const encodedDate = encodeURIComponent(formattedDate);
+    const sseUrl = `${API_BASE_URL}/doctorinfo/queue_updates/${cabinId}/${formattedDate}`;
+
+    const eventSource = new EventSource(sseUrl, { withCredentials: true });
+
+    eventSource.onmessage = async (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.appointment) {
+          setRows((prevRows) => {
+            // Handle null patient data safely
+            const patientData = data.appointment.patient || {};
+            const formattedAppointment = {
+              id: data.appointment.token,
+              token: data.appointment.token,
+              appointment_id: data.appointment.appointment_id,
+              firstName: data.appointment.name.split(" ")[0] || "",
+              lastName:
+                data.appointment.name.split(" ").slice(1).join(" ") || "",
+              checkin: data.appointment.checkin,
+              paid: data.appointment.paid,
+              status: data.appointment.status,
+              disease: data.appointment.disease || "",
+              age: patientData.age || "",
+              phone_number: patientData.phone_number || "",
+              location: patientData.location || "",
+              sex: patientData.gender || "",
+              guardian: patientData.guardian || "",
+              appointment_type: data.appointment.appointment_type,
+              mode: data.appointment.mode || "",
+              fees_paid: data.appointment.fees_paid || 0,
+            };
+
+            const existingIndex = prevRows.findIndex(
+              (r) => r.appointment_id === data.appointment.appointment_id
+            );
+
+            if (existingIndex !== -1) {
+              const newRows = [...prevRows];
+              newRows[existingIndex] = formattedAppointment;
+              return newRows;
+            }
+
+            return [...prevRows, formattedAppointment].sort(
+              (a, b) => a.token - b.token
+            );
+          });
+        }
+      } catch (error) {
+        // console.error("Error processing appointment update:", error);
+      }
+    };
+
+    return () => eventSource.close();
+  }, []);
 
   const getAppointments = async () => {
     setLoading(true);
@@ -263,7 +318,7 @@ export default function AppointmentTable() {
       const { fetchDummyAppointmentTable } = await import('../services/dummyDataService');
       
       // Fetch dummy appointment data
-      const data = await fetchDummyAppointmentTable();
+      const data = await fetchAppointments(cabinId, selectedSlot);
       
       if (data && data.length !== 0) {
         console.log("Received dummy data:", data); // Debug log
@@ -280,9 +335,9 @@ export default function AppointmentTable() {
             appointment_id: item.appointment_id,
             firstName: firstName || "",
             lastName: lastNameParts.join(" ") || "",
-            checkin: item.status === "done_checkup" ? true : Math.random() > 0.3, // Randomize for demo
-            paid: item.status === "done_checkup" ? true : Math.random() > 0.2, // Randomize for demo
-            status: item.status || "pending",
+            checkin: item.checkin, // Randomize for demo
+            paid: item.paid, // Randomize for demo
+            status: item.status,
             disease: item.disease || "",
             age: item.patient ? item.patient.age : "",
             phone_number: item.patient ? item.patient.phone_number : "",
@@ -291,18 +346,17 @@ export default function AppointmentTable() {
             guardian: item.patient ? item.patient.guardian : "",
             appointment_type: item.appointment_type 
               ? item.appointment_type.charAt(0).toUpperCase() + item.appointment_type.slice(1).toLowerCase()
-              : "New",
-            mode: item.mode || "cash",
+              : "",
+            mode: item.mode || "N/A",
             fees_paid: item.fees_paid || 0,
             date: item.date || new Date().toISOString().split('T')[0],
-            time: item.time || "09:00 AM",
             isPlaceholder: false,
-            patientId: item.patientId || item.patient?.id // Preserve patient ID
+            patientId: item.patient_id // Preserve patient ID
           };
         });
         
         console.log("Formatted data:", formattedData); // Debug log
-        setRows(formattedData.sort((a, b) => a.token.localeCompare(b.token)));
+        setRows(formattedData.sort((a, b) => a.token - b.token));
       } else {
         console.log("No data received or empty data array"); // Debug log
         setRows([]);
@@ -542,13 +596,17 @@ export default function AppointmentTable() {
 
   const AddAppointmentApi = async (newEntry) => {
     setIsAdding(true);
+    console.log(newEntry);
     try {
       // Import dummy data service dynamically
       const { dummyAddAppointment, dummyPatients } = await import('../services/dummyDataService');
-      
+      debugger
       // Add new appointment using dummy service with complete patient information
-      const result = await dummyAddAppointment({
-        patientName: `${newEntry.firstName} ${newEntry.lastName}`,
+      const result = await addAppointment({
+        cabinId: cabinId,
+        slot: selectedSlot,
+        name: `${newEntry.firstName} ${newEntry.lastName}`,
+        token: newEntry.token,
         disease: newEntry.disease,
         appointment_type: newEntry.appointment_type,
         phone_number: newEntry.phone_number,
@@ -556,33 +614,32 @@ export default function AppointmentTable() {
         gender: newEntry.sex,
         location: newEntry.location,
         guardian: newEntry.guardian,
-        fees_paid: newEntry.fees_paid,
+        fees_paid: newEntry.fees_paid || 0,
         mode: newEntry.mode,
         paid: newEntry.paid,
         checkin: newEntry.checkin
       });
       
-      if (result.success) {
+      // if (result.appointment_id) {
         // Format the new appointment to match our table format
         const newAppointment = {
-          id: newEntry.token,
-          token: newEntry.token,
-          appointment_id: result.appointment.appointment_id,
-          firstName: newEntry.firstName,
-          lastName: newEntry.lastName,
-          checkin: newEntry.checkin,
-          paid: newEntry.paid,
-          status: "pending",
-          disease: newEntry.disease,
+          id: result?.queue?.appointment?.token ,
+          token: result?.queue?.appointment?.token ,
+          appointment_id: result?.queue?.appointment?.appointment_id || "",
+          firstName: result?.queue?.appointment?.name?.split(" ")[0] || "",
+          lastName: result?.queue?.appointment?.name?.split(" ")[1] || "",
+          checkin: result?.queue?.checkin || false,
+          paid: result?.queue?.paid || false,
+          status: result?.queue?.status || "",
+          disease: result?.queue?.appointment?.disease || "",
           age: newEntry.age,
           phone_number: newEntry.phone_number,
           location: newEntry.location,
           sex: newEntry.sex,
           guardian: newEntry.guardian,
-          appointment_type: newEntry.appointment_type,
-          mode: newEntry.paid ? newEntry.mode : "",
-          fees_paid: newEntry.paid ? newEntry.fees_paid : 0,
-          patientId: result.patientId // Store the patient ID
+          appointment_type: result?.queue?.appointment?.appointment_type || "",
+          mode: result?.queue?.appointment?.mode,
+          fees_paid: result?.queue?.appointment?.fees_paid || 0,
         };
         
         // Add to rows
@@ -600,10 +657,11 @@ export default function AppointmentTable() {
         }
         
         handleClose();
-      } else {
-        setError("Failed to add appointment");
-      }
+      // } else {
+        // setError("Failed to add appointment");
+      // }
     } catch (error) {
+      debugger;
       console.error("Error adding appointment:", error);
       setError("Failed to add appointment");
     } finally {
@@ -614,12 +672,7 @@ export default function AppointmentTable() {
   const updateAppointmentApi = async (newData) => {
     setIsUpdating(true);
     try {
-      // In demo mode, just update the local state
-      setRows((prev) =>
-        prev.map((row) =>
-          row.token === newData.token ? { ...row, ...newData } : row
-        )
-      );
+      await updateAppointmentDetails(newData);      
       
       handleOpenSnackbar("Appointment updated successfully");
       setEditModalOpen(false);
@@ -700,7 +753,6 @@ export default function AppointmentTable() {
       mode: selectedAppointment.mode || "",
       fees_paid: selectedAppointment.fees_paid || 0,
     };
-    
     const result = await updateAppointmentApi(updateData);
     
     if (result.success) {
@@ -731,17 +783,13 @@ export default function AppointmentTable() {
   const cancelAppointment = async () => {
     setIsCanceling(true);
     try {
-      // In demo mode, just update the local state
-      setRows((prev) =>
-        prev.map((row) =>
-          row.token === rowToCancel.token
-            ? { ...row, status: "cancelled" }
-            : row
-        )
-      );
+      await removeAppointment({
+        appointment_id: rowToCancel.appointment_id
+      });      
       
       handleOpenSnackbar("Appointment cancelled successfully");
       setCancelConfirmationOpen(false);
+      setEditModalOpen(false);
     } catch (error) {
       console.error("Error cancelling appointment:", error);
     } finally {
@@ -800,37 +848,35 @@ export default function AppointmentTable() {
     
     // Create patient information from the flattened appointment data
     const patientInfo = {
-      id: appointment.patientId || appointment.patient?.id || `PT${appointment.id.toString().padStart(3, '0')}`,
+      id: appointment.patientId || '',
       name: `${appointment.firstName} ${appointment.lastName}`.trim(),
       age: appointment.age || '',
       gender: appointment.sex === 'M' ? 'Male' : 
-              appointment.sex === 'F' ? 'Female' : 'Other',
+              appointment.sex === 'F' ? 'Female' : appointment.sex === 'O' ? 'Other' : '',
       phone: appointment.phone_number || '',
       location: appointment.location || 'Not specified',
       guardianName: appointment.guardian !== 'NULL' ? appointment.guardian : '',
       // Add default values for potentially missing fields
-      email: '',  // Not in the API data
-      bloodGroup: '',  // Not in the API data
+      email: appointment?.email || '',  // Not in the API data
+      bloodGroup: appointment?.blood_group || '',  // Not in the API data
     };
     
     // Log the patient info for debugging
-    console.log("Patient info being passed to ConsultationPage:", patientInfo);
+    console.log("Patient info being passed to AppointmentDetails:", patientInfo);
     
     // Format appointment information
     const appointmentInfo = {
       id: appointment.appointment_id,
-      date: date,
-      time: time,
       status: mapStatusToReadable(appointment.status),
-      type: appointment.appointment_type || 'Consultation',
-      doctor: 'Dr. Smith',
-      fees: appointment.fees_paid || 500,
+      type: appointment.appointment_type || '',
+      doctor: 'Dr. Amit Mittal',
+      fees: appointment.fees_paid || 0,
       paymentStatus: appointment.paid ? 'Paid' : 'Pending',
-      paymentMode: appointment.mode || 'Cash',
+      paymentMode: appointment.mode || '',
     };
     
     // Navigate to the appointment details page with the patient and appointment info
-    navigate('/consultation', { 
+    navigate('/appointment-details', { 
       state: { 
         patientInfo, 
         appointmentInfo,

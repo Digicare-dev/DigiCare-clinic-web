@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Container,
@@ -76,6 +76,7 @@ import ReportLink from '../components/ReportLink';
 import dayjs from 'dayjs';
 import { PrescriptionForm } from './PrescriptionPage';
 import { PageHeader } from '../components/common/PageHeader';
+import { getPatientDetails, getPrescription } from '../services/api';
 
 const modalStyle = {
   position: "absolute",
@@ -95,8 +96,9 @@ const PatientInfoPage = () => {
   const location = useLocation();
   
   // Get patient data from location state or use default values
+  console.log()
   const patientId = location.state?.patientId || 'PT12345';
-  const appointmentId = location.state?.appointmentId || 'AP67890';
+  const appointmentId = location.state?.appointment_id || 'AP67890';
   const patientInfo = location.state?.patientInfo || {
     name: 'Rajesh Kumar',
     age: '45',
@@ -157,6 +159,23 @@ const PatientInfoPage = () => {
   const [currentAppointment, setCurrentAppointment] = useState(appointmentInfo);
   const [vitals, setVitals] = useState(vitalsInfo);
   const [complaints, setComplaints] = useState(complaintsData);
+
+  const fetchPatientDetails = async () => {
+    const response = await getPatientDetails(patientInfo.id);
+    // setPatient(response);
+  }
+
+  const fetchPrescription = async (appointmentId) => {
+    const response = await getPrescription(appointmentId);
+    debugger
+    // setPatient(response);
+  }
+
+  useEffect(() => {
+    //  fetchPatientDetails();
+    // fetchPrescription(currentAppointment.id);
+  },[])
+
 
   const currentAttachments = [
     { id: 1, name: 'Blood Test Results.pdf', type: 'pdf', reportType: 'blood-test', date: '2024-03-10', size: '1.2 MB' },
