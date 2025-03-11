@@ -161,7 +161,7 @@ const PatientInfoPage = () => {
   const [complaints, setComplaints] = useState(complaintsData);
 
   const fetchPatientDetails = async () => {
-    const response = await getPatientDetails(patientInfo.id);
+    // const response = await getPatientDetails(patientInfo.id);
     // setPatient(response);
   }
 

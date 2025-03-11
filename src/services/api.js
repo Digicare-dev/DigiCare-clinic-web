@@ -185,7 +185,7 @@ export const getAppointmentDetails = async (appointmentId) => {
 
 export const getPatientDetails = async (patientId) => {
   try {
-    const response = await axiosInstance.get(
+    const response = await axiosInstance.post(
       `/userinfo/patients/details/`,
       { patient_id: patientId },
       { withCredentials: true } 
@@ -210,6 +210,20 @@ export const getPrescription = async (appointmentId) => {
   }
 };
 
+export const savePrescription = async (payload) => {
+  try {
+    const response = await axiosInstance.post(
+      `/prescriptions/save/`,
+      payload,
+      { withCredentials: true }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error saving prescription:", error);
+    throw error;
+  }
+};
+
 export const getPastPrescriptions = async (patient_id, cabin_id) => {
   try {
     const response = await axiosInstance.post(
@@ -220,6 +234,47 @@ export const getPastPrescriptions = async (patient_id, cabin_id) => {
     return response.data;
   } catch (error) {
     console.error("Error fetching past prescriptions:", error);
+    throw error;
+  }
+};
+
+
+export const getTemplates = async () => {
+  try {
+    const response = await axiosInstance.get(
+      `/complaints/templates/`,
+      { withCredentials: true }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching complaints templates:", error);
+    throw error;
+  }
+};
+
+export const saveTemplate = async (payload) => {
+  try {
+    const response = await axiosInstance.post(
+      `/complaints/save-template/`,
+      payload,
+      { withCredentials: true }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error saving complaints template:", error);
+    throw error;
+  }
+};
+
+export const deleteTemplate = async (templateId) => {
+  try {
+    const response = await axiosInstance.delete(
+      `/complaints/delete-template/${templateId}/`,
+      { withCredentials: true }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting complaints template:", error);
     throw error;
   }
 };
