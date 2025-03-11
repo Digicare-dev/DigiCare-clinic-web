@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Container,
@@ -34,6 +34,9 @@ import {
   TableCell,
   TableBody,
   Autocomplete,
+  CircularProgress,
+  Alert,
+  Collapse,
 } from '@mui/material';
 
 // Import Timeline components from the correct package
@@ -81,10 +84,12 @@ import {
 import ReportLink from '../components/ReportLink';
 import { PageHeader } from '../components/common/PageHeader';
 
+import {getAttachments, uploadAttachment, deleteAttachment, getPatientDetails, getPrescriptions, savePrescription, manageVitals, saveTemplate} from '../services/api';
+
 const ConsultationPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-
+console.log(location.state)
   // Get patient data from location state
   const patientInfo = location.state?.patientInfo || {
     name: 'John Doe',
@@ -166,10 +171,9 @@ const ConsultationPage = () => {
   const [editedVitals, setEditedVitals] = useState({...vitalsInfo});
 
   // Update the attachments to include the ECG report as a PDF
-  const [attachments, setAttachments] = useState([
-    { id: 1, name: 'Blood Test Results.pdf', type: 'pdf', reportType: 'blood-test', date: '2024-03-10', size: '1.2 MB' },
-    { id: 2, name: 'ECG Report.pdf', type: 'pdf', reportType: 'ecg-test', date: '2024-03-10', size: '3.5 MB' },
-  ]);
+  const [attachments, setAttachments] = useState([]);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
+  const [attachmentsError, setAttachmentsError] = useState(null);
 
   // Get the PDF viewer context
   // const { openPdfViewer } = usePDFViewerContext();
@@ -224,22 +228,63 @@ const ConsultationPage = () => {
     navigate(-1); // Navigate back to the previous page
   };
 
+  // Add a ref to access the PrescriptionForm component's data
+  const prescriptionFormRef = useRef();
+
+  // Modify the handlePrescriptionSubmit function to handle direct submission
   const handlePrescriptionSubmit = (formData) => {
-    console.log("Prescription submitted:", formData);
-    // Here you would typically save the prescription data
-    // and then navigate back or to another page
-    
-    // For demo purposes, just show an alert and navigate back
-    alert("Prescription saved successfully!");
-    handleBackToPatient();
+    const payload = {
+      appointment_id: appointmentInfo.id || "",
+      complaints: Array.isArray(formData.complaints) 
+        ? formData.complaints.filter(complaint => complaint.complaint || complaint.duration || complaint.severity).map(complaint => ({
+            name: complaint.complaint || "",
+            duration: complaint.duration || "",
+            severity: complaint.severity || "",
+            frequency: "",
+            notes: ""
+          }))
+        : [],
+      diagnosis: Array.isArray(formData.diagnoses) 
+        ? formData.diagnoses.filter(diagnosis => diagnosis.diagnosis || diagnosis.duration).map(diagnosis => ({
+            name: diagnosis.diagnosis || "",
+            duration: diagnosis.duration || "",
+            notes: ""
+          }))
+        : [],
+      medicine: Array.isArray(formData.medications) 
+        ? formData.medications.filter(medication => medication.medicine || medication.dose || medication.frequency || medication.duration).map(medication => ({
+            name: medication.medicine || "",
+            dose: medication.dose || "",
+            frequency: medication.frequency || "",
+            when: medication.timing || "",
+            duration: medication.duration || "",
+            notes: "After meals"
+          }))
+        : [],
+      advice: formData.instructions || "",
+      tests: Array.isArray(formData.tests) ? formData.tests : []
+    };
+
+    console.log("Saving prescription with payload:", payload);
+    // Here you would typically call the savePrescription API with the payload
+    savePrescription(payload)
+      .then(data => {
+        console.log('Prescription saved successfully:', data);
+        // Optionally, handle success (e.g., show a success message)
+      })
+      .catch(error => {
+        console.error('Error saving prescription:', error);
+        // Optionally, handle error (e.g., show an error message)
+      });
   };
 
   const handleEditVitals = () => {
-    setIsEditingVitals(!isEditingVitals);
     if (isEditingVitals) {
-      // Save the edited vitals
-      console.log("Saving vitals:", editedVitals);
-      // Here you would typically save the vitals data to your backend
+      // If we're currently editing and clicking save
+      handleSaveVitals();
+    } else {
+      // If we're starting to edit
+      setIsEditingVitals(true);
     }
   };
 
@@ -323,6 +368,118 @@ const ConsultationPage = () => {
   const [prescriptionModalOpen, setPrescriptionModalOpen] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState(null);
 
+  // Add new state variables
+  const [pastAppointments, setPastAppointments] = useState([]);
+  const [expandedAppointment, setExpandedAppointment] = useState(null);
+  const [prescriptionDetails, setPrescriptionDetails] = useState(null);
+  const [isLoadingPrescription, setIsLoadingPrescription] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Add these state variables at the top with other state declarations
+  const [openSaveTemplateDialog, setOpenSaveTemplateDialog] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [templateType, setTemplateType] = useState('');
+
+  // Add these functions before the return statement
+  const handleSaveTemplateOpen = (type) => {
+    setTemplateType(type);
+    setTemplateName('');
+    setOpenSaveTemplateDialog(true);
+  };
+
+  const handleSaveTemplateClose = () => {
+    setOpenSaveTemplateDialog(false);
+    setTemplateName('');
+  };
+
+  const handleSaveTemplate = async () => {
+    try {
+      if (!templateName.trim()) {
+        alert('Please enter a template name');
+        return;
+      }
+
+      let payload;
+      if (templateType === 'complaints') {
+        // Get current form data from the PrescriptionForm component
+        const formData = prescriptionFormRef.current?.getFormData();
+        if (!formData) {
+          alert('Unable to get form data');
+          return;
+        }
+
+        payload = {
+          name: templateName,
+          complaints: formData.complaints.filter(complaint => 
+            complaint.complaint || complaint.duration || complaint.severity
+          ).map(complaint => ({
+            name: complaint.complaint || "",
+            duration: complaint.duration || "",
+            severity: complaint.severity || "",
+            frequency: "",
+            notes: ""
+          }))
+        };
+      }
+
+      await saveTemplate(templateType, "CABIN_ID", payload);
+      handleSaveTemplateClose();
+      // Optionally show success message
+      alert('Template saved successfully!');
+    } catch (error) {
+      console.error('Error saving template:', error);
+      alert('Failed to save template. Please try again.');
+    }
+  };
+
+  // Add function to fetch patient details
+  const fetchPatientDetails = async () => {
+    try {
+      const response = await getPatientDetails(patientInfo.id);
+      console.log("Patient details response:", response);
+      
+      if (response && response.other_appointments) {
+        setPastAppointments(response.other_appointments.map(app => ({
+          ...app,
+          id: app.appointment_id,
+          date: new Date().toISOString().split('T')[0], // You might want to get this from the appointment_id
+          expanded: false
+        })));
+      }
+    } catch (error) {
+      console.error("Error fetching patient details:", error);
+      setError("Failed to load patient history");
+    }
+  };
+
+  // Add function to fetch prescription details
+  const handleFetchPrescription = async (appointmentId) => {
+    try {
+      setIsLoadingPrescription(true);
+      setError(null);
+      
+      const response = await getPrescriptions(appointmentId);
+      console.log("Prescription response:", response);
+      
+      if (response && response.length > 0) {
+        setPrescriptionDetails(response[0]);
+        setExpandedAppointment(appointmentId);
+      }
+    } catch (error) {
+      console.error("Error fetching prescription:", error);
+      setError("Failed to load prescription details");
+    } finally {
+      setIsLoadingPrescription(false);
+    }
+  };
+
+  // Add useEffect to fetch patient details on component mount
+  useEffect(() => {
+    if (patientInfo?.id) {
+      fetchPatientDetails();
+    }
+  }, [patientInfo]);
+
   // Add function to handle opening the upload modal
   const handleOpenUploadModal = () => {
     setUploadModalOpen(true);
@@ -363,27 +520,37 @@ const ConsultationPage = () => {
   };
   
   // Add function to handle file upload
-  const handleFileUpload = () => {
-    // In a real app, you would upload the file to a server here
-    // For now, we'll just add it to the attachments array
+  const handleFileUpload = async () => {
+    if (!uploadFile || !uploadFileName) return;
     
-    const newAttachment = {
-      id: attachments.length + 1,
-      name: `${uploadFileName}.${uploadFileType === 'pdf' ? 'pdf' : uploadFileType === 'image' ? 'jpg' : 'doc'}`,
-      type: uploadFileType,
-      reportType: 'custom',
-      date: new Date().toISOString().split('T')[0],
-      size: `${(uploadFile.size / (1024 * 1024)).toFixed(1)} MB`
-    };
-    
-    // Update the attachments array with the new attachment
-    setAttachments([...attachments, newAttachment]);
-    
-    // Close the modal
-    handleCloseUploadModal();
-    
-    // Show a success message (in a real app)
-    alert('File uploaded successfully!');
+    try {
+      setAttachmentsLoading(true);
+      setAttachmentsError(null);
+      
+      // Create form data
+      const formData = new FormData();
+      formData.append('appointment_id', appointmentInfo.id);
+      formData.append('file', uploadFile);
+      formData.append('file_name', uploadFileName);
+      formData.append('file_type', uploadFile.type);
+      formData.append('description', `Medical record uploaded for appointment ${appointmentInfo.id}`);
+      
+      // Upload the file
+      const response = await uploadAttachment(formData);
+      console.log('File uploaded successfully:', response);
+      
+      // Refresh attachments list
+      await fetchAttachments();
+      
+      // Close the modal
+      handleCloseUploadModal();
+      
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      setAttachmentsError('Failed to upload file. Please try again.');
+    } finally {
+      setAttachmentsLoading(false);
+    }
   };
 
   // Add function to handle opening the prescription modal
@@ -516,12 +683,11 @@ const ConsultationPage = () => {
           <div class="patient-details">
             <p><strong>Patient Name:</strong> ${selectedPrescription.patientInfo.name}</p>
             <p><strong>Patient ID:</strong> ${selectedPrescription.patientInfo.id}</p>
-            <p><strong>Age/Gender:</strong> ${selectedPrescription.patientInfo.age} years, ${selectedPrescription.patientInfo.gender}</p>
+            <p><strong>BP:</strong> ${selectedPrescription.initialData.vitals.bloodPressure} mmHg | <strong>Temp:</strong> ${selectedPrescription.initialData.vitals.temperature}°C</p>
           </div>
           <div class="appointment-details">
             <p><strong>Date:</strong> ${selectedPrescription.appointmentInfo.date}</p>
             <p><strong>Appointment ID:</strong> ${selectedPrescription.appointmentInfo.id}</p>
-            <p><strong>BP:</strong> ${selectedPrescription.initialData.vitals.bloodPressure} mmHg | <strong>Temp:</strong> ${selectedPrescription.initialData.vitals.temperature}°F</p>
           </div>
         </div>
         
@@ -606,29 +772,60 @@ const ConsultationPage = () => {
     };
   };
 
-  // Render the PrescriptionForm with the patient ID
+  // Update the renderPrescriptionForm function
   const renderPrescriptionForm = () => (
-    <PrescriptionForm 
-      initialData={prefilledPrescriptionData}
-      onSubmit={handlePrescriptionSubmit}
-      showPrintButton={true}
-      hidePatientDetails={hidePatientDetails}
-      patientInfo={{
-        id: patientInfo.id,
-        patientName: patientInfo.name,
-        age: patientInfo.age,
-        gender: patientInfo.gender,
-        weight: editedVitals.weight,
-      }}
-      // Add custom styling to reduce clutter and add vertical spacing
-      formSx={{
-        '& .MuiGrid-container': { mb: 5 },
-        '& .MuiTableCell-root': { p: 2 },
-        '& .MuiTableContainer-root': { mb: 5 },
-        '& .MuiDivider-root': { my: 5 },
-        '& .MuiButton-root': { mx: 0.5 },
-      }}
-    />
+    <Box>
+      <PrescriptionForm 
+        initialData={prefilledPrescriptionData}
+        onSubmit={handlePrescriptionSubmit}
+        showPrintButton={false}
+        showSubmitButton={false} // Hide the built-in submit button
+        hidePatientDetails={hidePatientDetails}
+        onSaveTemplate={handleSaveTemplateOpen}
+        ref={prescriptionFormRef}
+      />
+      
+      {/* Add a custom submit button */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3, gap: 2 }}>
+        <Button
+          variant="outlined"
+          color="primary"
+          startIcon={<Print />}
+          onClick={handlePrintCurrentPrescription}
+          sx={{ 
+            minWidth: '120px', 
+            '&:hover': { backgroundColor: 'rgba(25, 118, 210, 0.04)' }
+          }}
+        >
+          Print
+        </Button>
+        
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<Save />}
+          sx={{ minWidth: '120px' }}
+          onClick={() => {
+            // Try to submit using the ref first
+            if (prescriptionFormRef.current && prescriptionFormRef.current.submitForm) {
+              prescriptionFormRef.current.submitForm();
+            } 
+            // Fallback to form submit event if ref method doesn't work
+            else if (document.getElementById('prescription-form')) {
+              document.getElementById('prescription-form').dispatchEvent(
+                new Event('submit', { cancelable: true, bubbles: true })
+              );
+            } else {
+              // Alert the user that we can't find the form
+              console.error("Form element not found and ref method not available");
+              alert("Error: Could not submit the prescription form. Please check the console for details.");
+            }
+          }}
+        >
+          Save
+        </Button>
+      </Box>
+    </Box>
   );
 
   // Add state for the past prescriptions modal
@@ -667,6 +864,433 @@ const ConsultationPage = () => {
   const copyMedicationsFromPast = (medications) => {
     // Implement the logic to copy medications from the past prescription to the current prescription
     console.log('Copying medications:', medications);
+  };
+
+  // Add a new function to handle printing the current prescription
+  const handlePrintCurrentPrescription = () => {
+    // Create a new window with the prescription content
+    const printWindow = window.open('', '_blank');
+    
+    // Get current prescription data
+    const currentPrescriptionData = {
+      patientInfo: patientInfo,
+      appointmentInfo: appointmentInfo,
+      vitals: editedVitals,
+      medications: document.querySelectorAll('table[aria-label="Medications"] tbody tr').length > 0 
+        ? Array.from(document.querySelectorAll('table[aria-label="Medications"] tbody tr')).map(row => {
+            const cells = row.querySelectorAll('td');
+            return {
+              medicine: cells[0]?.textContent || '',
+              dose: cells[1]?.textContent || '',
+              timing: cells[2]?.textContent || '',
+              frequency: cells[3]?.textContent || '',
+              duration: cells[4]?.textContent || '',
+              notes: cells[5]?.textContent || ''
+            };
+          })
+        : [],
+      diagnoses: document.querySelectorAll('table[aria-label="Diagnoses"] tbody tr').length > 0 
+        ? Array.from(document.querySelectorAll('table[aria-label="Diagnoses"] tbody tr')).map(row => {
+            const cells = row.querySelectorAll('td');
+            return {
+              diagnosis: cells[0]?.textContent || '',
+              duration: cells[1]?.textContent || '',
+              notes: cells[2]?.textContent || ''
+            };
+          })
+        : [],
+      tests: Array.from(document.querySelectorAll('[data-testtype="test-item"]')).map(el => el.textContent),
+      instructions: document.querySelector('[name="instructions"]')?.value || '',
+      followUp: document.querySelector('[name="followUp"]')?.value || ''
+    };
+    
+    // Generate the prescription HTML content
+    const prescriptionContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Prescription - ${patientInfo?.name || 'Patient'}</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #333;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #2196f3;
+            padding-bottom: 10px;
+          }
+          .clinic-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2196f3;
+          }
+          .doctor-info {
+            font-size: 16px;
+            margin: 5px 0;
+          }
+          .patient-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+          }
+          .patient-details, .appointment-details {
+            flex: 1;
+          }
+          .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 15px 0 10px 0;
+            color: #2196f3;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+          }
+          .medication-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0 20px 0;
+          }
+          .medication-table th, .medication-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+          }
+          .medication-table th {
+            background-color: #f5f5f5;
+          }
+          .tests-list, .advice {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+          }
+          .footer {
+            margin-top: 30px;
+            display: flex;
+            justify-content: space-between;
+          }
+          .signature {
+            text-align: right;
+            margin-top: 50px;
+          }
+          @media print {
+            body {
+              margin: 0;
+              padding: 15px;
+            }
+            button {
+              display: none;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="clinic-name">DigiCare Medical Center</div>
+          <div class="doctor-info">${appointmentInfo?.doctor || 'Doctor'}</div>
+          <div class="doctor-info">General Medicine</div>
+        </div>
+        
+        <div class="patient-info">
+          <div class="patient-details">
+            <p><strong>Patient Name:</strong> ${patientInfo?.name || 'Patient'}</p>
+            <p><strong>Patient ID:</strong> ${patientInfo?.id || 'N/A'}</p>
+            <p><strong>Age/Gender:</strong> ${patientInfo?.age || 'N/A'} years, ${patientInfo?.gender || 'N/A'}</p>
+          </div>
+          <div class="appointment-details">
+            <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+            <p><strong>Appointment ID:</strong> ${appointmentInfo?.id || 'N/A'}</p>
+            <p><strong>BP:</strong> ${currentPrescriptionData.vitals?.bloodPressure || 'N/A'} mmHg | <strong>Temp:</strong> ${currentPrescriptionData.vitals?.temperature || 'N/A'}°C/p>
+          </div>
+        </div>
+        
+        <div class="section-title">Diagnosis</div>
+        <p>${currentPrescriptionData.diagnoses.map(diag => diag.diagnosis).join(', ') || 'No diagnosis provided'}</p>
+        
+        <div class="section-title">Medications</div>
+        <table class="medication-table">
+          <thead>
+            <tr>
+              <th>Medication</th>
+              <th>Dosage</th>
+              <th>Frequency</th>
+              <th>Duration</th>
+              <th>Instructions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${currentPrescriptionData.medications.map(med => `
+              <tr>
+                <td>${med.medicine || 'N/A'}</td>
+                <td>${med.dose || 'N/A'}</td>
+                <td>${med.frequency || 'N/A'}</td>
+                <td>${med.duration || 'N/A'}</td>
+                <td>${med.timing || ''} ${med.notes || ''}</td>
+              </tr>
+            `).join('') || '<tr><td colspan="5">No medications prescribed</td></tr>'}
+          </tbody>
+        </table>
+        
+        <div class="section-title">Tests Recommended</div>
+        <div class="tests-list">
+          ${currentPrescriptionData.tests.length > 0 ? currentPrescriptionData.tests.map(test => `<p>• ${test}</p>`).join('') : 'No tests recommended'}
+        </div>
+        
+        <div class="section-title">Advice</div>
+        <div class="advice">
+          <p>${currentPrescriptionData.instructions || 'Follow a healthy diet and exercise regularly.'}</p>
+        </div>
+        
+        <div class="section-title">Follow-up</div>
+        <p>Please return for follow-up on ${currentPrescriptionData.followUp ? new Date(currentPrescriptionData.followUp).toLocaleDateString() : 'as advised'}.</p>
+        
+        <div class="footer">
+          <div></div>
+          <div class="signature">
+            <p>${appointmentInfo?.doctor || 'Doctor'}</p>
+            <p>General Medicine</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    // Write the content to the new window
+    printWindow.document.open();
+    printWindow.document.write(prescriptionContent);
+    printWindow.document.close();
+    
+    // Wait for the content to load and then print
+    printWindow.onload = function() {
+      printWindow.print();
+    };
+  };
+
+  // Add function to fetch attachments
+  const fetchAttachments = async () => {
+    if (!appointmentInfo?.id) return;
+    
+    try {
+      setAttachmentsLoading(true);
+      setAttachmentsError(null);
+      
+      const response = await getAttachments(appointmentInfo.id);
+      console.log("Attachments response:", response);
+      
+      if (response) {
+        setAttachments(response.map(att => ({
+          id: att.id,
+          name: att.file_name,
+          type: att.file_type.includes('pdf') ? 'pdf' : 
+                att.file_type.includes('image') ? 'image' : 'document',
+          reportType: 'custom',
+          date: new Date(att.uploaded_at).toLocaleDateString(),
+          size: '1 MB', // Since size is not provided in the API
+          url: att.file,
+          description: att.description
+        })));
+      }
+    } catch (error) {
+      console.error("Error fetching attachments:", error);
+      setAttachmentsError("Failed to load attachments. Please try again.");
+    } finally {
+      setAttachmentsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Fetch attachments when component mounts
+    fetchAttachments();
+  }, []);
+
+  // Add function to handle attachment deletion
+  const handleDeleteAttachment = async (attachmentId, event) => {
+    // Stop the click event from bubbling up to the parent
+    event.stopPropagation();
+    
+    if (!attachmentId) return;
+    
+    try {
+      setAttachmentsLoading(true);
+      setAttachmentsError(null);
+      
+      await deleteAttachment(attachmentId);
+      console.log('Attachment deleted successfully');
+      
+      // Refresh attachments list
+      await fetchAttachments();
+      
+    } catch (error) {
+      console.error('Error deleting attachment:', error);
+      setAttachmentsError('Failed to delete attachment. Please try again.');
+    } finally {
+      setAttachmentsLoading(false);
+    }
+  };
+
+  // Add function to handle appointment expansion
+  const handleExpandAppointment = (appointmentId) => {
+    if (expandedAppointment === appointmentId) {
+      setExpandedAppointment(null);
+      setPrescriptionDetails(null);
+    } else {
+      handleFetchPrescription(appointmentId);
+    }
+  };
+
+  // Add JSX for past appointments section
+  const renderPastAppointments = () => (
+    <Box sx={{ mt: 3 }}>
+      <Typography variant="h6" gutterBottom>
+        Past Appointments
+      </Typography>
+      {pastAppointments.length > 0 ? (
+        <List>
+          {pastAppointments.map((appointment) => (
+            <React.Fragment key={appointment.id}>
+              <ListItem 
+                button 
+                onClick={() => handleExpandAppointment(appointment.id)}
+                sx={{
+                  bgcolor: 'background.paper',
+                  mb: 1,
+                  borderRadius: 1,
+                  border: '1px solid',
+                  borderColor: 'divider'
+                }}
+              >
+                <ListItemText
+                  primary={
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="subtitle1">
+                        Token #{appointment.token} - {appointment.appointment_type}
+                      </Typography>
+                      <Chip 
+                        label={appointment.status}
+                        size="small"
+                        color={appointment.status === 'completed' ? 'success' : 'default'}
+                        variant="outlined"
+                      />
+                    </Box>
+                  }
+                  secondary={
+                    <Typography variant="body2" color="text.secondary">
+                      {appointment.disease || 'No diagnosis recorded'}
+                    </Typography>
+                  }
+                />
+              </ListItem>
+              
+              <Collapse in={expandedAppointment === appointment.id} timeout="auto" unmountOnExit>
+                <Box sx={{ p: 2, bgcolor: 'background.paper', ml: 2, borderLeft: 2, borderColor: 'primary.main' }}>
+                  {isLoadingPrescription ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                      <CircularProgress size={24} />
+                    </Box>
+                  ) : prescriptionDetails ? (
+                    <Grid container spacing={2}>
+                      {/* Vitals */}
+                      <Grid item xs={12}>
+                        <Typography variant="subtitle2" gutterBottom>Vitals</Typography>
+                        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                          <Typography variant="body2">BP: {prescriptionDetails.vitals.blood_pressure}</Typography>
+                          <Typography variant="body2">Temp: {prescriptionDetails.vitals.temperature}°C</Typography>
+                          <Typography variant="body2">Pulse: {prescriptionDetails.vitals.pulse_rate}</Typography>
+                          <Typography variant="body2">SpO2: {prescriptionDetails.vitals.spo2}%</Typography>
+                        </Box>
+                      </Grid>
+                      
+                      {/* Complaints */}
+                      <Grid item xs={12}>
+                        <Typography variant="subtitle2" gutterBottom>Complaints</Typography>
+                        {prescriptionDetails.complaints.map((complaint, index) => (
+                          <Typography key={index} variant="body2">
+                            • {complaint.complaint} - {complaint.duration} ({complaint.severity})
+                          </Typography>
+                        ))}
+                      </Grid>
+                      
+                      {/* Diagnosis */}
+                      <Grid item xs={12}>
+                        <Typography variant="subtitle2" gutterBottom>Diagnosis</Typography>
+                        {prescriptionDetails.diagnosis.map((diag, index) => (
+                          <Typography key={index} variant="body2">
+                            • {diag.diagnosis} {diag.icd_code && `(${diag.icd_code})`}
+                          </Typography>
+                        ))}
+                      </Grid>
+                      
+                      {/* Medicines */}
+                      <Grid item xs={12}>
+                        <Typography variant="subtitle2" gutterBottom>Medications</Typography>
+                        {prescriptionDetails.medicines.map((med, index) => (
+                          <Typography key={index} variant="body2">
+                            • {med.name} {med.dose} - {med.frequency} for {med.duration} ({med.instructions})
+                          </Typography>
+                        ))}
+                      </Grid>
+                      
+                      {/* Tests */}
+                      <Grid item xs={12}>
+                        <Typography variant="subtitle2" gutterBottom>Tests</Typography>
+                        {prescriptionDetails.tests.testlist.map((test, index) => (
+                          <Typography key={index} variant="body2">• {test}</Typography>
+                        ))}
+                      </Grid>
+                      
+                      {/* Advice */}
+                      <Grid item xs={12}>
+                        <Typography variant="subtitle2" gutterBottom>Advice</Typography>
+                        <Typography variant="body2">{prescriptionDetails.advice.advice}</Typography>
+                      </Grid>
+                    </Grid>
+                  ) : (
+                    <Typography color="text.secondary">No prescription details available</Typography>
+                  )}
+                </Box>
+              </Collapse>
+            </React.Fragment>
+          ))}
+        </List>
+      ) : (
+        <Typography color="text.secondary">No past appointments found</Typography>
+      )}
+    </Box>
+  );
+
+  const handleSaveVitals = async () => {
+    try {
+      // Prepare the payload for the API
+      const vitalsPayload = {
+        appointment_id: appointmentInfo.id,
+        vitals: {
+          blood_pressure: editedVitals.bloodPressure,
+          pulse_rate: editedVitals.heartRate,
+          temperature: editedVitals.temperature,
+          respiratory_rate: editedVitals.respiratoryRate,
+          spo2: editedVitals.spO2,
+          height: editedVitals.height,
+          weight: editedVitals.weight,
+          blood_sugar: ""
+        }
+      };
+
+      // Call the API
+      const response = await manageVitals(vitalsPayload);
+      console.log("Vitals updated successfully:", response);
+
+      // Optionally, update the UI state or refetch data
+      setIsEditingVitals(false);
+
+    } catch (error) {
+      console.error("Error saving vitals:", error);
+      // Optionally, handle error (e.g., show an error message)
+    }
   };
 
   return (
@@ -811,7 +1435,7 @@ const ConsultationPage = () => {
                 fullWidth
                   disabled={!isEditingVitals}
                   InputProps={{ 
-                    endAdornment: <Typography variant="caption">°F</Typography>,
+                    endAdornment: <Typography variant="caption">°C</Typography>,
                     sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
                   }}
                   onChange={(e) => handleVitalsChange('temperature', e.target.value)}
@@ -885,72 +1509,97 @@ const ConsultationPage = () => {
             </Button>
           </Box>
           <Paper variant="outlined" sx={{ p: 2 }}>
-            <Box 
-              sx={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
-                gap: 2,
-                p: 0.5,
-              }}
-            >
-              {attachments.map((attachment) => (
-                <Box
-                  key={attachment.id}
-                  sx={{ 
-                    border: '1px solid #e0e0e0',
-                    borderRadius: 1,
-                    p: 1.5,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    transition: 'all 0.2s',
-                    '&:hover': { 
-                      bgcolor: 'rgba(0, 0, 0, 0.03)',
-                      borderColor: 'primary.light'
-                    }
-                  }}
-                  onClick={() => handleOpenAttachment(attachment)}
-                >
-                  {getAttachmentIcon(attachment.type)}
-                  <Box sx={{ ml: 1.5, flex: 1, overflow: 'hidden' }}>
-                    <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontSize: '0.7rem' }}>
-                      {attachment.reportType === 'ecg-test' ? 'ECG Test Report' : 
-                       attachment.reportType === 'blood-test' ? 'Blood Test Report' : 
-                       attachment.type === 'pdf' ? 'PDF Document' :
-                       attachment.type === 'image' ? 'Image' : 'Document'}
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {attachment.name}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {attachment.date} • {attachment.size}
-                    </Typography>
-                  </Box>
-                </Box>
-              ))}
-              <Box
-                sx={{ 
-                  border: '1px dashed #2196f3',
-                  borderRadius: 1,
-                  p: 1.5,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexDirection: 'column',
-                  transition: 'all 0.2s',
-                  '&:hover': { 
-                    bgcolor: 'rgba(33, 150, 243, 0.04)'
-                  }
-                }}
-                onClick={handleOpenUploadModal}
-              >
-                <Add color="primary" />
-                <Typography variant="body2" color="primary" sx={{ mt: 0.5, fontWeight: 500 }}>
-                  Add New Report
-                </Typography>
+            {attachmentsLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress size={24} />
               </Box>
-            </Box>
+            ) : attachmentsError ? (
+              <Box sx={{ p: 2 }}>
+                <Alert 
+                  severity="error" 
+                  action={
+                    <Button color="inherit" size="small" onClick={fetchAttachments}>
+                      Retry
+                    </Button>
+                  }
+                >
+                  {attachmentsError}
+                </Alert>
+              </Box>
+            ) : attachments.length > 0 ? (
+              <Box 
+                sx={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
+                  gap: 2,
+                  p: 0.5,
+                }}
+              >
+                {attachments.map((attachment) => (
+                  <Box
+                    key={attachment.id}
+                    sx={{ 
+                      border: '1px solid #e0e0e0',
+                      borderRadius: 1,
+                      p: 1.5,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      transition: 'all 0.2s',
+                      '&:hover': { 
+                        bgcolor: 'rgba(0, 0, 0, 0.03)',
+                        borderColor: 'primary.light'
+                      }
+                    }}
+                    onClick={() => handleOpenAttachment(attachment)}
+                  >
+                    {getAttachmentIcon(attachment.type)}
+                    <Box sx={{ ml: 1.5, flex: 1, overflow: 'hidden' }}>
+                      <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontSize: '0.7rem' }}>
+                        {attachment.reportType === 'ecg-test' ? 'ECG Test Report' : 
+                         attachment.reportType === 'blood-test' ? 'Blood Test Report' : 
+                         attachment.type === 'pdf' ? 'PDF Document' :
+                         attachment.type === 'image' ? 'Image' : 'Document'}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {attachment.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {attachment.date} • {attachment.size}
+                      </Typography>
+                    </Box>
+                    <IconButton 
+                      size="small" 
+                      onClick={(e) => handleDeleteAttachment(attachment.id, e)}
+                      sx={{ 
+                        ml: 1,
+                        opacity: 0,
+                        transition: 'opacity 0.2s',
+                        '&:hover': { color: 'error.main' },
+                        '.MuiBox-root:hover &': { opacity: 1 }
+                      }}
+                    >
+                      <Close fontSize="small" />
+                    </IconButton>
+                  </Box>
+                ))}
+              </Box>
+            ) : (
+              <Box sx={{ py: 4, textAlign: 'center' }}>
+                <Typography variant="body1" color="text.secondary">
+                  No attachments available.
+                </Typography>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<Upload />}
+                  onClick={handleOpenUploadModal}
+                  sx={{ mt: 2 }}
+                >
+                  Upload New Attachment
+                </Button>
+              </Box>
+            )}
           </Paper>
         </Box>
       </Paper>
@@ -1102,7 +1751,7 @@ const ConsultationPage = () => {
                       </Grid>
                       <Grid item xs={6} sm={4} md={2}>
                         <Typography variant="caption" color="text.secondary">Temperature</Typography>
-                        <Typography variant="body2">{prescription.vitals.temperature} °F</Typography>
+                        <Typography variant="body2">{prescription.vitals.temperature} °C</Typography>
                       </Grid>
                       <Grid item xs={6} sm={4} md={2}>
                         <Typography variant="caption" color="text.secondary">Respiratory Rate</Typography>
@@ -1308,10 +1957,10 @@ const ConsultationPage = () => {
                             <Box sx={{ ml: 1.5, flex: 1, overflow: 'hidden' }}>
                               <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontSize: '0.7rem' }}>
                                 {attachment.reportType === 'ecg-test' ? 'ECG Test Report' : 
-                                attachment.reportType === 'blood-test' ? 'Blood Test Report' : 
-                                attachment.reportType === 'lab-test' ? 'Lab Test Report' :
-                                attachment.type === 'pdf' ? 'PDF Document' :
-                                attachment.type === 'image' ? 'Image' : 'Document'}
+                                 attachment.reportType === 'blood-test' ? 'Blood Test Report' : 
+                                 attachment.reportType === 'lab-test' ? 'Lab Test Report' :
+                                 attachment.type === 'pdf' ? 'PDF Document' :
+                                 attachment.type === 'image' ? 'Image' : 'Document'}
                               </Typography>
                               <Typography variant="body2" sx={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {attachment.name}
@@ -1320,6 +1969,19 @@ const ConsultationPage = () => {
                                 {attachment.date} • {attachment.size}
                               </Typography>
                             </Box>
+                            <IconButton 
+                              size="small" 
+                              onClick={(e) => handleDeleteAttachment(attachment.id, e)}
+                              sx={{ 
+                                ml: 1,
+                                opacity: 0,
+                                transition: 'opacity 0.2s',
+                                '&:hover': { color: 'error.main' },
+                                '.MuiBox-root:hover &': { opacity: 1 }
+                              }}
+                            >
+                              <Close fontSize="small" />
+                            </IconButton>
                           </Box>
                         ))}
                       </Box>
@@ -1602,7 +2264,7 @@ const ConsultationPage = () => {
                     <strong>Appointment ID:</strong> {selectedPrescription.appointmentInfo.id}
                   </Typography>
                   <Typography variant="body2">
-                    <strong>BP:</strong> {selectedPrescription.initialData.vitals.bloodPressure} mmHg | <strong>Temp:</strong> {selectedPrescription.initialData.vitals.temperature}°F
+                    <strong>BP:</strong> {selectedPrescription.initialData.vitals.bloodPressure} mmHg | <strong>Temp:</strong> {selectedPrescription.initialData.vitals.temperature}°C
                   </Typography>
                 </Box>
               </Box>
@@ -1763,6 +2425,19 @@ const ConsultationPage = () => {
                             {attachment.date} • {attachment.size}
                           </Typography>
                         </Box>
+                        <IconButton 
+                          size="small" 
+                          onClick={(e) => handleDeleteAttachment(attachment.id, e)}
+                          sx={{ 
+                            ml: 1,
+                            opacity: 0,
+                            transition: 'opacity 0.2s',
+                            '&:hover': { color: 'error.main' },
+                            '.MuiBox-root:hover &': { opacity: 1 }
+                          }}
+                        >
+                          <Close fontSize="small" />
+                        </IconButton>
                       </Box>
                     ))}
                   </Box>
@@ -1856,7 +2531,7 @@ const ConsultationPage = () => {
                       </Grid>
                       <Grid item xs={6} sm={4} md={2}>
                         <Typography variant="caption" color="text.secondary">Temperature</Typography>
-                        <Typography variant="body2">{prescription.vitals.temperature} °F</Typography>
+                        <Typography variant="body2">{prescription.vitals.temperature} °C</Typography>
                       </Grid>
                       <Grid item xs={6} sm={4} md={2}>
                         <Typography variant="caption" color="text.secondary">SpO2</Typography>
@@ -2014,6 +2689,19 @@ const ConsultationPage = () => {
                                 {attachment.date} • {attachment.size}
                               </Typography>
                             </Box>
+                            <IconButton 
+                              size="small" 
+                              onClick={(e) => handleDeleteAttachment(attachment.id, e)}
+                              sx={{ 
+                                ml: 1,
+                                opacity: 0,
+                                transition: 'opacity 0.2s',
+                                '&:hover': { color: 'error.main' },
+                                '.MuiBox-root:hover &': { opacity: 1 }
+                              }}
+                            >
+                              <Close fontSize="small" />
+                            </IconButton>
                           </Box>
                         ))}
                       </Box>
@@ -2031,6 +2719,31 @@ const ConsultationPage = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setPastPrescriptionsOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Add the past appointments section */}
+      {renderPastAppointments()}
+
+      {/* Save Template Dialog */}
+      <Dialog open={openSaveTemplateDialog} onClose={handleSaveTemplateClose}>
+        <DialogTitle>Save as Template</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Template Name"
+            type="text"
+            fullWidth
+            value={templateName}
+            onChange={(e) => setTemplateName(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleSaveTemplateClose}>Cancel</Button>
+          <Button onClick={handleSaveTemplate} variant="contained" color="primary">
+            Save
+          </Button>
         </DialogActions>
       </Dialog>
     </Container>

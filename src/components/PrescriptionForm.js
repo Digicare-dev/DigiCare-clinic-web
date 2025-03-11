@@ -14,14 +14,16 @@ import {
   TableCell,
   IconButton,
   Autocomplete,
+  Button,
 } from '@mui/material';
 import {
   CalendarToday,
   RemoveCircleOutline,
+  Save,
 } from '@mui/icons-material';
 
 // This component will be a reusable prescription form that can be used in multiple places
-const PrescriptionForm = ({
+const PrescriptionForm = React.forwardRef(({
   patient,
   appointment,
   vitals,
@@ -31,12 +33,23 @@ const PrescriptionForm = ({
   initialInstructions = '',
   readOnly = false,
   onFormChange = () => {},
-}) => {
+  onSaveTemplate,
+}, ref) => {
   // State for form data
   const [complaints, setComplaints] = useState(initialComplaints);
   const [diagnoses, setDiagnoses] = useState(initialDiagnoses);
   const [medications, setMedications] = useState(initialMedications);
   const [instructions, setInstructions] = useState(initialInstructions);
+
+  // Expose form data through ref
+  React.useImperativeHandle(ref, () => ({
+    getFormData: () => ({
+      complaints,
+      diagnoses,
+      medications,
+      instructions
+    })
+  }));
 
   // Dummy data for suggestions
   const commonComplaints = [
@@ -219,6 +232,12 @@ const PrescriptionForm = ({
     updated[index].isEditing = false;
     setterFunction(updated);
     updateParent();
+  };
+
+  const handleSaveTemplateClick = (type) => {
+    if (onSaveTemplate) {
+      onSaveTemplate(type);
+    }
   };
 
   return (
@@ -474,6 +493,19 @@ const PrescriptionForm = ({
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Add this after the Complaints table */}
+      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+        <Button
+          variant="outlined"
+          color="primary"
+          onClick={() => handleSaveTemplateClick('complaints')}
+          startIcon={<Save />}
+          size="small"
+        >
+          Save as Template
+        </Button>
+      </Box>
 
       {/* Diagnosis Table */}
       <Typography variant="h6" className="section-header" sx={{ mt: 3, mb: 1 }}>
@@ -776,6 +808,6 @@ const PrescriptionForm = ({
       />
     </Paper>
   );
-};
+});
 
 export default PrescriptionForm; 

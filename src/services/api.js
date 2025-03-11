@@ -175,7 +175,6 @@ export const getAppointmentDetails = async (appointmentId) => {
       `/queueinfo/appointments/${appointmentId}/details/`,
       { withCredentials: true }
     )
-    debugger;
     return response.data;
   } catch (error) {
     console.error("Error fetching appointment details:", error);
@@ -185,9 +184,8 @@ export const getAppointmentDetails = async (appointmentId) => {
 
 export const getPatientDetails = async (patientId) => {
   try {
-    const response = await axiosInstance.post(
-      `/userinfo/patients/details/`,
-      { patient_id: patientId },
+    const response = await axiosInstance.get(
+      `/userinfo/patients/details/${patientId}`,
       { withCredentials: true } 
     );
     return response.data;
@@ -197,7 +195,7 @@ export const getPatientDetails = async (patientId) => {
   }
 };
 
-export const getPrescription = async (appointmentId) => {
+export const getPrescriptions = async (appointmentId) => {
   try {
     const response = await axiosInstance.get(
       `/prescriptions/${appointmentId}`,
@@ -226,9 +224,8 @@ export const savePrescription = async (payload) => {
 
 export const getPastPrescriptions = async (patient_id, cabin_id) => {
   try {
-    const response = await axiosInstance.post(
-      `/prescriptions/list/`,
-      { patient_id: patient_id, cabin_id: cabin_id },
+    const response = await axiosInstance.get(
+      `/prescriptions/list/${cabin_id}/${patient_id}/`,
       { withCredentials: true }
     );
     return response.data;
@@ -239,10 +236,22 @@ export const getPastPrescriptions = async (patient_id, cabin_id) => {
 };
 
 
-export const getTemplates = async () => {
+export const getTemplates = async (template_type, cabin_id) => {
+  let templateType;
+  switch(template_type) {
+    case 'medications':
+      templateType = 'medicines';
+      break;
+    case 'diagnoses':
+      templateType = 'diagnosis';
+      break;
+    case 'complaints':
+      templateType = 'complaints';
+      break;
+  }
   try {
     const response = await axiosInstance.get(
-      `/complaints/templates/`,
+      `/prescriptions/templates/${templateType}/${cabin_id}/`,
       { withCredentials: true }
     );
     return response.data;
@@ -252,10 +261,10 @@ export const getTemplates = async () => {
   }
 };
 
-export const saveTemplate = async (payload) => {
+export const saveTemplate = async (template_type, cabin_id, payload ) => {
   try {
     const response = await axiosInstance.post(
-      `/complaints/save-template/`,
+      `/prescriptions/templates/${template_type}/${cabin_id}/save/`,
       payload,
       { withCredentials: true }
     );
@@ -266,10 +275,10 @@ export const saveTemplate = async (payload) => {
   }
 };
 
-export const deleteTemplate = async (templateId) => {
+export const deleteTemplate = async (template_type, template_name, cabin_id) => {
   try {
     const response = await axiosInstance.delete(
-      `/complaints/delete-template/${templateId}/`,
+      `/templates/${template_type}/${template_name}/${cabin_id}/delete/`,
       { withCredentials: true }
     );
     return response.data;
@@ -278,3 +287,118 @@ export const deleteTemplate = async (templateId) => {
     throw error;
   }
 };
+
+export const editTemplate = async (template_type, template_name, cabin_id, payload) => {
+  try {
+    const response = await axiosInstance.put(
+      `/prescriptions/templates/${template_type}/${template_name}/${cabin_id}/edit`,
+      payload,
+      { withCredentials: true }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error editing complaints template:", error);
+    throw error;
+  }
+};
+
+export const getVitals = async(appointment_id) => {
+  try {
+    const response = await axiosInstance.get(
+      `prescriptions/vitals/${appointment_id}`,
+      {withCredentials:true}
+    );
+    return response.data;
+  } catch(error) {
+    console.error("Error fetching vitals:", error);
+    throw error;
+  }
+};
+
+export const manageVitals = async(payload) => {
+  try {
+    const response = await axiosInstance.post(
+      "prescriptions/vitals/manage/",
+      payload,
+      {withCredentials:true}
+    );
+    return response.data;
+  } catch(error) {
+    console.error("Error managing vitals", error);
+    throw error;
+  }  
+};
+
+export const getAttachments = async(appointment_id) => {
+  try {
+    const response = await axiosInstance.get(
+      `prescriptions/attachments/${appointment_id}`,
+      {withCredentials:true}
+    );
+    return response.data;
+  } catch(error) {
+    console.error("Error managing vitals", error);
+    throw error;
+  }  
+}
+
+export const uploadAttachment = async(formData) => {
+  try {
+    const response = await axiosInstance.post(
+      "prescriptions/attachments/upload/",
+      formData,
+      {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    );
+    return response.data;
+  } catch(error) {
+    console.error("Error uploading attachment:", error);
+    throw error;
+  }  
+}
+
+export const deleteAttachment = async(attachment_id) => {
+  try {
+    const response = await axiosInstance.delete(
+      `prescriptions/attachments/delete/${attachment_id}/`,
+      {withCredentials:true}
+    );
+    return response.data;
+  } catch(error) {
+    console.error("Error managing vitals", error);
+    throw error;
+  }  
+}
+
+
+export const getPatientProfile = async(phone_number) => {
+  try {
+    const response = await axiosInstance.post(
+      `userinfo/patients/profiles/`,
+      {phone_number: phone_number},
+      {withCredentials: true}
+    );
+    return response.data;
+  } catch(error) {
+    console.error("Error searching patient profile:", error);
+    throw error;
+  }
+}
+
+
+export const suggest = async(query) => {
+  try {
+    const response = await axiosInstance.get(
+      `prescriptions/medicines/suggest/${query}`,
+      {withCredentials:true}
+    );
+    return response.data;
+  } catch(error) {
+    console.error("Error suggesting medications:", error);
+    throw error;
+  }
+}

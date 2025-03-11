@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect, useMemo } from "react";
+import React, { useContext, useState } from "react";
 import { logout } from "../services/authService";
 import { AuthContext } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -10,37 +10,31 @@ import {
   DialogContentText,
   DialogTitle,
   IconButton,
-  Autocomplete,
   TextField,
   Box,
+  CircularProgress,
+  InputAdornment,
+  List,
+  ListItem,
+  ListItemText,
   Typography,
-  Avatar,
-  Chip,
 } from "@mui/material";
 import logo from "../assets/DigiCare__logo.png";
 import LogoutIcon from "@mui/icons-material/Logout";
 import SearchIcon from "@mui/icons-material/Search";
-import PersonIcon from "@mui/icons-material/Person";
-import PhoneIcon from "@mui/icons-material/Phone";
-import EmailIcon from "@mui/icons-material/Email";
-import LocalHospitalIcon from "@mui/icons-material/LocalHospital";
-import EventIcon from "@mui/icons-material/Event";
 import "./Header.module.css";
-import { patientProfiles } from "../services/dummyDataService";
+import { getPatientProfile, getPatientDetails } from "../services/api";
 
-function Header({ closeEventSource, patients = [] }) {
+function Header({ closeEventSource }) {
   const isMobile = window.innerWidth <= 768;
   const [open, setOpen] = useState(false);
   const { setUser } = useContext(AuthContext);
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
-  
-  // Use the patientProfiles database instead of the current patients
-  const patientDatabase = useMemo(() => {
-    console.log('Using patient profiles database for search');
-    return patientProfiles;
-  }, []);
+  const [error, setError] = useState(null);
+  const [patients, setPatients] = useState([]);
+  const [showPatientList, setShowPatientList] = useState(false);
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -56,61 +50,102 @@ function Header({ closeEventSource, patients = [] }) {
     handleClose();
   };
 
-  const handlePatientSelect = (event, patient) => {
-    if (!patient) return;
-    
+  const handlePatientSelect = async (patient) => {
     try {
-      console.log('Selected patient:', patient);
+      setLoading(true);
       
-      // Navigate to patient info page with the selected patient data
-      navigate('/patient-info', { 
-        state: { 
-          patientInfo: {
-            id: patient.id,
-            name: patient.fullName,
-            age: patient.age,
-            gender: patient.gender,
-            phone: patient.phone_number,
-            email: patient.email,
-            address: patient.address,
-            bloodGroup: patient.bloodGroup
-          },
-          appointmentInfo: undefined // Explicitly set to undefined to indicate no current appointment
-        } 
-      });
+      // Get complete patient details using getPatientDetails API
+      const detailsResponse = await getPatientDetails(patient.patient_id);
+      console.log('Patient details response:', detailsResponse);
+      
+      if (detailsResponse && detailsResponse.patient) {
+        // Prepare the current appointment data if it exists
+        const currentAppointment = detailsResponse.current_appointment ? {
+          id: detailsResponse.current_appointment.appointment_id,
+          token: detailsResponse.current_appointment.token,
+          type: detailsResponse.current_appointment.appointment_type,
+          status: detailsResponse.current_appointment.status,
+          disease: detailsResponse.current_appointment.disease,
+          fees: detailsResponse.current_appointment.fees_paid,
+          paymentMode: detailsResponse.current_appointment.mode,
+          paid: detailsResponse.current_appointment.paid,
+          checkin: detailsResponse.current_appointment.checkin
+        } : undefined;
+
+        // Navigate to patient info page with the complete patient data
+        navigate('/patient-info', { 
+          state: { 
+            patientInfo: {
+              id: patient.patient_id,
+              name: patient.name,
+              age: patient.age,
+              gender: patient.gender === 'M' ? 'Male' : patient.gender === 'F' ? 'Female' : patient.gender,
+              phone: patient.phone_number,
+              email: detailsResponse.patient.email,
+              address: patient.location,
+              bloodGroup: detailsResponse.patient.blood_group,
+              allergies: detailsResponse.patient.allergies,
+              chronicConditions: detailsResponse.patient.chronic_conditions,
+              guardian: patient.guardian
+            },
+            appointmentInfo: currentAppointment,
+            vitalsInfo: detailsResponse.vitals || {
+              bloodPressure: '',
+              heartRate: '',
+              temperature: '',
+              respiratoryRate: '',
+              spO2: '',
+              height: '',
+              weight: '',
+            },
+            otherAppointments: detailsResponse.other_appointments || [] // Include past appointments
+          } 
+        });
+      }
     } catch (error) {
-      console.error('Error processing patient selection:', error);
+      console.error('Error fetching patient details:', error);
+      setError("Failed to load complete patient details. Please try again.");
+    } finally {
+      setLoading(false);
+      // Clear the search results
+      setPatients([]);
+      setShowPatientList(false);
+      setSearchQuery("");
     }
   };
 
-  // Filter function for Autocomplete
-  const filterOptions = (options, { inputValue }) => {
-    if (!inputValue) return options;
-    
-    const searchTerm = inputValue.toLowerCase().trim();
-    console.log('Filtering with search term:', searchTerm);
-    
-    return options.filter(option => {
-      // Check if the option has the required properties
-      if (!option || !option.fullName) return false;
-      
-      // Search by name
-      const nameMatch = option.fullName.toLowerCase().includes(searchTerm);
-      
-      // Search by phone number
-      const phoneMatch = option.phone_number && 
-                         option.phone_number.toString().includes(searchTerm);
-      
-      // Search by ID
-      const idMatch = option.id && 
-                      option.id.toString().toLowerCase().includes(searchTerm);
-      
-      // Search by email
-      const emailMatch = option.email && 
-                         option.email.toLowerCase().includes(searchTerm);
-      
-      return nameMatch || phoneMatch || idMatch || emailMatch;
-    });
+  const handleSearch = async (event) => {
+    if (event.key === 'Enter') {
+      try {
+        setLoading(true);
+        setError(null);
+        setPatients([]);
+        setShowPatientList(false);
+        
+        // Only search if query is a 10-digit phone number
+        const isPhoneNumber = /^\d{10}$/.test(searchQuery.trim());
+        
+        if (!isPhoneNumber) {
+          setError("Please enter a valid 10-digit phone number");
+          return;
+        }
+        
+        const response = await getPatientProfile(searchQuery.trim());
+        console.log('Search response:', response);
+        
+        if (Array.isArray(response) && response.length > 0) {
+          setPatients(response);
+          setShowPatientList(true);
+        } else {
+          setError("No patient found with the provided phone number");
+        }
+      } catch (error) {
+        console.error('Error searching patient:', error);
+        setError("Failed to search patient. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
   return (
@@ -127,80 +162,84 @@ function Header({ closeEventSource, patients = [] }) {
           flex: 1, 
           maxWidth: '500px', 
           mx: 'auto',
+          position: 'relative'
         }}
       >
-        <Autocomplete
-          id="patient-search"
-          options={patientDatabase}
-          getOptionLabel={(option) => option.fullName || ''}
-          filterOptions={filterOptions}
-          onChange={handlePatientSelect}
-          loading={loading}
-          noOptionsText="No patients found"
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              placeholder="Search patients by name, ID, phone or email..."
-              variant="outlined"
-              size="small"
-              fullWidth
-              InputProps={{
-                ...params.InputProps,
-                startAdornment: (
-                  <SearchIcon color="action" sx={{ mr: 1 }} />
-                ),
-              }}
-            />
-          )}
-          renderOption={(props, option) => {
-            if (!option || !option.firstName) {
-              return null;
-            }
-            return (
-              <li {...props}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Avatar sx={{ width: 24, height: 24, mr: 1, bgcolor: 'primary.main' }}>
-                      {option.firstName.charAt(0)}
-                    </Avatar>
-                    <Typography variant="body1">{option.fullName}</Typography>
-                    <Chip 
-                      label={option.id}
-                      size="small"
-                      color="primary"
-                      variant="outlined"
-                      sx={{ ml: 'auto' }}
-                    />
-                  </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                    <PhoneIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
-                    <Typography variant="caption" color="text.secondary" sx={{ mr: 2 }}>
-                      {option.phone_number || 'No phone'}
-                    </Typography>
-                    <EmailIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
-                    <Typography variant="caption" color="text.secondary">
-                      {option.email || 'No email'}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                    <PersonIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
-                    <Typography variant="caption" color="text.secondary" sx={{ mr: 2 }}>
-                      {option.age} yrs, {option.gender}
-                    </Typography>
-                    <LocalHospitalIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
-                    <Typography variant="caption" color="text.secondary" sx={{ mr: 2 }}>
-                      {option.bloodGroup}
-                    </Typography>
-                    <EventIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
-                    <Typography variant="caption" color="text.secondary">
-                      Last visit: {option.lastVisit}
-                    </Typography>
-                  </Box>
-                </Box>
-              </li>
-            );
+        <TextField
+          placeholder="Enter 10-digit phone number to search patient..."
+          variant="outlined"
+          size="small"
+          fullWidth
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setError(null);
+          }}
+          onKeyPress={handleSearch}
+          disabled={loading}
+          error={!!error}
+          helperText={error}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon color="action" />
+              </InputAdornment>
+            ),
+            endAdornment: loading && (
+              <InputAdornment position="end">
+                <CircularProgress size={20} />
+              </InputAdornment>
+            ),
           }}
         />
+
+        {/* Patient List Dropdown */}
+        {showPatientList && patients.length > 0 && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              zIndex: 1000,
+              mt: 1,
+              bgcolor: 'background.paper',
+              borderRadius: 1,
+              boxShadow: 3,
+              maxHeight: '300px',
+              overflowY: 'auto',
+            }}
+          >
+            <List>
+              {patients.map((patient, index) => (
+                <ListItem
+                  key={patient.patient_id}
+                  button
+                  onClick={() => handlePatientSelect(patient)}
+                  divider={index < patients.length - 1}
+                  sx={{
+                    '&:hover': {
+                      bgcolor: 'action.hover',
+                    },
+                  }}
+                >
+                  <ListItemText
+                    primary={
+                      <Typography variant="subtitle1" component="div">
+                        {patient.name}
+                      </Typography>
+                    }
+                    secondary={
+                      <Typography variant="body2" color="text.secondary">
+                        {`${patient.age || 'N/A'} years • ${patient.gender || 'N/A'} • ${patient.phone_number}`}
+                      </Typography>
+                    }
+                  />
+                </ListItem>
+              ))}
+            </List>
+          </Box>
+        )}
       </Box>
 
       {/* Mobile Logout Button */}

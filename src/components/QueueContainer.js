@@ -61,6 +61,11 @@ const QueueContainer = ({
       (p) => p.appointment?.appointment_id === over.id
     );
 
+    if (activeIndex === -1 || overIndex === -1) {
+      console.error("Could not find patient in drag operation", { active, over });
+      return;
+    }
+
     const newMergedGroup = arrayMove(mergedGroup, activeIndex, overIndex);
     setMergedGroup(newMergedGroup);
     setConfirmDrag(true);
@@ -70,12 +75,23 @@ const QueueContainer = ({
 
   const handleConfirmDrag = async () => {
     setIsShifting(true);
+    
+    const overPatient = mergedGroup.find(
+      (p) => p.appointment?.appointment_id === dragOverId
+    );
+    
+    if (!overPatient) {
+      console.error("Could not find target patient for position update");
+      setIsShifting(false);
+      setConfirmDrag(false);
+      return;
+    }
+    
     await shufflePosition({
       appointment_id: dragActiveId,
-      new_position: mergedGroup.find(
-        (p) => p.appointment?.appointment_id === dragOverId
-      )?.position,
+      new_position: overPatient.position,
     });
+    
     setIsShifting(false);
     setConfirmDrag(false);
   };

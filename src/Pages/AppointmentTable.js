@@ -600,7 +600,6 @@ export default function AppointmentTable() {
     try {
       // Import dummy data service dynamically
       const { dummyAddAppointment, dummyPatients } = await import('../services/dummyDataService');
-      debugger
       // Add new appointment using dummy service with complete patient information
       const result = await addAppointment({
         cabinId: cabinId,
@@ -661,7 +660,6 @@ export default function AppointmentTable() {
         // setError("Failed to add appointment");
       // }
     } catch (error) {
-      debugger;
       console.error("Error adding appointment:", error);
       setError("Failed to add appointment");
     } finally {

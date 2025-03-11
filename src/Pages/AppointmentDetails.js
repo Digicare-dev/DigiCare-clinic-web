@@ -344,7 +344,7 @@ const AppointmentDetails = () => {
           <div class="appointment-details">
             <p><strong>Date:</strong> ${selectedPrescription?.appointmentInfo?.date}</p>
             <p><strong>Appointment ID:</strong> ${selectedPrescription?.appointmentInfo?.id}</p>
-            <p><strong>BP:</strong> ${selectedPrescription?.initialData?.vitals?.bloodPressure} mmHg | <strong>Temp:</strong> ${selectedPrescription?.initialData?.vitals?.temperature}°F</p>
+            <p><strong>BP:</strong> ${selectedPrescription?.initialData?.vitals?.bloodPressure} mmHg | <strong>Temp:</strong> ${selectedPrescription?.initialData?.vitals?.temperature}°C</p>
           </div>
         </div>
         
@@ -1141,7 +1141,7 @@ const AppointmentDetails = () => {
                     <strong>Appointment ID:</strong> {selectedPrescription.appointmentInfo.id}
                   </Typography>
                   <Typography variant="body2">
-                    <strong>BP:</strong> {selectedPrescription.initialData.vitals.bloodPressure} mmHg | <strong>Temp:</strong> {selectedPrescription.initialData.vitals.temperature}°F
+                    <strong>BP:</strong> {selectedPrescription.initialData.vitals.bloodPressure} mmHg | <strong>Temp:</strong> {selectedPrescription.initialData.vitals.temperature}°C
                   </Typography>
                 </Grid>
               </Grid>

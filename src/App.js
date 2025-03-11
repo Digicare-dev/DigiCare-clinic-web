@@ -65,16 +65,11 @@ const App = () => {
   useEffect(() => {
     const fetchInitialData = async () => {
       setLoading(true);
-      try {
-        // Import dummy data service dynamically to avoid circular dependencies
-        const { fetchDummyPatients, fetchDummyCurrentPosition } = await import('./services/dummyDataService');
+      try {        
+        const patients = await fetchPatients(cabinId, selectedSlot);
+        console.log(patients);
+        setPatients(patients);
         
-        // Fetch dummy patients
-        const dummyPatients = await fetchPatients(cabinId, selectedSlot);
-        console.log(dummyPatients);
-        setPatients(dummyPatients);
-        
-        // Fetch dummy current position
         const { current_number } = await fetchCurrentPosition(cabinId, selectedSlot);
         setCurrentPosition(current_number);
       } catch (error) {
@@ -96,43 +91,6 @@ const App = () => {
     }
   }, [patients, currentPosition]);
 
-  // Add event listener for queue refresh
-  useEffect(() => {
-    const handleQueueRefresh = (event) => {
-      if (event.detail && event.detail.patients) {
-        setPatients(event.detail.patients);
-      }
-    };
-    
-    window.addEventListener('refreshQueue', handleQueueRefresh);
-    
-    return () => {
-      window.removeEventListener('refreshQueue', handleQueueRefresh);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!user) return;
-    
-    // Simulate real-time updates every 30 seconds
-    const updateInterval = setInterval(() => {
-      // Randomly update a patient's status (e.g., check-in status)
-      if (patients.length > 0) {
-        const randomIndex = Math.floor(Math.random() * patients.length);
-        const updatedPatients = [...patients];
-        
-        // Toggle checkin status for a random patient
-        updatedPatients[randomIndex] = {
-          ...updatedPatients[randomIndex],
-          checkin: !updatedPatients[randomIndex].checkin
-        };
-        
-        setPatients(updatedPatients);
-      }
-    }, 30000); // 30 seconds
-    
-    return () => clearInterval(updateInterval);
-  }, [user, patients]);
 
   // Add SSE for real-time queue updates
   useEffect(() => {
@@ -205,13 +163,9 @@ const App = () => {
 
   const fetchPatientsData = useCallback(async () => {
     setLoading(true);
-    try {
-      // Import dummy data service
-      const { fetchDummyPatients } = await import('./services/dummyDataService');
-      
-      // Fetch dummy patients
-      const dummyPatients = await fetchDummyPatients();
-      setPatients(dummyPatients);
+    try {      
+      const patients = await fetchPatients(cabinId, selectedSlot);
+      setPatients(patients);
     } catch (error) {
       console.error("Error fetching dummy patients:", error);
     } finally {
@@ -222,11 +176,7 @@ const App = () => {
   const fetchCurrentPositionData = useCallback(async () => {
     setLoading(true);
     try {
-      // Import dummy data service
-      const { fetchDummyCurrentPosition } = await import('./services/dummyDataService');
-      
-      // Fetch dummy current position
-      const { current_number } = await fetchDummyCurrentPosition();
+      const { current_number } = await fetchCurrentPosition(cabinId, selectedSlot);
       setCurrentPosition(current_number);
       return current_number;
     } catch (error) {
@@ -236,64 +186,46 @@ const App = () => {
     }
   }, []);
 
-  const handleNextPatient = async (id) => {
-    // Import dummy data service
-    const { dummyMarkPatientAsDone } = await import('./services/dummyDataService');
-    
-    // Mark patient as done
-    const result = await markPatientAsDone(id);
-    
-    return result;
+  const handleNextPatient = async (id) => {    
+      const result = await markPatientAsDone(id);
+      return result;
   };
 
   const handleLatePatient = async (id) => {
-    // Import dummy data service
-    const { dummyMarkPatientAsLate } = await import('./services/dummyDataService');
-    
-    // Mark patient as late
     const result = await markPatientAsLate(id);
-    
     return result;
   };
 
   const shufflePosition = async (payload) => {
-    // Import dummy data service
-    const { dummyShufflePatientPosition } = await import('./services/dummyDataService');
     
-    // Shuffle patient position
     const result = await shufflePatientPosition(payload);
-    
+    return result;
   };
 
-  const addNewAppointment = async (pid, disease, appointmentType) => {
-    // Import dummy data service
-    const { dummyAddAppointment, patientProfiles, dummyPatients } = await import('./services/dummyDataService');
+  // const addNewAppointment = async (pid, disease, appointmentType) => {
     
-    // Find patient in profiles
-    const patientProfile = patientProfiles.find(p => p.id === pid);
     
-    // Add new appointment with complete patient information
-    const result = await dummyAddAppointment({
-      patientId: pid,
-      patientName: patientProfile ? patientProfile.fullName : "Unknown Patient",
-      disease: disease,
-      appointment_type: appointmentType,
-      phone_number: patientProfile ? patientProfile.phone_number : "",
-      age: patientProfile ? patientProfile.age : "",
-      gender: patientProfile ? patientProfile.gender : "",
-      location: patientProfile ? patientProfile.address : "",
-      guardian: patientProfile ? patientProfile.emergencyContact : ""
-    });
+  //   const result = await dummyAddAppointment({
+  //     patientId: pid,
+  //     patientName: patientProfile ? patientProfile.fullName : "Unknown Patient",
+  //     disease: disease,
+  //     appointment_type: appointmentType,
+  //     phone_number: patientProfile ? patientProfile.phone_number : "",
+  //     age: patientProfile ? patientProfile.age : "",
+  //     gender: patientProfile ? patientProfile.gender : "",
+  //     location: patientProfile ? patientProfile.address : "",
+  //     guardian: patientProfile ? patientProfile.emergencyContact : ""
+  //   });
     
-    // Update local state with the latest patients from dummyPatients
-    if (result.success && result.appointment) {
-      // Get the latest patients from the dummyPatients array
-      setPatients([...dummyPatients]);
-      return result;
-    }
+  //   // Update local state with the latest patients from dummyPatients
+  //   if (result.success && result.appointment) {
+  //     // Get the latest patients from the dummyPatients array
+  //     setPatients([...dummyPatients]);
+  //     return result;
+  //   }
     
-    return { success: false };
-  };
+  //   return { success: false };
+  // };
 
   return (
     <ThemeProvider theme={theme}>

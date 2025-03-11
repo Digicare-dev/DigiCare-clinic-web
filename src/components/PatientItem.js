@@ -62,6 +62,7 @@ const PatientItem = ({
   const isCurrent = position === currentPosition;
   const isLate = late || status === "late";
   const isDone = status === "done_checkup" || status === "done";
+  const isCancelled = status === "cancelled";
   
   // Log the data structure for debugging
   useEffect(() => {
@@ -97,31 +98,33 @@ const PatientItem = ({
       return;
     }
     
+    // Log the appointment data to see what's available
+    console.log('Appointment data for patient click:', appointment);
+    
+    // Get patient data from appointment.patient if available
+    const patient = appointment.patient || {};
+    
     // Extract patient name parts (assuming format is "FIRST LAST")
-    const nameParts = (appointment.name || appointment.patient_name || "").split(" ");
+    const nameParts = (appointment.name || patient.name || "").split(" ");
     const firstName = nameParts[0] || "";
     const lastName = nameParts.slice(1).join(" ") || "";
     
-    // Log the appointment data to see what's available
-    console.log('Appointment data for patient click:', appointment);
-    console.log('Available fields in appointment:', Object.keys(appointment));
-    
     // Extract all available patient data to pass to the PatientInfoPage
     const patientData = {
-      name: appointment.name || appointment.patient_name || "Unknown Patient",
+      name: appointment.name || patient.name || "Unknown Patient",
       firstName: firstName,
       lastName: lastName,
       // Try to extract age from all possible fields
-      age: appointment.age || appointment.patient_age || "",
-      gender: appointment.gender || appointment.sex || appointment.patient_gender || "Male",
+      age: patient.age || appointment.age || "",
+      gender: patient.gender || appointment.gender || "",
       // Try to extract phone from all possible fields
-      phone: appointment.phone_number || appointment.mobile || appointment.phone || appointment.contact || "",
-      email: appointment.email || `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
-      id: appointment.patient_id || appointment.id || `PT${Math.floor(Math.random() * 10000)}`,
-      bloodGroup: appointment.blood_group || "O+",
-      allergies: appointment.allergies || ["None"],
-      chronicConditions: appointment.chronic_conditions || [],
-      guardianName: appointment.guardian_name || appointment.guardian || "",
+      phone: patient.phone_number || appointment.phone_number || "",
+      email: appointment.email || patient.email || `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
+      id: patient.patient_id || appointment.patient_id || `PT${Math.floor(Math.random() * 10000)}`,
+      bloodGroup: patient.blood_group || appointment.blood_group || "O+",
+      allergies: patient.allergies || appointment.allergies || ["None"],
+      chronicConditions: patient.chronic_conditions || appointment.chronic_conditions || [],
+      guardianName: patient.guardian || appointment.guardian || "",
     };
     
     // Extract all available appointment data
@@ -216,12 +219,12 @@ const PatientItem = ({
         }}
         className={`patient-item ${isCurrent ? "current" : ""} ${isLate ? "late" : ""} ${
           isDone ? "done" : ""
-        }`}
+        } ${isCancelled ? "cancelled" : ""}`}
         onClick={handlePatientClick} // Add the click handler
     >
       <div className="patient-content">
-          <div className={`token-badge ${isCurrent ? "current-token" : ""} ${isLate ? "late-token" : ""}`}>
-            <span>#{appointment.token || position}</span>
+          <div className={`token-badge ${isCurrent ? "current-token" : ""} ${isLate ? "late-token" : ""} ${status === "cancelled" ? "cancelled-token" : ""}`}>
+            <span>#{position === -1 ? appointment.token : (appointment.token || position)}</span>
           </div>
 
           <div className="patient-details">
@@ -258,6 +261,15 @@ const PatientItem = ({
                     variant="outlined"
                   />
                 )}
+                {status === "cancelled" && (
+                  <Chip
+                    icon={<MeetingRoom fontSize="small" />}
+                    label="Cancelled"
+                    size="small"
+                    color="error"
+                    variant="outlined"
+                  />
+                )}
                 {isCurrent && (
                   <Chip
                     icon={<MedicalServices fontSize="small" />}
@@ -271,14 +283,14 @@ const PatientItem = ({
             </div>
 
             {/* Guardian name if available */}
-            {appointment.guardian_name && (
+            {(appointment.guardian || (appointment.patient && appointment.patient.guardian)) && (
               <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5, color: 'text.secondary' }}>
                 <SupervisorAccount fontSize="small" sx={{ mr: 0.5 }} />
                 <Typography variant="body2">
-                  Guardian: {appointment.guardian_name}
+                  Guardian: {appointment.patient?.guardian || appointment.guardian}
                 </Typography>
               </Box>
-              )}
+            )}
 
             <div className="appointment-meta">
               <div className="meta-item">
