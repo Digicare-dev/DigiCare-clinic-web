@@ -46,6 +46,7 @@ import {
   Edit,
   Search,
   Add as AddIcon,
+  CalendarToday,
 } from "@mui/icons-material";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -62,7 +63,9 @@ import {
   getTemplates as getTemplatesFromAPI,
   deleteTemplate as deleteTemplateApi,
   editTemplate as editTemplateApi,
-  suggest as suggestMedicines
+  suggest as suggestMedicines,
+  getCurrentPrescription,
+  suggestMedicine
 } from "../services/api";
 import { getCabinInfoFromUser } from "../utils/dateUtils";
 
@@ -206,7 +209,9 @@ const complaintFrequencySuggestions = [
 
 // Change from a page to a reusable component with forwardRef
 export const PrescriptionForm = forwardRef(({ 
-  initialData = {}, 
+  initialData , 
+  initialize = false,
+  appointmentId = null,
   onSubmit,
   readOnly = false,
   showPrintButton = true,
@@ -214,35 +219,39 @@ export const PrescriptionForm = forwardRef(({
   hidePatientDetails = false,
   patientInfo = null
 }, ref) => {
-  // Initialize state with initialData or default values
+  // Initialize state with empty values
   const [prescription, setPrescription] = useState({
-    patientName: initialData.patientName || "",
-    age: initialData.age || "",
-    gender: initialData.gender || "",
-    weight: initialData.weight || "",
+    patientName: "",
+    age: "",
+    gender: "",
+    weight: "",
     vitals: {
-      bloodPressure: initialData.vitals?.bloodPressure || "",
-      heartRate: initialData.vitals?.heartRate || "",
-      temperature: initialData.vitals?.temperature || "",
-      respiratoryRate: initialData.vitals?.respiratoryRate || "",
-      spO2: initialData.vitals?.spO2 || "",
+      bloodPressure: "",
+      heartRate: "",
+      temperature: "",
+      respiratoryRate: "",
+      spO2: "",
+      weight: "",
+      height: "",
+      bloodSugar: ""
     },
-    medications: initialData.medications || [
-      {
-        drug: "",
-        dosage: "",
-        frequency: "",
-        duration: "",
-        withFood: false,
-      },
+    medications: [
+      { medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false }
     ],
-    tests: initialData.tests || [],
-    instructions: initialData.instructions || "",
-    followUp: initialData.followUp || "",
-    signature: initialData.signature || "",
+    complaints: [
+      { complaint: '', severity: '', frequency: '', duration: '', notes: '', isEditing: false }
+    ],
+    diagnoses: [
+      { diagnosis: '', duration: '', notes: '', isEditing: false }
+    ],
+    tests: [],
+    instructions: "",
+    followUp: "",
+    signature: "",
   });
   const user = JSON.parse(localStorage.getItem("user"));
   
+
   // Extract cabin information using the new utility function
   const { cabinId, selectedSlot } = getCabinInfoFromUser(user);
 
@@ -342,6 +351,21 @@ export const PrescriptionForm = forwardRef(({
     ]
   );
 
+  // Ensure all rows have isEditing property
+  useEffect(() => {
+    // Check if any medication is missing the isEditing property
+    const needsUpdate = medications.some(med => med.isEditing === undefined);
+    
+    if (needsUpdate) {
+      console.log("Fixing medications state to ensure isEditing property exists");
+      const updatedMedications = medications.map(med => ({
+        ...med,
+        isEditing: med.isEditing || false
+      }));
+      setMedications(updatedMedications);
+    }
+  }, []);
+
   // Add new state variables for past prescriptions
   const [pastPrescriptionsOpen, setPastPrescriptionsOpen] = useState(false);
   const [pastPrescriptions, setPastPrescriptions] = useState([]);
@@ -396,14 +420,18 @@ export const PrescriptionForm = forwardRef(({
   useEffect(() => {
     if (ref) {
       ref.current = {
-        getFormData: () => ({
-          complaints,
-          diagnoses,
-          medications,
-          tests: prescription.tests || [],
-          instructions: prescription.instructions || "",
-          vitals: prescription.vitals || {},
-        }),
+        getFormData: () => {
+          const formData = {
+            complaints,
+            diagnoses,
+            medications,
+            tests: prescription.tests || [],
+            instructions: prescription.instructions || "",
+            vitals: prescription.vitals || {},
+          };
+          console.log('Form data being exposed to parent:', formData);
+          return formData;
+        },
         submitForm: () => {
           const formData = {
             ...prescription,
@@ -412,6 +440,7 @@ export const PrescriptionForm = forwardRef(({
             medications,
             signature
           };
+          console.log('Form data being submitted:', formData);
           
           if (onSubmit) {
             onSubmit(formData);
@@ -425,6 +454,9 @@ export const PrescriptionForm = forwardRef(({
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    // Debug output for medications
+    console.log('Medications state before submission:', medications);
+    
     // Prepare the complete data to send to parent component
     const formData = {
       ...prescription,
@@ -433,6 +465,8 @@ export const PrescriptionForm = forwardRef(({
       medications,
       signature
     };
+    
+    console.log('Form data being submitted:', formData);
     
     // Call the onSubmit function passed as prop
     if (onSubmit) {
@@ -458,6 +492,14 @@ export const PrescriptionForm = forwardRef(({
 
     setPrescription({ ...prescription, medications: meds });
   };
+
+  useEffect(()=>{
+    console.log(prescription);
+    console.log(complaints);
+    console.log(medications);
+    console.log(diagnoses);
+  
+  },[prescription, complaints, medications, diagnoses,])
 
   const handleCheckboxChange = (index) => {
     const meds = [...prescription.medications];
@@ -517,64 +559,77 @@ export const PrescriptionForm = forwardRef(({
 
   // Add this function near your other handlers
   const handleClickAway = (index) => {
-    const updatedComplaints = [...complaints];
+    const updatedComplaints = [...prescription.complaints];
     updatedComplaints[index].isEditing = false;
-    setComplaints(updatedComplaints);
+    setPrescription({
+      ...prescription,
+      complaints: updatedComplaints
+    });
   };
 
   // Also modify the handleComplaintChange function to include the auto-close behavior
   const handleComplaintChange = (index, field, value) => {
-    const updatedComplaints = [...complaints];
+    const updatedComplaints = [...prescription.complaints];
     updatedComplaints[index][field] = value;
-    
-    if (value) {
-      const currentRow = updatedComplaints[index];
-      
-      // Auto-focus next field
-      if (field === 'complaint' && value) {
-        const nextElement = document.querySelector(`#severity-${index}`);
-        if (nextElement) nextElement.focus();
-      } else if (field === 'severity' && value) {
-        const nextElement = document.querySelector(`#duration-${index}`);
-        if (nextElement) nextElement.focus();
-      }
 
-      // Check if all fields in current row are filled
-      if (currentRow.complaint && currentRow.severity && currentRow.duration) {
-        // Close current row
-        updatedComplaints[index].isEditing = false;
-        setComplaints(updatedComplaints);
+    // Check if all main fields in the current row have values
+    const currentRow = updatedComplaints[index];
+    const hasAllMainFields = currentRow.complaint && 
+                           currentRow.severity && 
+                           currentRow.frequency && 
+                           currentRow.duration;
+
+    // If all main fields are filled and this is the last row, add a new row
+    if (hasAllMainFields && index === prescription.complaints.length - 1) {
+      // Add a small delay to ensure the current row's state is updated
+      setTimeout(() => {
+        const newComplaints = [...updatedComplaints, {
+          complaint: '',
+          severity: '',
+          frequency: '',
+          duration: '',
+          notes: '',
+          isEditing: false
+        }];
         
-        // Add new row if this is the last row
-        if (index === complaints.length - 1) {
-          setTimeout(() => {
-            addNewComplaintRow();
-          }, 100);
-        }
-      }
+        setPrescription({
+          ...prescription,
+          complaints: newComplaints
+        });
+      }, 10);
+    } else {
+      // Update the current row without adding a new one
+      setPrescription({
+        ...prescription,
+        complaints: updatedComplaints
+      });
     }
-    
-    setComplaints(updatedComplaints);
   };
 
   // Modify addNewComplaintRow to prevent auto-opening dropdown
   const addNewComplaintRow = () => {
     if (readOnly) return;
     
-    const updatedComplaints = [...complaints];
+    const updatedComplaints = [...prescription.complaints];
     updatedComplaints[updatedComplaints.length - 1].isEditing = false;
-    setComplaints(updatedComplaints);
-
+    
     setTimeout(() => {
-      setComplaints(prev => [...prev, { 
-        complaint: '', 
-        severity: '', 
-        frequency: '',
-        duration: '', 
-        notes: '', 
-        isEditing: false 
-      }]);
-      const newIndex = complaints.length;
+      setPrescription({
+        ...prescription,
+        complaints: [
+          ...updatedComplaints,
+          { 
+            complaint: '', 
+            severity: '', 
+            frequency: '',
+            duration: '', 
+            notes: '', 
+            isEditing: false 
+          }
+        ]
+      });
+      
+      const newIndex = prescription.complaints.length;
       const element = document.querySelector(`#complaint-${newIndex}`);
       if (element && element.querySelector('input')) {
         element.querySelector('input').focus();
@@ -584,73 +639,60 @@ export const PrescriptionForm = forwardRef(({
 
   // Add these handler functions
   const handleDiagnosisChange = (index, field, value) => {
-    const updatedDiagnoses = [...diagnoses];
+    const updatedDiagnoses = [...prescription.diagnoses];
     updatedDiagnoses[index][field] = value;
     
-    // Only proceed with auto-focus and dropdown logic if not editing notes
-    if (value && field !== 'notes') {
-      const currentRow = updatedDiagnoses[index];
-      
-      // Auto-focus next field with unique IDs
-      if (field === 'diagnosis' && value) {
-        const nextElement = document.querySelector(`#diagnosis-duration-${index}`);
-        if (nextElement) nextElement.focus();
-      }
+    // Check if all main fields in the current row have values
+    const currentRow = updatedDiagnoses[index];
+    const hasAllMainFields = currentRow.diagnosis && currentRow.duration;
 
-      // Check if all fields in current row are filled
-      if (currentRow.diagnosis && currentRow.duration) {
-        updatedDiagnoses[index].isEditing = false;
-        setDiagnoses(updatedDiagnoses);
+    // If all main fields are filled and this is the last row, add a new row
+    if (hasAllMainFields && index === prescription.diagnoses.length - 1) {
+      // Add a small delay to ensure the current row's state is updated
+      setTimeout(() => {
+        const newDiagnoses = [...updatedDiagnoses, {
+          diagnosis: '',
+          duration: '',
+          notes: '',
+          isEditing: false
+        }];
         
-        if (index === diagnoses.length - 1) {
-          setTimeout(() => {
-            addNewDiagnosisRow();
-          }, 100);
-        }
-      }
+        setPrescription({
+          ...prescription,
+          diagnoses: newDiagnoses
+        });
+      }, 10);
+    } else {
+      // Update the current row without adding a new one
+      setPrescription({
+        ...prescription,
+        diagnoses: updatedDiagnoses
+      });
     }
-    
-    setDiagnoses(updatedDiagnoses);
   };
 
   const handleMedicationChange = (index, field, value) => {
-    const updatedMedications = [...medications];
-    updatedMedications[index][field] = value;
+    console.log(`Updating medication[${index}].${field} to:`, value);
+    console.log('Current medications state:', medications);
     
-    // Only proceed with auto-focus and dropdown logic if not editing notes
-    if (value && field !== 'notes') {
-      const currentRow = updatedMedications[index];
-      
-      // Auto-focus next field logic with unique IDs
-      const fields = ['medicine', 'dose', 'timing', 'frequency', 'duration'];
-      const currentFieldIndex = fields.indexOf(field);
-      if (currentFieldIndex < fields.length - 1) {
-        const nextField = fields[currentFieldIndex + 1];
-        const nextElement = document.querySelector(`#med-${nextField}-${index}`);
-        if (nextElement) nextElement.focus();
-      }
-
-      // Check if all fields are filled
-      if (currentRow.medicine && currentRow.dose && currentRow.timing && 
-          currentRow.frequency && currentRow.duration) {
-        updatedMedications[index].isEditing = false;
-        setMedications(updatedMedications);
-        
-        if (index === medications.length - 1) {
-          setTimeout(() => {
-            addNewMedicationRow();
-          }, 100);
-        }
-      }
-    }
+    const updatedMedications = [...medications];
+    updatedMedications[index] = {
+      ...updatedMedications[index],
+      [field]: value
+    };
+    
+    console.log(`Updated medication[${index}]:`, updatedMedications[index]);
+    console.log('Full updated medications:', updatedMedications);
     
     setMedications(updatedMedications);
   };
 
   const handleMedicationClickAway = (index) => {
-    // Close the dropdown for the specific row, regardless of field completion
     const updatedMedications = [...medications];
-    updatedMedications[index].isEditing = false;
+    updatedMedications[index] = {
+      ...updatedMedications[index],
+      isEditing: false
+    };
     setMedications(updatedMedications);
   };
 
@@ -658,7 +700,7 @@ export const PrescriptionForm = forwardRef(({
   const addNewDiagnosisRow = () => {
     if (readOnly) return;
     
-    const updatedDiagnoses = [...diagnoses];
+    const updatedDiagnoses = [...prescription.diagnoses];
     updatedDiagnoses[updatedDiagnoses.length - 1].isEditing = false; // Close the current row
     setDiagnoses(updatedDiagnoses); // Update state to close dropdown
 
@@ -674,28 +716,18 @@ export const PrescriptionForm = forwardRef(({
 
   // Modify addNewMedicationRow to prevent auto-opening dropdown
   const addNewMedicationRow = () => {
-    if (readOnly) return;
-    
-    const updatedMedications = [...medications];
-    updatedMedications[updatedMedications.length - 1].isEditing = false; // Close the current row
-    setMedications(updatedMedications); // Update state to close dropdown
-
-    setTimeout(() => {
-        setMedications(prev => [...prev, { 
-            medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false 
-        }]);
-        const newIndex = medications.length;
-        const element = document.querySelector(`#med-medicine-${newIndex}`);
-        if (element && element.querySelector('input')) {
-            element.querySelector('input').focus();
-        }
-    }, 200);
+    // Removed the validation check that prevented adding a new row
+    // Now users can add a new row regardless of whether the last row is filled out
+    setMedications([
+      ...medications,
+      { medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false }
+    ]);
   };
 
   // Add these click-away handlers
   const handleDiagnosisClickAway = (index) => {
     // Close the dropdown for the specific row, regardless of field completion
-    const updatedDiagnoses = [...diagnoses];
+    const updatedDiagnoses = [...prescription.diagnoses];
     updatedDiagnoses[index].isEditing = false;
     setDiagnoses(updatedDiagnoses);
   };
@@ -1472,30 +1504,40 @@ export const PrescriptionForm = forwardRef(({
 
   // Function to fetch medicine suggestions
   const fetchMedicineSuggestions = async (query) => {
-    if (!query || query.length < 2) {
-      setSuggestedMedicines([]);
-      return;
-    }
-    
-    setIsLoadingSuggestions(true);
+    if (!query) return [];
     try {
-      const response = await suggestMedicines(query);
-      console.log('Medicine suggestions:', response);
+      console.log('Fetching medicine suggestions for query:', query);
+      const suggestions = await suggestMedicine(query);
+      console.log('API response for medicine suggestions:', suggestions);
       
-      if (response && Array.isArray(response)) {
-        // Store the full medicine objects to use in the dropdown
-        setSuggestedMedicines(response);
-      } else {
-        setSuggestedMedicines([]);
-      }
+      return suggestions.map(medicine => {
+        console.log('Processing medicine suggestion:', medicine);
+        return {
+          value: medicine.name, // This is what gets displayed in the input after selection
+          label: (
+            <div>
+              <div style={{ fontWeight: 'bold' }}>{medicine.name}</div>
+              {medicine.generic_name && (
+                <div style={{ fontSize: '0.8em', color: '#666' }}>
+                  {medicine.generic_name}
+                </div>
+              )}
+              {medicine.dose && (
+                <div style={{ fontSize: '0.8em', color: '#666' }}>
+                  {medicine.dose} | {medicine.when} | {medicine.frequency} | {medicine.duration}
+                </div>
+              )}
+            </div>
+          ),
+          data: medicine // Store the full medicine object for use later
+        };
+      });
     } catch (error) {
       console.error('Error fetching medicine suggestions:', error);
-      setSuggestedMedicines([]);
-    } finally {
-      setIsLoadingSuggestions(false);
+      return [];
     }
   };
-  
+
   // Debounce the medicine search to avoid too many API calls
   useEffect(() => {
     const debounceTimer = setTimeout(() => {
@@ -1512,9 +1554,154 @@ export const PrescriptionForm = forwardRef(({
     // ... existing code ...
   }, [currentTemplateType, templateName, availableTemplates, searchTemplate, editTemplateOpen, editingTemplate, tempMedications, tempDiagnoses, tempComplaints]);
 
+  console.log("PrescriptionForm initialData:", initialData);
+
+  // Add this useEffect to update state when initialData changes
+  //
+  // Add useEffect for initialization
+  useEffect(() => {
+    const initializePrescription = async () => {
+      if (initialize && appointmentId) {
+        try {
+          const response = await getCurrentPrescription(appointmentId);
+          console.log("Current prescription data:", response);
+
+          // Create a new prescription object with the API response data
+          const newPrescription = {
+            ...prescription,
+            vitals: {
+              bloodPressure: response.vitals?.blood_pressure || "",
+              heartRate: response.vitals?.pulse_rate || "",
+              temperature: response.vitals?.temperature || "",
+              respiratoryRate: "",
+              spO2: response.vitals?.spo2 || "",
+              weight: response.vitals?.weight || "",
+              height: response.vitals?.height || "",
+              bloodSugar: response.vitals?.blood_sugar || ""
+            },
+            complaints: [
+              ...(response.complaints?.length > 0 
+                ? response.complaints.map(complaint => ({
+                    complaint: complaint.name || "",
+                    severity: complaint.severity || "",
+                    frequency: complaint.frequency || "",
+                    duration: complaint.duration || "",
+                    notes: complaint.notes || "",
+                    isEditing: false
+                  }))
+                : []),
+              { complaint: '', severity: '', frequency: '', duration: '', notes: '', isEditing: false }
+            ],
+            diagnoses: [
+              ...(response.diagnosis?.length > 0
+                ? response.diagnosis.map(diag => ({
+                    diagnosis: diag.name || "",
+                    duration: diag.duration || "",
+                    notes: diag.notes || "",
+                    isEditing: false
+                  }))
+                : []),
+              { diagnosis: '', duration: '', notes: '', isEditing: false }
+            ],
+            medications: [
+              ...(response.medicines?.length > 0
+                ? response.medicines.map(med => ({
+                    medicine: med.name || "",
+                    dose: med.dose || "",
+                    timing: med.when || "",
+                    frequency: med.frequency || "",
+                    duration: med.duration || "",
+                    notes: med.notes || "",
+                    isEditing: false
+                  }))
+                : []),
+              { medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false }
+            ],
+            tests: response.tests?.[0]?.testlist || [],
+            instructions: response.advice?.[0]?.advice || "",
+            followUp: "",
+            signature: ""
+          };
+          
+          setPrescription(newPrescription);
+        } catch (error) {
+          console.error("Error fetching prescription:", error);
+        }
+      }
+    };
+
+    initializePrescription();
+  }, [initialize, appointmentId]);
+
+  // Add this useEffect to handle medicine search
+  useEffect(() => {
+    const searchMedicines = async () => {
+      if (medicineSearchQuery.length >= 2) {
+        setIsLoadingSuggestions(true);
+        try {
+          const suggestions = await fetchMedicineSuggestions(medicineSearchQuery);
+          setSuggestedMedicines(suggestions);
+        } catch (error) {
+          console.error('Error fetching medicine suggestions:', error);
+          setSuggestedMedicines([]);
+        } finally {
+          setIsLoadingSuggestions(false);
+        }
+      } else {
+        setSuggestedMedicines([]);
+      }
+    };
+
+    const debounceTimer = setTimeout(searchMedicines, 300);
+    return () => clearTimeout(debounceTimer);
+  }, [medicineSearchQuery]);
+
+  // Add a function to explicitly trigger a medicine search
+  const triggerMedicineSearch = async (query) => {
+    if (!query) query = " "; // Use a space to get all suggestions
+    console.log("Manually triggering medicine search for:", query);
+    setMedicineSearchQuery(query);
+    
+    try {
+      const suggestions = await fetchMedicineSuggestions(query);
+      setSuggestedMedicines(suggestions);
+    } catch (error) {
+      console.error("Error fetching medicine suggestions:", error);
+    }
+  };
+
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <Container className="prescription-container" sx={{ pb: 3 }}>
+      <Container className="prescription-container" sx={{ 
+        pb: 3,
+        height: 'auto',
+        minHeight: '90vh',
+        padding: '1rem 1.5rem 2rem 1.5rem',
+        backgroundColor: '#fbfbfd',
+        overflowY: 'auto',
+        width: '100%',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+        margin: '1rem auto',
+        borderRadius: '12px',
+        maxWidth: '1280px',
+        marginBottom: '50px',
+        '&::-webkit-scrollbar': {
+          width: '8px',
+        },
+        '&::-webkit-scrollbar-track': {
+          background: '#f1f5f9',
+        },
+        '&::-webkit-scrollbar-thumb': {
+          backgroundColor: '#cbd5e0',
+          borderRadius: '4px',
+        },
+        '&::-webkit-scrollbar-thumb:hover': {
+          backgroundColor: '#94a3b8',
+        },
+        '@media (max-width: 960px)': {
+          padding: '1rem',
+        }
+      }}>
         <form id="prescription-form" onSubmit={handleSubmit}>
           <Box>
             {!hidePatientDetails && (
@@ -1726,13 +1913,14 @@ export const PrescriptionForm = forwardRef(({
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {complaints.map((row, index) => (
+                    {prescription.complaints.map((row, index) => (
                       <TableRow 
                         key={index}
                         onClick={(e) => {
                           // No longer activate editing at the row level
                           // Editing will only be activated by clicking on the specific inputs
                           e.stopPropagation();
+                          console.log(`Row ${index} clicked, current isEditing state:`, row.isEditing);
                         }}
                         sx={{ '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }, '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}
                       >
@@ -1753,9 +1941,9 @@ export const PrescriptionForm = forwardRef(({
                             onChange={(_, value) => {
                               handleComplaintChange(index, 'complaint', value);
                               // Keep isEditing true after selection
-                              const updatedComplaints = [...complaints];
+                              const updatedComplaints = [...prescription.complaints];
                               updatedComplaints[index].isEditing = true;
-                              setComplaints(updatedComplaints);
+                              setPrescription({ ...prescription, complaints: updatedComplaints });
                             }}
                             renderInput={(params) => (
                               <TextField
@@ -1763,19 +1951,17 @@ export const PrescriptionForm = forwardRef(({
                                 variant="standard"
                                 placeholder="Enter complaint"
                                 onFocus={(e) => {
-                                  if (e.target === document.activeElement) {
-                                    e.stopPropagation();
-                                    const updatedComplaints = [...complaints];
-                                    updatedComplaints[index].isEditing = true;
-                                    setComplaints(updatedComplaints);
-                                  }
+                                  e.stopPropagation();
+                                  const updatedComplaints = [...prescription.complaints];
+                                  updatedComplaints[index].isEditing = true;
+                                  setPrescription({ ...prescription, complaints: updatedComplaints });
                                 }}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (!readOnly && (row.complaint || index !== complaints.length - 1)) {
-                                    const updatedComplaints = [...complaints];
+                                  if (!readOnly && (row.complaint || index !== prescription.complaints.length - 1)) {
+                                    const updatedComplaints = [...prescription.complaints];
                                     updatedComplaints[index].isEditing = true;
-                                    setComplaints(updatedComplaints);
+                                    setPrescription({ ...prescription, complaints: updatedComplaints });
                                   }
                                 }}
                               />
@@ -1799,21 +1985,27 @@ export const PrescriptionForm = forwardRef(({
                             onChange={(_, value) => {
                               handleComplaintChange(index, 'severity', value);
                               // Keep isEditing true after selection
-                              const updatedComplaints = [...complaints];
+                              const updatedComplaints = [...prescription.complaints];
                               updatedComplaints[index].isEditing = true;
-                              setComplaints(updatedComplaints);
+                              setPrescription({ ...prescription, complaints: updatedComplaints });
                             }}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
                                 variant="standard"
                                 placeholder="Select severity"
+                                onFocus={(e) => {
+                                  e.stopPropagation();
+                                  const updatedComplaints = [...prescription.complaints];
+                                  updatedComplaints[index].isEditing = true;
+                                  setPrescription({ ...prescription, complaints: updatedComplaints });
+                                }}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (!readOnly && (row.complaint || index !== complaints.length - 1)) {
-                                    const updatedComplaints = [...complaints];
+                                  if (!readOnly && (row.complaint || index !== prescription.complaints.length - 1)) {
+                                    const updatedComplaints = [...prescription.complaints];
                                     updatedComplaints[index].isEditing = true;
-                                    setComplaints(updatedComplaints);
+                                    setPrescription({ ...prescription, complaints: updatedComplaints });
                                   }
                                 }}
                               />
@@ -1835,21 +2027,27 @@ export const PrescriptionForm = forwardRef(({
                             }}
                             onChange={(_, value) => {
                               handleComplaintChange(index, 'frequency', value);
-                              const updatedComplaints = [...complaints];
+                              const updatedComplaints = [...prescription.complaints];
                               updatedComplaints[index].isEditing = true;
-                              setComplaints(updatedComplaints);
+                              setPrescription({ ...prescription, complaints: updatedComplaints });
                             }}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
                                 variant="standard"
                                 placeholder="Select frequency"
+                                onFocus={(e) => {
+                                  e.stopPropagation();
+                                  const updatedComplaints = [...prescription.complaints];
+                                  updatedComplaints[index].isEditing = true;
+                                  setPrescription({ ...prescription, complaints: updatedComplaints });
+                                }}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (!readOnly && (row.complaint || index !== complaints.length - 1)) {
-                                    const updatedComplaints = [...complaints];
+                                  if (!readOnly && (row.complaint || index !== prescription.complaints.length - 1)) {
+                                    const updatedComplaints = [...prescription.complaints];
                                     updatedComplaints[index].isEditing = true;
-                                    setComplaints(updatedComplaints);
+                                    setPrescription({ ...prescription, complaints: updatedComplaints });
                                   }
                                 }}
                               />
@@ -1873,21 +2071,27 @@ export const PrescriptionForm = forwardRef(({
                             onChange={(_, value) => {
                               handleComplaintChange(index, 'duration', value);
                               // Keep isEditing true after selection
-                              const updatedComplaints = [...complaints];
+                              const updatedComplaints = [...prescription.complaints];
                               updatedComplaints[index].isEditing = true;
-                              setComplaints(updatedComplaints);
+                              setPrescription({ ...prescription, complaints: updatedComplaints });
                             }}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
                                 variant="standard"
                                 placeholder="Select duration"
+                                onFocus={(e) => {
+                                  e.stopPropagation();
+                                  const updatedComplaints = [...prescription.complaints];
+                                  updatedComplaints[index].isEditing = true;
+                                  setPrescription({ ...prescription, complaints: updatedComplaints });
+                                }}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (!readOnly && (row.complaint || index !== complaints.length - 1)) {
-                                    const updatedComplaints = [...complaints];
+                                  if (!readOnly && (row.complaint || index !== prescription.complaints.length - 1)) {
+                                    const updatedComplaints = [...prescription.complaints];
                                     updatedComplaints[index].isEditing = true;
-                                    setComplaints(updatedComplaints);
+                                    setPrescription({ ...prescription, complaints: updatedComplaints });
                                   }
                                 }}
                               />
@@ -1908,13 +2112,13 @@ export const PrescriptionForm = forwardRef(({
                           />
                         </TableCell>
                         <TableCell>
-                          {complaints.length > 1 && index !== complaints.length - 1 && (
+                          {prescription.complaints.length > 1 && index !== prescription.complaints.length - 1 && (
                             <IconButton
                               size="small"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const updatedComplaints = complaints.filter((_, i) => i !== index);
-                                setComplaints(updatedComplaints);
+                                const updatedComplaints = prescription.complaints.filter((_, i) => i !== index);
+                                setPrescription({ ...prescription, complaints: updatedComplaints });
                               }}
                             >
                               <RemoveCircleOutline fontSize="small" color="error" />
@@ -1925,6 +2129,25 @@ export const PrescriptionForm = forwardRef(({
                     ))}
                   </TableBody>
                 </Table>
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'flex-start',
+                  position: 'relative',
+                  bottom: 0,
+                  left: 0,
+                  p: 0.5,
+                  backgroundColor: 'background.paper',
+                  borderTop: '1px solid',
+                  borderColor: 'divider'
+                }}>
+                  <IconButton
+                    size="small"
+                    onClick={() => addNewComplaintRow()}
+                    sx={{ color: 'primary.main' }}
+                  >
+                    <AddCircleOutline fontSize="small" />
+                  </IconButton>
+                </Box>
               </TableContainer>
             </Grid>
 
@@ -1975,6 +2198,7 @@ export const PrescriptionForm = forwardRef(({
                           // No longer activate editing at the row level
                           // Editing will only be activated by clicking on the specific inputs
                           e.stopPropagation();
+                          console.log(`Row ${index} clicked, current isEditing state:`, diagnoses[index].isEditing);
                         }}
                         sx={{ '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }, '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}
                       >
@@ -2005,12 +2229,10 @@ export const PrescriptionForm = forwardRef(({
                                 variant="standard"
                                 placeholder="Enter diagnosis"
                                 onFocus={(e) => {
-                                  if (e.target === document.activeElement) {
-                                    e.stopPropagation();
-                                    const updatedDiagnoses = [...diagnoses];
-                                    updatedDiagnoses[index].isEditing = true;
-                                    setDiagnoses(updatedDiagnoses);
-                                  }
+                                  e.stopPropagation();
+                                  const updatedDiagnoses = [...diagnoses];
+                                  updatedDiagnoses[index].isEditing = true;
+                                  setDiagnoses(updatedDiagnoses);
                                 }}
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -2050,6 +2272,12 @@ export const PrescriptionForm = forwardRef(({
                                 {...params}
                                 variant="standard"
                                 placeholder="Select duration"
+                                onFocus={(e) => {
+                                  e.stopPropagation();
+                                  const updatedDiagnoses = [...diagnoses];
+                                  updatedDiagnoses[index].isEditing = true;
+                                  setDiagnoses(updatedDiagnoses);
+                                }}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   if (!readOnly && (row.diagnosis || index !== diagnoses.length - 1)) {
@@ -2092,6 +2320,25 @@ export const PrescriptionForm = forwardRef(({
                     ))}
                   </TableBody>
                 </Table>
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'flex-start',
+                  position: 'relative',
+                  bottom: 0,
+                  left: 0,
+                  p: 0.5,
+                  backgroundColor: 'background.paper',
+                  borderTop: '1px solid',
+                  borderColor: 'divider'
+                }}>
+                  <IconButton
+                    size="small"
+                    onClick={() => addNewDiagnosisRow()}
+                    sx={{ color: 'primary.main' }}
+                  >
+                    <AddCircleOutline fontSize="small" />
+                  </IconButton>
+                </Box>
               </TableContainer>
             </Grid>
 
@@ -2156,6 +2403,7 @@ export const PrescriptionForm = forwardRef(({
                           // No longer activate editing at the row level
                           // Editing will only be activated by clicking on the specific inputs
                           e.stopPropagation();
+                          console.log(`Row ${index} clicked, current isEditing state:`, row.isEditing);
                         }}
                         sx={{ '&:nth-of-type(odd)': { backgroundColor: 'rgba(0, 0, 0, 0.02)' }, '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}
                       >
@@ -2165,12 +2413,19 @@ export const PrescriptionForm = forwardRef(({
                             freeSolo
                             size="small"
                             options={suggestedMedicines}
-                            getOptionLabel={(option) => typeof option === 'string' ? option : option.name}
+                            getOptionLabel={(option) => {
+                              console.log('getOptionLabel called with option:', option);
+                              if (typeof option === 'string') return option;
+                              if (option && option.value) return option.value;
+                              if (option && option.name) return option.name;
+                              return option.value || option.name || '';
+                            }}
                             value={row.medicine}
-                            open={row.isEditing && medicineSearchQuery.length >= 2}
+                            // Ensure dropdown opens when the row is in editing mode
+                            open={row.isEditing && (suggestedMedicines.length > 0 || Boolean(medicineSearchQuery))}
                             loading={isLoadingSuggestions}
                             noOptionsText="No medicines found"
-                            filterOptions={(x) => x} // Disable built-in filtering as we're using the API
+                            filterOptions={(x) => x}
                             ListboxProps={{
                               style: { 
                                 maxHeight: '300px',
@@ -2183,47 +2438,106 @@ export const PrescriptionForm = forwardRef(({
                               </Paper>
                             )}
                             onInputChange={(event, newInputValue) => {
+                              console.log('onInputChange called with newInputValue:', newInputValue);
                               if (event) {
                                 setMedicineSearchQuery(newInputValue);
+                                // We only update the medicine field directly while typing
+                                // When selecting from dropdown, the onChange handler will update it
+                                // Check if this is a change event (typing) and not a selection event
+                                if (event.type === 'change') {
+                                  console.log('User is typing in medicine field, updating search query only');
+                                  // Don't update the medicine field here, let the onChange handle it
+                                }
                               }
                             }}
                             onClose={(e, reason) => {
-                              // Only close when clicking away, not when selecting an item
                               if (reason === 'escape' || reason === 'blur') {
                                 handleMedicationClickAway(index);
-                                // Clear suggestions when closing
                                 setSuggestedMedicines([]);
                                 setMedicineSearchQuery('');
                               }
                             }}
                             onChange={(_, value) => {
-                              // Handle both string values and medicine objects
-                              const medicineValue = typeof value === 'string' ? value : value?.name || '';
+                              // Handle both string values and object values from the Autocomplete
+                              let medicineValue;
+                              
+                              console.log('Raw value from Autocomplete:', value);
+                              
+                              if (typeof value === 'string') {
+                                // If user just typed text and pressed enter, use it directly
+                                medicineValue = value;
+                                console.log('Medicine value is a string:', medicineValue);
+                              } else if (value && typeof value === 'object') {
+                                // If it's an object (user selected from dropdown), first check if it has data
+                                if (value.data) {
+                                  // This is from our transformed suggestions
+                                  const medicine = value.data;
+                                  medicineValue = medicine.name;
+                                  console.log('Using name from medicine data:', medicineValue);
+                                  
+                                  // Update all other fields from the selected medicine
+                                  handleMedicationChange(index, 'dose', medicine.dose || '');
+                                  handleMedicationChange(index, 'timing', medicine.when || '');
+                                  handleMedicationChange(index, 'frequency', medicine.frequency || '');
+                                  handleMedicationChange(index, 'duration', medicine.duration || '');
+                                  handleMedicationChange(index, 'notes', medicine.notes || '');
+                                } else if (value.value) {
+                                  // It has a value property (from our getOptionLabel)
+                                  medicineValue = value.value;
+                                  console.log('Medicine value from suggestion object value property:', medicineValue);
+                                } else if (value.name) {
+                                  // Directly from API response
+                                  medicineValue = value.name;
+                                  console.log('Medicine value from suggestion object name property:', medicineValue);
+                                } else if (value.label && typeof value.label !== 'object') {
+                                  // Some other object with a label
+                                  medicineValue = value.label;
+                                  console.log('Medicine value from suggestion object label property:', medicineValue);
+                                } else {
+                                  // Fallback to stringify the object for debugging
+                                  medicineValue = JSON.stringify(value);
+                                  console.log('Medicine value is an unknown object, stringified:', medicineValue);
+                                }
+                              } else {
+                                medicineValue = '';
+                                console.log('Medicine value is empty or null');
+                              }
+                              
+                              console.log('Final medicine value being set:', medicineValue);
                               handleMedicationChange(index, 'medicine', medicineValue);
                               
-                              // Keep isEditing true after selection
-                              const updatedMedications = [...medications];
-                              updatedMedications[index].isEditing = true;
-                              setMedications(updatedMedications);
-                              
-                              // Clear suggestions after selection
                               setSuggestedMedicines([]);
                               setMedicineSearchQuery('');
                             }}
-                            renderOption={(props, option) => (
-                              <li {...props}>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', py: 0.8, px: 1 }}>
-                                  <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                                    {option.name}
-                                  </Typography>
-                                  {option.generic_name && (
-                                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-                                      {option.generic_name}
-                                    </Typography>
-                                  )}
-                                </Box>
-                              </li>
-                            )}
+                            renderOption={(props, option) => {
+                              console.log('renderOption called with option:', option);
+                              // If option is a string, just render it
+                              if (typeof option === 'string') {
+                                return <li {...props}>{option}</li>;
+                              }
+                              
+                              // If option has a label that's a React element, use it
+                              if (option.label && React.isValidElement(option.label)) {
+                                return <li {...props}>{option.label}</li>;
+                              }
+                              
+                              // Otherwise, build a custom option display
+                              const medicineName = option.value || option.name || '';
+                              const genericName = option.data?.generic_name || '';
+                              
+                              return (
+                                <li {...props}>
+                                  <div>
+                                    <div style={{ fontWeight: 'bold' }}>{medicineName}</div>
+                                    {genericName && (
+                                      <div style={{ fontSize: '0.8em', color: '#666' }}>
+                                        {genericName}
+                                      </div>
+                                    )}
+                                  </div>
+                                </li>
+                              );
+                            }}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
@@ -2239,23 +2553,32 @@ export const PrescriptionForm = forwardRef(({
                                   ),
                                 }}
                                 onFocus={(e) => {
-                                  if (e.target === document.activeElement) {
-                                    e.stopPropagation();
-                                    const updatedMedications = [...medications];
-                                    updatedMedications[index].isEditing = true;
-                                    setMedications(updatedMedications);
-                                  }
-                                }}
-                                onClick={(e) => {
                                   e.stopPropagation();
-                                  if (!readOnly && (row.medicine || index !== medications.length - 1)) {
-                                    const updatedMedications = [...medications];
-                                    updatedMedications[index].isEditing = true;
-                                    setMedications(updatedMedications);
+                                  console.log("Medicine field focused, setting isEditing to true for row", index);
+                                  
+                                  // Set isEditing to true for this row
+                                  const updatedMedications = [...medications];
+                                  updatedMedications[index].isEditing = true;
+                                  setMedications(updatedMedications);
+                                  
+                                  // Trigger medicine search to get suggestions
+                                  if (row.medicine) {
+                                    triggerMedicineSearch(row.medicine);
+                                  } else {
+                                    triggerMedicineSearch(" ");
                                   }
                                 }}
                               />
                             )}
+                          />
+                          {/* Add a direct input field for medicine name for debugging */}
+                          <TextField
+                            size="small"
+                            variant="outlined"
+                            placeholder="Medicine name (direct input)"
+                            value={row.medicine || ''}
+                            onChange={(e) => handleMedicationChange(index, 'medicine', e.target.value)}
+                            sx={{ mt: 1, display: 'none' }} // Hidden by default, can be shown for debugging
                           />
                         </TableCell>
                         <TableCell>
@@ -2267,30 +2590,24 @@ export const PrescriptionForm = forwardRef(({
                             value={row.dose}
                             open={row.isEditing}
                             onClose={(e, reason) => {
-                              // Only close when clicking away, not when selecting an item
                               if (reason === 'escape' || reason === 'blur') {
                                 handleMedicationClickAway(index);
                               }
                             }}
-                            onChange={(_, value) => {
-                              handleMedicationChange(index, 'dose', value);
-                              // Keep isEditing true after selection
-                              const updatedMedications = [...medications];
-                              updatedMedications[index].isEditing = true;
-                              setMedications(updatedMedications);
-                            }}
+                            onChange={(_, value) => handleMedicationChange(index, 'dose', value)}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
                                 variant="standard"
                                 placeholder="Select dose"
-                                onClick={(e) => {
+                                onFocus={(e) => {
                                   e.stopPropagation();
-                                  if (!readOnly && (row.medicine || index !== medications.length - 1)) {
-                                    const updatedMedications = [...medications];
-                                    updatedMedications[index].isEditing = true;
-                                    setMedications(updatedMedications);
-                                  }
+                                  const updatedMedications = [...medications];
+                                  updatedMedications[index].isEditing = true;
+                                  setPrescription({
+                                    ...prescription,
+                                    medications: updatedMedications
+                                  });
                                 }}
                               />
                             )}
@@ -2305,30 +2622,24 @@ export const PrescriptionForm = forwardRef(({
                             value={row.timing}
                             open={row.isEditing}
                             onClose={(e, reason) => {
-                              // Only close when clicking away, not when selecting an item
                               if (reason === 'escape' || reason === 'blur') {
                                 handleMedicationClickAway(index);
                               }
                             }}
-                            onChange={(_, value) => {
-                              handleMedicationChange(index, 'timing', value);
-                              // Keep isEditing true after selection
-                              const updatedMedications = [...medications];
-                              updatedMedications[index].isEditing = true;
-                              setMedications(updatedMedications);
-                            }}
+                            onChange={(_, value) => handleMedicationChange(index, 'timing', value)}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
                                 variant="standard"
                                 placeholder="Select timing"
-                                onClick={(e) => {
+                                onFocus={(e) => {
                                   e.stopPropagation();
-                                  if (!readOnly && (row.medicine || index !== medications.length - 1)) {
-                                    const updatedMedications = [...medications];
-                                    updatedMedications[index].isEditing = true;
-                                    setMedications(updatedMedications);
-                                  }
+                                  const updatedMedications = [...medications];
+                                  updatedMedications[index].isEditing = true;
+                                  setPrescription({
+                                    ...prescription,
+                                    medications: updatedMedications
+                                  });
                                 }}
                               />
                             )}
@@ -2343,30 +2654,24 @@ export const PrescriptionForm = forwardRef(({
                             value={row.frequency}
                             open={row.isEditing}
                             onClose={(e, reason) => {
-                              // Only close when clicking away, not when selecting an item
                               if (reason === 'escape' || reason === 'blur') {
                                 handleMedicationClickAway(index);
                               }
                             }}
-                            onChange={(_, value) => {
-                              handleMedicationChange(index, 'frequency', value);
-                              // Keep isEditing true after selection
-                              const updatedMedications = [...medications];
-                              updatedMedications[index].isEditing = true;
-                              setMedications(updatedMedications);
-                            }}
+                            onChange={(_, value) => handleMedicationChange(index, 'frequency', value)}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
                                 variant="standard"
                                 placeholder="Select frequency"
-                                onClick={(e) => {
+                                onFocus={(e) => {
                                   e.stopPropagation();
-                                  if (!readOnly && (row.medicine || index !== medications.length - 1)) {
-                                    const updatedMedications = [...medications];
-                                    updatedMedications[index].isEditing = true;
-                                    setMedications(updatedMedications);
-                                  }
+                                  const updatedMedications = [...medications];
+                                  updatedMedications[index].isEditing = true;
+                                  setPrescription({
+                                    ...prescription,
+                                    medications: updatedMedications
+                                  });
                                 }}
                               />
                             )}
@@ -2381,30 +2686,24 @@ export const PrescriptionForm = forwardRef(({
                             value={row.duration}
                             open={row.isEditing}
                             onClose={(e, reason) => {
-                              // Only close when clicking away, not when selecting an item
                               if (reason === 'escape' || reason === 'blur') {
                                 handleMedicationClickAway(index);
                               }
                             }}
-                            onChange={(_, value) => {
-                              handleMedicationChange(index, 'duration', value);
-                              // Keep isEditing true after selection
-                              const updatedMedications = [...medications];
-                              updatedMedications[index].isEditing = true;
-                              setMedications(updatedMedications);
-                            }}
+                            onChange={(_, value) => handleMedicationChange(index, 'duration', value)}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
                                 variant="standard"
                                 placeholder="Select duration"
-                                onClick={(e) => {
+                                onFocus={(e) => {
                                   e.stopPropagation();
-                                  if (!readOnly && (row.medicine || index !== medications.length - 1)) {
-                                    const updatedMedications = [...medications];
-                                    updatedMedications[index].isEditing = true;
-                                    setMedications(updatedMedications);
-                                  }
+                                  const updatedMedications = [...medications];
+                                  updatedMedications[index].isEditing = true;
+                                  setPrescription({
+                                    ...prescription,
+                                    medications: updatedMedications
+                                  });
                                 }}
                               />
                             )}
@@ -2419,7 +2718,13 @@ export const PrescriptionForm = forwardRef(({
                             value={row.notes || ''}
                             onChange={(e) => handleMedicationChange(index, 'notes', e.target.value)}
                             onClick={(e) => e.stopPropagation()} // Prevent row click event
-                            onFocus={(e) => e.stopPropagation()} // Prevent opening dropdown
+                            onFocus={(e) => {
+                              e.stopPropagation(); // Prevent opening dropdown
+                              // Ensure we're in edit mode for this row
+                              const updatedMedications = [...medications];
+                              updatedMedications[index].isEditing = true;
+                              setMedications(updatedMedications);
+                            }}
                             fullWidth
                           />
                         </TableCell>
@@ -2441,6 +2746,25 @@ export const PrescriptionForm = forwardRef(({
                     ))}
                   </TableBody>
                 </Table>
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'flex-start',
+                  position: 'relative',
+                  bottom: 0,
+                  left: 0,
+                  p: 0.5,
+                  backgroundColor: 'background.paper',
+                  borderTop: '1px solid',
+                  borderColor: 'divider'
+                }}>
+                  <IconButton
+                    size="small"
+                    onClick={() => addNewMedicationRow()}
+                    sx={{ color: 'primary.main' }}
+                  >
+                    <AddCircleOutline fontSize="small" />
+                  </IconButton>
+                </Box>
               </TableContainer>
             </Grid>
 
@@ -2585,9 +2909,22 @@ export const PrescriptionForm = forwardRef(({
                     alignItems: 'center',
                     borderBottom: '2px solid #2196f3',
                     pb: 1,
-                    mb: 3
+                    mb: 3,
+                    backgroundColor: '#f8fafc',
+                    p: 2,
+                    borderRadius: '8px 8px 0 0',
+                    border: '1px solid #e2e8f0',
+                    borderBottom: '2px solid #2196f3'
                   }}>
-                    <Typography variant="h6" sx={{ fontWeight: 'medium', color: '#2196f3' }}>
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: '600',
+                      color: '#1e40af',
+                      fontSize: '1.1rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1
+                    }}>
+                      <CalendarToday sx={{ fontSize: '1.2rem', color: '#2563eb' }} />
                       {new Date(prescription.date).toLocaleDateString()}
                     </Typography>
                     <Button
@@ -3083,20 +3420,20 @@ export const PrescriptionForm = forwardRef(({
                   </TableBody>
                 </Table>
               </TableContainer>
-              <Button
-                variant="outlined"
-                startIcon={<AddCircleOutline />}
-                size="small"
-                onClick={() => {
-                  setTempMedications([
-                    ...tempMedications,
-                    { medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '' }
-                  ]);
-                }}
-                sx={{ mb: 2 }}
-              >
-                Add Medication
-              </Button>
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'flex-start',
+                mt: 0.5,
+                mb: 2
+              }}>
+                <IconButton
+                  size="small"
+                  onClick={() => addNewComplaintRow()}
+                  sx={{ color: 'primary.main' }}
+                >
+                  <AddCircleOutline fontSize="small" />
+                </IconButton>
+              </Box>
             </>
           )}
           
@@ -3171,20 +3508,20 @@ export const PrescriptionForm = forwardRef(({
                   </TableBody>
                 </Table>
               </TableContainer>
-              <Button
-                variant="outlined"
-                startIcon={<AddCircleOutline />}
-                size="small"
-                onClick={() => {
-                  setTempDiagnoses([
-                    ...tempDiagnoses,
-                    { diagnosis: '', duration: '', notes: '' }
-                  ]);
-                }}
-                sx={{ mb: 2 }}
-              >
-                Add Diagnosis
-              </Button>
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'flex-start',
+                mt: 0.5,
+                mb: 2
+              }}>
+                <IconButton
+                  size="small"
+                  onClick={() => addNewDiagnosisRow()}
+                  sx={{ color: 'primary.main' }}
+                >
+                  <AddCircleOutline fontSize="small" />
+                </IconButton>
+              </Box>
             </>
           )}
           
@@ -3287,20 +3624,20 @@ export const PrescriptionForm = forwardRef(({
                   </TableBody>
                 </Table>
               </TableContainer>
-              <Button
-                variant="outlined"
-                startIcon={<AddCircleOutline />}
-                size="small"
-                onClick={() => {
-                  setTempComplaints([
-                    ...tempComplaints,
-                    { complaint: '', severity: '', frequency: '', duration: '', notes: '' }
-                  ]);
-                }}
-                sx={{ mb: 2 }}
-              >
-                Add Complaint
-              </Button>
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'flex-start',
+                mt: 0.5,
+                mb: 2
+              }}>
+                <IconButton
+                  size="small"
+                  onClick={() => addNewComplaintRow()}
+                  sx={{ color: 'primary.main' }}
+                >
+                  <AddCircleOutline fontSize="small" />
+                </IconButton>
+              </Box>
             </>
           )}
         </DialogContent>

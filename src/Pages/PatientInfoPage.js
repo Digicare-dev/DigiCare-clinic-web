@@ -193,6 +193,9 @@ const PatientInfoPage = () => {
   const [attachmentsLoading, setAttachmentsLoading] = useState(false);
   const [attachmentsError, setAttachmentsError] = useState(null);
 
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [attachmentToDelete, setAttachmentToDelete] = useState(null);
+
   const fetchPatientDetails = async () => {
     try {
       setLoading(true);
@@ -219,7 +222,7 @@ const PatientInfoPage = () => {
           token: currentAppData.token,
           date: new Date().toISOString().split('T')[0], // Default to today
           time: "10:00 AM", // Default time
-          doctor: user?.name || "Dr. Smith",
+          doctor: user.checkupcabindata[0].doctor,
           department: "General", // Default department
           type: currentAppData.appointment_type,
           status: currentAppData.status,
@@ -350,14 +353,6 @@ const PatientInfoPage = () => {
       setHasCurrentAppointment(true);
     }
     
-    if (location.state?.vitalsInfo) {
-      setVitals(location.state.vitalsInfo);
-    }
-    
-    if (location.state?.complaintsData) {
-      setComplaints(location.state.complaintsData);
-    }
-    
     // Fetch patient details when component mounts or location state changes
     if (location.state?.patientInfo && location.state.patientInfo.id) {
       fetchPatientDetails();
@@ -486,7 +481,7 @@ const PatientInfoPage = () => {
         document.body.removeChild(link);
       } catch (error) {
         console.error('Error opening attachment:', error);
-        setAttachmentsError('Failed to open the file. Please try downloading it instead.');
+        setAttachmentsError('Failed to open the file. Please try again.');
       }
     } else {
       // For other types, show in the preview dialog
@@ -531,7 +526,7 @@ const PatientInfoPage = () => {
       console.log("Vitals updated successfully:", response);
 
       // Refetch vitals to ensure we have the latest data
-      await fetchVitals();
+      // await fetchVitals();
 
       // Update the UI state
       setEditingVitals(false);
@@ -582,11 +577,19 @@ const PatientInfoPage = () => {
         appointmentDate: appointment.date,
         doctor: appointment.doctor,
         department: appointment.department,
-        complaints: [{ complaint: appointment.diagnosis, duration: "2 weeks", severity: "Moderate" }],
-        diagnosis: [{ diagnosis: appointment.diagnosis, notes: "Patient responded well to treatment" }],
+        complaints: [{ 
+          name: appointment.diagnosis || 'General Checkup',
+          duration: "2 weeks", 
+          severity: "Moderate",
+          notes: ""
+        }],
+        diagnosis: [{ 
+          name: appointment.diagnosis || 'General Checkup',
+          notes: "Patient responded well to treatment" 
+        }],
         medications: [
           { 
-            drug: "Amlodipine", 
+            name: "Amlodipine", 
             dosage: "5mg", 
             frequency: "Once daily", 
             duration: "30 days",
@@ -594,7 +597,7 @@ const PatientInfoPage = () => {
             notes: "Take regularly"
           },
           { 
-            drug: "Pantoprazole", 
+            name: "Pantoprazole", 
             dosage: "40mg", 
             frequency: "Once daily", 
             duration: "15 days",
@@ -602,7 +605,7 @@ const PatientInfoPage = () => {
             notes: "Take on empty stomach"
           },
           { 
-            drug: "Ecosprin", 
+            name: "Ecosprin", 
             dosage: "75mg", 
             frequency: "Once daily", 
             duration: "30 days",
@@ -759,8 +762,8 @@ const PatientInfoPage = () => {
           <tbody>
             ${selectedPrescription?.initialData?.medications?.map(med => `
               <tr>
-                <td>${med.drug}</td>
-                <td>${med.dosage}</td>
+                <td>${med.medicine}</td>
+                <td>${med.dose}</td>
                 <td>${med.frequency}</td>
                 <td>${med.duration}</td>
                 <td>${med.notes || med.timing || ''}</td>
@@ -906,13 +909,19 @@ const PatientInfoPage = () => {
 
   // Update the handleDeleteAttachment function
   const handleDeleteAttachment = async (attachmentId) => {
-    if (!attachmentId) return;
+    setAttachmentToDelete(attachmentId);
+    setDeleteDialogOpen(true);
+  };
+
+  // Add new function to handle actual deletion
+  const confirmDeleteAttachment = async () => {
+    if (!attachmentToDelete) return;
     
     try {
       setAttachmentsLoading(true);
       setAttachmentsError(null);
       
-      await deleteAttachment(attachmentId);
+      await deleteAttachment(attachmentToDelete);
       console.log('Attachment deleted successfully');
       
       // Refresh attachments list
@@ -923,6 +932,8 @@ const PatientInfoPage = () => {
       setAttachmentsError('Failed to delete attachment. Please try again.');
     } finally {
       setAttachmentsLoading(false);
+      setDeleteDialogOpen(false);
+      setAttachmentToDelete(null);
     }
   };
 
@@ -1418,8 +1429,10 @@ const PatientInfoPage = () => {
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'space-between',
+                                    cursor: 'pointer',
                                     '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' }
                                   }}
+                                  onClick={() => handleOpenAttachment(attachment)}
                                 >
                                   <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0 }}>
                                     <PictureAsPdf color="error" sx={{ mr: 1, fontSize: '1.5rem' }} />
@@ -1433,30 +1446,16 @@ const PatientInfoPage = () => {
                                     </Box>
                                   </Box>
                                   
-                                  <Box sx={{ display: 'flex', gap: 0.5, ml: 1 }}>
-                                    <IconButton 
-                                      size="small"
-                                      onClick={(e) => handleDownloadAttachment(attachment, e)}
-                                    >
-                                      <Download fontSize="small" />
-                                    </IconButton>
-                                    <IconButton 
-                                      size="small"
-                                      onClick={(e) => handlePrintAttachment(attachment, e)}
-                                    >
-                                      <Print fontSize="small" />
-                                    </IconButton>
-                                    <IconButton 
-                                      size="small"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteAttachment(attachment.id);
-                                      }}
-                                      color="error"
-                                    >
-                                      <Close fontSize="small" />
-                                    </IconButton>
-                                  </Box>
+                                  <IconButton 
+                                    size="small"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteAttachment(attachment.id);
+                                    }}
+                                    color="error"
+                                  >
+                                    <Close fontSize="small" />
+                                  </IconButton>
                                 </Box>
                               </Grid>
                             ))}
@@ -1674,8 +1673,10 @@ const PatientInfoPage = () => {
                       display: 'flex',
                       flexDirection: 'column',
                       height: '100%',
+                      cursor: 'pointer',
                       '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.01)' }
                     }}
+                    onClick={() => handleOpenAttachment(attachment)}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                       <PictureAsPdf color="error" sx={{ mr: 1, fontSize: '1.5rem' }} />
@@ -1690,24 +1691,6 @@ const PatientInfoPage = () => {
                     </Box>
                     
                     <Box sx={{ mt: 'auto', display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
-                      <Button 
-                        variant="outlined" 
-                        size="small" 
-                        startIcon={<Download sx={{ fontSize: '1rem' }} />}
-                        onClick={(e) => handleDownloadAttachment(attachment, e)}
-                        sx={{ py: 0.5 }}
-                      >
-                        Download
-                      </Button>
-                      <Button 
-                        variant="contained" 
-                        size="small" 
-                        startIcon={<Print sx={{ fontSize: '1rem' }} />}
-                        onClick={(e) => handlePrintAttachment(attachment, e)}
-                        sx={{ py: 0.5 }}
-                      >
-                        Print
-                      </Button>
                       <Button 
                         variant="outlined" 
                         size="small" 
@@ -1846,8 +1829,8 @@ const PatientInfoPage = () => {
                     <TableBody>
                       {selectedPrescription.initialData.medications.map((med, index) => (
                         <TableRow key={index}>
-                          <TableCell>{med.drug}</TableCell>
-                          <TableCell>{med.dosage}</TableCell>
+                          <TableCell>{med.medicine}</TableCell>
+                          <TableCell>{med.dose}</TableCell>
                           <TableCell>{med.frequency}</TableCell>
                           <TableCell>{med.duration}</TableCell>
                           <TableCell>{med.notes || med.timing || ''}</TableCell>
@@ -2237,6 +2220,39 @@ const PatientInfoPage = () => {
           </Box>
         </Box>
       </Modal>
+
+      {/* Add Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Delete Attachment</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete this attachment? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button 
+            onClick={confirmDeleteAttachment} 
+            color="error" 
+            variant="contained"
+            disabled={attachmentsLoading}
+          >
+            {attachmentsLoading ? (
+              <>
+                <CircularProgress size={20} sx={{ mr: 1 }} />
+                Deleting...
+              </>
+            ) : (
+              'Delete'
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

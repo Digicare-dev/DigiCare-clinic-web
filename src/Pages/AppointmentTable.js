@@ -37,6 +37,7 @@ import {
   addAppointment,
   updateAppointmentDetails,
   removeAppointment,
+  getPatientProfile,
 } from "../services/api";
 import CustomSnackbar from "../components/CustomSnackbar";
 import { getLatestCabinSlot } from '../utils/dateUtils';
@@ -219,6 +220,9 @@ export default function AppointmentTable() {
     message: "",
     severity: "success",
   });
+
+  const [mobileSearchResults, setMobileSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   const handleOpenSnackbar = (message, severity = "success") => {
     setSnackbar({ open: true, message, severity });
@@ -1175,6 +1179,44 @@ export default function AppointmentTable() {
     </Dialog>
   );
 
+  const handleMobileSearch = async (value) => {
+    if (!value || value.length !== 10) {
+      setMobileSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const result = await getPatientProfile(value);
+      if (result && result.length > 0) {
+        setMobileSearchResults(result);
+      } else {
+        setMobileSearchResults([]);
+      }
+    } catch (error) {
+      console.error("Error searching patient profile:", error);
+      setMobileSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handlePatientSelect = (patient) => {
+    if (patient) {
+      setNewAppointment(prev => ({
+        ...prev,
+        phone_number: patient.phone_number,
+        firstName: patient.name.split(" ")[0] || "",
+        lastName: patient.name.split(" ").slice(1).join(" ") || "",
+        age: patient.age || "",
+        sex: patient.gender || "",
+        location: patient.location || "",
+        guardian: patient.guardian || "",
+      }));
+      setMobileSearchResults([]);
+    }
+  };
+
   return (
     <div
       style={{
@@ -1403,13 +1445,48 @@ export default function AppointmentTable() {
               required
               helperText={`Suggested token: ${suggestedToken}`}
             />
-            <TextField
-              label="Mobile"
-              name="phone_number"
-              value={newAppointment.phone_number}
-                onChange={handleInputChange}
-              slotProps={{ input: { maxLength: 10 } }}
+            <Autocomplete
               fullWidth
+              options={mobileSearchResults}
+              getOptionLabel={(option) => option.phone_number || ""}
+              loading={isSearching}
+              value={null}
+              onChange={(_, newValue) => handlePatientSelect(newValue)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Mobile"
+                  name="phone_number"
+                  value={newAppointment.phone_number}
+                  onChange={(e) => {
+                    handleInputChange(e);
+                    handleMobileSearch(e.target.value);
+                  }}
+                  inputProps={{
+                    ...params.inputProps,
+                    maxLength: 10,
+                  }}
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {isSearching ? <CircularProgress color="inherit" size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+              renderOption={(props, option) => (
+                <li {...props}>
+                  <div>
+                    <Typography variant="body1">{option.name}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {option.phone_number}
+                    </Typography>
+                  </div>
+                </li>
+              )}
             />
             <TextField
               label="First Name"

@@ -171,7 +171,25 @@ const PrescriptionTablePage = () => {
 
   return (
     <Container className="prescription-container" ref={pageRef}>
-      <Typography variant="h4" gutterBottom className="header">
+      <Typography variant="h4" gutterBottom className="header" sx={{ 
+        color: '#1e40af',
+        marginBottom: '2rem !important',
+        textAlign: 'center',
+        fontWeight: '600',
+        position: 'relative',
+        paddingBottom: '0.75rem',
+        '&:after': {
+          content: '""',
+          position: 'absolute',
+          bottom: 0,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '80px',
+          height: '3px',
+          backgroundColor: '#2563eb',
+          borderRadius: '2px'
+        }
+      }}>
         Medical Prescription
       </Typography>
 

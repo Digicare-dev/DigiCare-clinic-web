@@ -208,6 +208,19 @@ export const getPrescriptions = async (appointmentId) => {
   }
 };
 
+export const getCurrentPrescription = async (appointment_id) => {
+  try {
+    const response = await axiosInstance.get(
+      `/prescriptions/${appointment_id}`,
+      { withCredentials: true }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching current prescription:", error);
+    throw error;
+  }
+};
+
 export const savePrescription = async (payload) => {
   try {
     const response = await axiosInstance.post(
@@ -390,7 +403,7 @@ export const getPatientProfile = async(phone_number) => {
 }
 
 
-export const suggest = async(query) => {
+export const suggestMedicine = async(query) => {
   try {
     const response = await axiosInstance.get(
       `prescriptions/medicines/suggest/${query}`,

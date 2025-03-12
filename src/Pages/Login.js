@@ -87,6 +87,8 @@ const Login = () => {
 
   return (
     <div className="login-page-background">
+      <div style={{marginTop: "-150px", display:"flex", justifyContent:"center", alignItems:"center", flexDirection:"column"}}>
+
       <div className="desktop-content">
         <Typography
           variant="h3"
@@ -144,7 +146,7 @@ const Login = () => {
             }}
           />
 
-          <FormControl fullWidth sx={{ mb: 4 }}>
+          <FormControl fullWidth sx={{ mb: 4 , mt: 2 }}>
             <InputLabel style={{ color: "#666" }}>Password</InputLabel>
             <OutlinedInput
               required
@@ -186,6 +188,7 @@ const Login = () => {
             disabled={loading}
             className="custom-button"
             sx={{
+              mt: 4,
               py: 1.5,
               borderRadius: "8px",
               fontSize: "1rem",
@@ -220,6 +223,7 @@ const Login = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+      </div>
     </div>
   );
 };

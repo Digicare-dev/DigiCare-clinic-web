@@ -365,8 +365,8 @@ const AppointmentDetails = () => {
           <tbody>
             ${selectedPrescription?.initialData?.medications?.map(med => `
               <tr>
-                <td>${med.drug}</td>
-                <td>${med.dosage}</td>
+                <td>${med.medicine}</td>
+                <td>${med.dose}</td>
                 <td>${med.frequency}</td>
                 <td>${med.duration}</td>
                 <td>${med.notes || med.timing || ''}</td>
@@ -820,7 +820,7 @@ const AppointmentDetails = () => {
                 <Box>
                   <Typography variant="h6">{patientInfo.name || 'Unknown Patient'}</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    ID: {patientInfo.id || 'Unknown'} | {patientInfo.age!=="" ? `${patientInfo.age} years` : 'Age not available'}, {patientInfo.gender || 'Gender not specified'}
+                    ID: {patientInfo.id || 'Unknown'} {patientInfo.age} {patientInfo.gender}
                   </Typography>
                 </Box>
                 <Button 
@@ -835,19 +835,18 @@ const AppointmentDetails = () => {
                 </Button>
               </Box>
 
-              <Grid container spacing={2} sx={{ mb: 3 }}>
+               <Grid container spacing={2} sx={{ mb: 3 }}>
                 <Grid item xs={12} sm={6} md={4}>
                   <TextField
                     fullWidth
                     label="Phone Number"
-                    value={patientInfo.phone || "Not available"}
+                    value={patientInfo.phone}
                     InputProps={{ readOnly: true }}
                     variant="outlined"
                     size="small"
                     margin="normal"
                   />
                 </Grid>
-                
                 <Grid item xs={12} sm={6} md={4}>
                   <TextField
                     fullWidth
@@ -1175,8 +1174,8 @@ const AppointmentDetails = () => {
                     <TableBody>
                       {selectedPrescription.initialData.medications.map((med, index) => (
                         <TableRow key={index}>
-                          <TableCell>{med.drug}</TableCell>
-                          <TableCell>{med.dosage}</TableCell>
+                          <TableCell>{med.medicine}</TableCell>
+                          <TableCell>{med.dose}</TableCell>
                           <TableCell>{med.frequency}</TableCell>
                           <TableCell>{med.duration}</TableCell>
                           <TableCell>{med.notes || med.timing || ''}</TableCell>

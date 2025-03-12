@@ -32,7 +32,6 @@ import {
   Schedule,
 } from "@mui/icons-material";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
-import ReportLink from '../components/ReportLink';
 
 // Add custom styles for clickable elements
 const clickableStyle = {
@@ -64,6 +63,8 @@ const PatientItem = ({
   const isDone = status === "done_checkup" || status === "done";
   const isCancelled = status === "cancelled";
   
+  const user = JSON.parse(localStorage.getItem('user'));
+
   // Log the data structure for debugging
   useEffect(() => {
     console.log('PatientItem received data:', {
@@ -111,7 +112,7 @@ const PatientItem = ({
     
     // Extract all available patient data to pass to the PatientInfoPage
     const patientData = {
-      name: appointment.name || patient.name || "Unknown Patient",
+      name: appointment.name || patient.name ,
       firstName: firstName,
       lastName: lastName,
       // Try to extract age from all possible fields
@@ -119,9 +120,9 @@ const PatientItem = ({
       gender: patient.gender || appointment.gender || "",
       // Try to extract phone from all possible fields
       phone: patient.phone_number || appointment.phone_number || "",
-      email: appointment.email || patient.email || `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
-      id: patient.patient_id || appointment.patient_id || `PT${Math.floor(Math.random() * 10000)}`,
-      bloodGroup: patient.blood_group || appointment.blood_group || "O+",
+      email: appointment.email || patient.email ,
+      id: patient.patient_id || appointment.patient_id ,
+      bloodGroup: patient.blood_group || appointment.blood_group ,
       allergies: patient.allergies || appointment.allergies || ["None"],
       chronicConditions: patient.chronic_conditions || appointment.chronic_conditions || [],
       guardianName: patient.guardian || appointment.guardian || "",
@@ -130,8 +131,8 @@ const PatientItem = ({
     // Extract all available appointment data
     const appointmentData = {
       date: appointment.date || new Date().toISOString().split('T')[0],
-      time: appointment.time || "10:00 AM",
-      doctor: appointment.doctor || "Dr. Smith", // Default if not available
+      time: appointment.time ,
+      doctor: user.checkupcabindata[0].doctor , // Default if not available
       type: appointment.appointment_type || "General Checkup", // Default if not available
       status: status || "pending",
       id: appointment.appointment_id,
@@ -145,28 +146,7 @@ const PatientItem = ({
       checkin: checkin,
     };
     
-    // Create vitals data with default values
-    const vitalsData = {
-      bloodPressure: "120/80",
-      heartRate: "72",
-      temperature: "98.6",
-      respiratoryRate: "16",
-      spO2: "98",
-      height: "175",
-      weight: "70",
-    };
-    
-    // Create complaints based on disease if available
-    const complaintsData = [];
-    if (appointment.disease) {
-      complaintsData.push({
-        complaint: appointment.disease,
-        severity: "Moderate",
-        duration: "3 days",
-        isEditing: false
-      });
-    }
-    
+
     // Navigate to the patient info page with the patient data
     navigate('/patient-info', { 
       state: { 
@@ -174,8 +154,6 @@ const PatientItem = ({
         appointmentId: appointmentData.id,
         patientInfo: patientData,
         appointmentInfo: appointmentData,
-        vitalsInfo: vitalsData,
-        complaintsData: complaintsData,
         position: position,
         late: late,
         status: status,
@@ -291,21 +269,6 @@ const PatientItem = ({
                 </Typography>
               </Box>
             )}
-
-            <div className="appointment-meta">
-              <div className="meta-item">
-                <ReportLink 
-                  type="blood-test" 
-                  variant="text" 
-                />
-              </div>
-              <div className="meta-item">
-                <ReportLink 
-                  type="ecg-test" 
-                  variant="text" 
-                />
-              </div>
-            </div>
           </div>
           
           <div className="action-buttons">

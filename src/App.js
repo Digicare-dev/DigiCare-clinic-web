@@ -79,7 +79,7 @@ const App = () => {
       }
     };
 
-    if (user) {
+    if (cabinId && selectedSlot) {
       fetchInitialData();
     }
   }, [cabinId]);
