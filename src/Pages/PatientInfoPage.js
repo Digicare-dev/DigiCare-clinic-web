@@ -112,7 +112,8 @@ const PatientInfoPage = () => {
   const patientInfo = location.state?.patientInfo;
   console.log(location.state);
 
-  const hasCurrentAppointment = location.state?.appointmentInfo !== undefined;
+  // Update hasCurrentAppointment to check both location state and currentAppointment state
+  const [hasCurrentAppointment, setHasCurrentAppointment] = useState(location.state?.appointmentInfo !== undefined);
   
   const appointmentInfo = location.state?.appointmentInfo 
 
@@ -155,13 +156,14 @@ const PatientInfoPage = () => {
 
   // Create a function to fetch vitals
   const fetchVitals = async () => {
-    if (!location.state?.appointmentInfo?.id) return;
+    if (!location.state?.appointmentInfo?.id && !currentAppointment?.id) return;
     
     try {
       setVitalsLoading(true);
       setVitalsError(null);
       
-      const response = await getVitals(location.state.appointmentInfo.id);
+      const appointmentId = currentAppointment?.id || location.state.appointmentInfo.id;
+      const response = await getVitals(appointmentId);
       console.log("Vitals response:", response);
       
       if (response) {
@@ -204,6 +206,61 @@ const PatientInfoPage = () => {
           ...response.patient, // Override with API data
           id: response.patient.patient_id // Ensure ID is mapped correctly
         });
+      }
+      
+      // Handle current appointment data if available
+      if (response && response.current_appointment) {
+        // Set hasCurrentAppointment to true since we have current appointment data
+        const currentAppData = response.current_appointment;
+        
+        // Map the current appointment data to the format expected by the component
+        const mappedCurrentAppointment = {
+          id: currentAppData.appointment_id,
+          token: currentAppData.token,
+          date: new Date().toISOString().split('T')[0], // Default to today
+          time: "10:00 AM", // Default time
+          doctor: user?.name || "Dr. Smith",
+          department: "General", // Default department
+          type: currentAppData.appointment_type,
+          status: currentAppData.status,
+          reason: currentAppData.disease || "General Checkup",
+          paid: currentAppData.paid,
+          checkin: currentAppData.checkin,
+          fees: currentAppData.fees_paid,
+          mode: currentAppData.mode
+        };
+        
+        // Update the current appointment state
+        setCurrentAppointment(mappedCurrentAppointment);
+        setHasCurrentAppointment(true);
+        
+        // If we have vitals data in the response, update the vitals state
+        if (response.vitals) {
+          setVitals({
+            bloodPressure: response.vitals.blood_pressure || '',
+            heartRate: response.vitals.pulse_rate || '',
+            temperature: response.vitals.temperature || '',
+            respiratoryRate: '', // Not provided in the API response
+            spO2: response.vitals.spo2 || '',
+            height: response.vitals.height || '',
+            weight: response.vitals.weight || '',
+          });
+        }
+        
+        // If we have attachments data in the response, update the attachments state
+        if (response.attachments && Array.isArray(response.attachments)) {
+          setAttachments(response.attachments.map(att => ({
+            id: att.id,
+            name: att.file_name,
+            type: att.file_type.includes('pdf') ? 'pdf' : 
+                  att.file_type.includes('image') ? 'image' : 'document',
+            reportType: 'custom',
+            date: new Date(att.uploaded_at || Date.now()).toLocaleDateString(),
+            size: '1 MB', // Since size is not provided in the API
+            url: getFullAttachmentUrl(att.file),
+            description: att.description
+          })));
+        }
       }
       
       // Update other appointments if available
@@ -251,13 +308,14 @@ const PatientInfoPage = () => {
 
   // Update the fetchAttachments function
   const fetchAttachments = async () => {
-    if (!location.state?.appointmentInfo?.id) return;
+    if (!location.state?.appointmentInfo?.id && !currentAppointment?.id) return;
     
     try {
       setAttachmentsLoading(true);
       setAttachmentsError(null);
       
-      const response = await getAttachments(location.state.appointmentInfo.id);
+      const appointmentId = currentAppointment?.id || location.state.appointmentInfo.id;
+      const response = await getAttachments(appointmentId);
       console.log("Attachments response:", response);
       
       if (response) {
@@ -289,6 +347,7 @@ const PatientInfoPage = () => {
     
     if (location.state?.appointmentInfo) {
       setCurrentAppointment(location.state.appointmentInfo);
+      setHasCurrentAppointment(true);
     }
     
     if (location.state?.vitalsInfo) {
@@ -311,6 +370,18 @@ const PatientInfoPage = () => {
       fetchVitals();
     }
   }, [location.state]); // Add location.state as a dependency
+  
+  // Add a useEffect to update hasCurrentAppointment when currentAppointment changes
+  useEffect(() => {
+    // If currentAppointment has a valid ID, set hasCurrentAppointment to true
+    if (currentAppointment && currentAppointment.id) {
+      setHasCurrentAppointment(true);
+      
+      // Fetch attachments and vitals for the current appointment
+      fetchAttachments();
+      fetchVitals();
+    }
+  }, [currentAppointment]);
 
   const currentAttachments = [
     { id: 1, name: 'Blood Test Results.pdf', type: 'pdf', reportType: 'blood-test', date: '2024-03-10', size: '1.2 MB' },
@@ -1070,18 +1141,21 @@ const PatientInfoPage = () => {
                     {patient?.name || 'Unknown Patient'}
                   </Typography>
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                    <Typography variant="caption" color="text.secondary">
+                    {patient?.patient_id && <Typography variant="caption" color="text.secondary">
                       Patient ID: {patient?.patient_id || "Not specified"}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {patient?.age || 'N/A'} years, {patient?.gender || 'N/A'}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    </Typography>}
+                    {patient?.age && <Typography variant="caption" color="text.secondary">
+                      Age: {patient?.age}
+                    </Typography>}
+                    {patient?.gender && <Typography variant="caption" color="text.secondary">
+                       Gender: {patient?.gender}
+                    </Typography>}
+                    {patient?.phone_number && <Typography variant="caption" color="text.secondary">
                       Phone: {patient?.phone_number || "Not specified"}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Allergies: {patient?.allergies || "None"}
-                    </Typography>
+                    </Typography>}
+                    {patient?.allergies && <Typography variant="caption" color="text.secondary">
+                      Allergies: {patient?.allergies}
+                    </Typography>}
                     {patient?.guardian && (
                       <Typography variant="caption" color="text.secondary">
                         Guardian: {patient.guardian}

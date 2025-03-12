@@ -84,7 +84,7 @@ import {
 import ReportLink from '../components/ReportLink';
 import { PageHeader } from '../components/common/PageHeader';
 
-import {getAttachments, uploadAttachment, deleteAttachment, getPatientDetails, getPrescriptions, savePrescription, manageVitals, saveTemplate} from '../services/api';
+import {getAttachments, uploadAttachment, deleteAttachment, getPatientDetails, getPrescriptions, savePrescription, manageVitals, saveTemplate, getVitals} from '../services/api';
 
 const ConsultationPage = () => {
   const navigate = useNavigate();
@@ -194,17 +194,14 @@ console.log(location.state)
 
   // Update the handleOpenAttachment function to directly open PDFs in a new tab
   const handleOpenAttachment = (attachment) => {
-    if (attachment.type === 'pdf') {
-      // Open the PDF directly in a new tab
-      const pdfUrl = attachment.reportType === 'ecg-test' 
-        ? require('../assets/dummy-ecg-test-report.pdf')
-        : require('../assets/dummy-blood-test-report.pdf');
-      
-      window.open(pdfUrl, '_blank');
-    } else {
-      // Use the existing dialog for other types of attachments
-      setSelectedAttachment(attachment);
-      setOpenAttachmentDialog(true);
+    // Set the selected attachment for the dialog
+    setSelectedAttachment(attachment);
+    setOpenAttachmentDialog(true);
+    
+    // If the attachment has a direct URL and it's a PDF, we could optionally open it in a new tab
+    if (attachment.url && attachment.type === 'pdf') {
+      // Uncomment this to open PDFs directly in a new tab
+      // window.open(attachment.url, '_blank');
     }
   };
 
@@ -435,20 +432,52 @@ console.log(location.state)
   // Add function to fetch patient details
   const fetchPatientDetails = async () => {
     try {
+      setError(null);
       const response = await getPatientDetails(patientInfo.id);
       console.log("Patient details response:", response);
       
-      if (response && response.other_appointments) {
-        setPastAppointments(response.other_appointments.map(app => ({
-          ...app,
-          id: app.appointment_id,
-          date: new Date().toISOString().split('T')[0], // You might want to get this from the appointment_id
-          expanded: false
-        })));
+      if (response && response.other_appointments && Array.isArray(response.other_appointments)) {
+        // Map the other_appointments to our pastAppointments state with proper structure
+        const formattedAppointments = response.other_appointments
+          .filter(app => app.appointment_id !== appointmentInfo.id) // Filter out current appointment
+          .map(app => {
+            // Extract date from appointment_id if possible
+            let appointmentDate;
+            try {
+              if (app.appointment_id && app.appointment_id.includes('-')) {
+                appointmentDate = app.appointment_id.split('-')[1].substring(0, 10);
+                // Validate date format
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(appointmentDate)) {
+                  appointmentDate = new Date().toISOString().split('T')[0];
+                }
+              } else {
+                appointmentDate = new Date().toISOString().split('T')[0];
+              }
+            } catch (e) {
+              appointmentDate = new Date().toISOString().split('T')[0];
+            }
+
+            return {
+              ...app,
+              id: app.appointment_id,
+              date: appointmentDate,
+              token: app.token || 0,
+              appointment_type: app.appointment_type || 'Consultation',
+              status: app.status || 'pending',
+              disease: app.disease || 'No diagnosis recorded'
+            };
+          });
+        
+        setPastAppointments(formattedAppointments);
+        console.log("Formatted past appointments:", formattedAppointments);
+      } else {
+        console.log("No past appointments found in the response");
+        setPastAppointments([]);
       }
     } catch (error) {
       console.error("Error fetching patient details:", error);
       setError("Failed to load patient history");
+      setPastAppointments([]);
     }
   };
 
@@ -458,16 +487,100 @@ console.log(location.state)
       setIsLoadingPrescription(true);
       setError(null);
       
-      const response = await getPrescriptions(appointmentId);
-      console.log("Prescription response:", response);
+      // First, get the prescription data
+      const prescriptionResponse = await getPrescriptions(appointmentId);
+      console.log("Prescription response:", prescriptionResponse);
       
-      if (response && response.length > 0) {
-        setPrescriptionDetails(response[0]);
+      // Then, get the vitals data
+      const vitalsResponse = await getVitals(appointmentId);
+      console.log("Vitals response:", vitalsResponse);
+      
+      // Finally, get any attachments
+      const attachmentsResponse = await getAttachments(appointmentId);
+      console.log("Attachments response:", attachmentsResponse);
+      
+      // Process attachments to ensure they have the correct format
+      const processedAttachments = Array.isArray(attachmentsResponse) 
+        ? attachmentsResponse.map(att => ({
+            id: att.id,
+            name: att.file_name || `Attachment-${att.id}`,
+            type: att.file_type?.includes('pdf') ? 'pdf' : 
+                  att.file_type?.includes('image') ? 'image' : 'document',
+            url: att.file,
+            description: att.description || ''
+          }))
+        : [];
+      
+      // Combine all the data into a comprehensive prescription details object
+      if (prescriptionResponse && Array.isArray(prescriptionResponse) && prescriptionResponse.length > 0) {
+        const prescriptionData = prescriptionResponse[0];
+        
+        // Create a combined prescription details object
+        const combinedDetails = {
+          ...prescriptionData,
+          // Add vitals data if available
+          vitals: vitalsResponse || {
+            blood_pressure: "N/A",
+            pulse_rate: "N/A",
+            temperature: "N/A",
+            spo2: "N/A"
+          },
+          // Ensure complaints is an array
+          complaints: Array.isArray(prescriptionData.complaints) ? prescriptionData.complaints : [],
+          // Ensure diagnosis is an array
+          diagnosis: Array.isArray(prescriptionData.diagnosis) ? prescriptionData.diagnosis : [],
+          // Ensure medicines is an array
+          medicines: Array.isArray(prescriptionData.medicines) ? prescriptionData.medicines : [],
+          // Ensure tests has a testlist array
+          tests: prescriptionData.tests && prescriptionData.tests.testlist 
+            ? prescriptionData.tests 
+            : { testlist: [] },
+          // Ensure advice has an advice string
+          advice: prescriptionData.advice && typeof prescriptionData.advice.advice === 'string'
+            ? prescriptionData.advice
+            : { advice: prescriptionData.advice || "No advice recorded" },
+          // Add processed attachments
+          attachments: processedAttachments
+        };
+        
+        setPrescriptionDetails(combinedDetails);
+        setExpandedAppointment(appointmentId);
+      } else {
+        // If no prescription data is available, create a minimal object with available data
+        setPrescriptionDetails({
+          vitals: vitalsResponse || {
+            blood_pressure: "N/A",
+            pulse_rate: "N/A",
+            temperature: "N/A",
+            spo2: "N/A"
+          },
+          complaints: [],
+          diagnosis: [],
+          medicines: [],
+          tests: { testlist: [] },
+          advice: { advice: "No advice recorded" },
+          attachments: processedAttachments
+        });
         setExpandedAppointment(appointmentId);
       }
     } catch (error) {
-      console.error("Error fetching prescription:", error);
+      console.error("Error fetching prescription details:", error);
       setError("Failed to load prescription details");
+      // Set minimal prescription details even on error
+      setPrescriptionDetails({
+        vitals: {
+          blood_pressure: "N/A",
+          pulse_rate: "N/A",
+          temperature: "N/A",
+          spo2: "N/A"
+        },
+        complaints: [],
+        diagnosis: [],
+        medicines: [],
+        tests: { testlist: [] },
+        advice: { advice: "Error loading prescription details" },
+        attachments: []
+      });
     } finally {
       setIsLoadingPrescription(false);
     }
@@ -1143,125 +1256,192 @@ console.log(location.state)
     }
   };
 
-  // Add JSX for past appointments section
-  const renderPastAppointments = () => (
-    <Box sx={{ mt: 3 }}>
-      <Typography variant="h6" gutterBottom>
-        Past Appointments
-      </Typography>
-      {pastAppointments.length > 0 ? (
-        <List>
-          {pastAppointments.map((appointment) => (
-            <React.Fragment key={appointment.id}>
-              <ListItem 
-                button 
-                onClick={() => handleExpandAppointment(appointment.id)}
-                sx={{
-                  bgcolor: 'background.paper',
-                  mb: 1,
-                  borderRadius: 1,
-                  border: '1px solid',
-                  borderColor: 'divider'
-                }}
-              >
-                <ListItemText
-                  primary={
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography variant="subtitle1">
-                        Token #{appointment.token} - {appointment.appointment_type}
+  // Add JSX for past appointments section with real data
+  const renderPastAppointments = () => {
+    return (
+      <Box sx={{ mt: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Past Appointments
+        </Typography>
+        
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+        
+        {pastAppointments.length > 0 ? (
+          <List>
+            {pastAppointments.map((appointment) => (
+              <React.Fragment key={appointment.id}>
+                <ListItem 
+                  button 
+                  onClick={() => handleExpandAppointment(appointment.id)}
+                  sx={{
+                    bgcolor: 'background.paper',
+                    mb: 1,
+                    borderRadius: 1,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    '&:hover': {
+                      bgcolor: 'action.hover',
+                    }
+                  }}
+                >
+                  <ListItemText
+                    primary={
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="subtitle1">
+                          {appointment.date && new Date(appointment.date).toLocaleDateString()} 
+                          {appointment.token ? ` - Token #${appointment.token}` : ''} 
+                          {appointment.appointment_type ? ` - ${appointment.appointment_type}` : ''}
+                        </Typography>
+                        <Chip 
+                          label={appointment.status}
+                          size="small"
+                          color={
+                            appointment.status === 'done_checkup' || appointment.status === 'completed' ? 'success' : 
+                            appointment.status === 'in_progress' ? 'primary' :
+                            appointment.status === 'cancelled' ? 'error' : 'default'
+                          }
+                          variant="outlined"
+                        />
+                      </Box>
+                    }
+                    secondary={
+                      <Typography variant="body2" color="text.secondary">
+                        {appointment.disease || 'No diagnosis recorded'}
                       </Typography>
-                      <Chip 
-                        label={appointment.status}
-                        size="small"
-                        color={appointment.status === 'completed' ? 'success' : 'default'}
-                        variant="outlined"
-                      />
-                    </Box>
-                  }
-                  secondary={
-                    <Typography variant="body2" color="text.secondary">
-                      {appointment.disease || 'No diagnosis recorded'}
-                    </Typography>
-                  }
-                />
-              </ListItem>
-              
-              <Collapse in={expandedAppointment === appointment.id} timeout="auto" unmountOnExit>
-                <Box sx={{ p: 2, bgcolor: 'background.paper', ml: 2, borderLeft: 2, borderColor: 'primary.main' }}>
-                  {isLoadingPrescription ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-                      <CircularProgress size={24} />
-                    </Box>
-                  ) : prescriptionDetails ? (
-                    <Grid container spacing={2}>
-                      {/* Vitals */}
-                      <Grid item xs={12}>
-                        <Typography variant="subtitle2" gutterBottom>Vitals</Typography>
-                        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                          <Typography variant="body2">BP: {prescriptionDetails.vitals.blood_pressure}</Typography>
-                          <Typography variant="body2">Temp: {prescriptionDetails.vitals.temperature}°C</Typography>
-                          <Typography variant="body2">Pulse: {prescriptionDetails.vitals.pulse_rate}</Typography>
-                          <Typography variant="body2">SpO2: {prescriptionDetails.vitals.spo2}%</Typography>
-                        </Box>
-                      </Grid>
-                      
-                      {/* Complaints */}
-                      <Grid item xs={12}>
-                        <Typography variant="subtitle2" gutterBottom>Complaints</Typography>
-                        {prescriptionDetails.complaints.map((complaint, index) => (
-                          <Typography key={index} variant="body2">
-                            • {complaint.complaint} - {complaint.duration} ({complaint.severity})
+                    }
+                  />
+                </ListItem>
+                
+                <Collapse in={expandedAppointment === appointment.id} timeout="auto" unmountOnExit>
+                  <Box sx={{ p: 2, bgcolor: 'background.paper', ml: 2, borderLeft: 2, borderColor: 'primary.main' }}>
+                    {isLoadingPrescription ? (
+                      <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                        <CircularProgress size={24} />
+                      </Box>
+                    ) : prescriptionDetails ? (
+                      <Grid container spacing={2}>
+                        {/* Vitals */}
+                        <Grid item xs={12}>
+                          <Typography variant="subtitle2" gutterBottom>Vitals</Typography>
+                          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                            <Typography variant="body2">BP: {prescriptionDetails.vitals.blood_pressure || 'N/A'}</Typography>
+                            <Typography variant="body2">Temp: {prescriptionDetails.vitals.temperature || 'N/A'}°C</Typography>
+                            <Typography variant="body2">Pulse: {prescriptionDetails.vitals.pulse_rate || 'N/A'}</Typography>
+                            <Typography variant="body2">SpO2: {prescriptionDetails.vitals.spo2 || 'N/A'}%</Typography>
+                          </Box>
+                        </Grid>
+                        
+                        {/* Complaints */}
+                        <Grid item xs={12}>
+                          <Typography variant="subtitle2" gutterBottom>Complaints</Typography>
+                          {prescriptionDetails.complaints && prescriptionDetails.complaints.length > 0 ? (
+                            prescriptionDetails.complaints.map((complaint, index) => (
+                              <Typography key={index} variant="body2">
+                                • {complaint.complaint || complaint.name} 
+                                {complaint.duration ? ` - ${complaint.duration}` : ''} 
+                                {complaint.severity ? ` (${complaint.severity})` : ''}
+                              </Typography>
+                            ))
+                          ) : (
+                            <Typography variant="body2" color="text.secondary">No complaints recorded</Typography>
+                          )}
+                        </Grid>
+                        
+                        {/* Diagnosis */}
+                        <Grid item xs={12}>
+                          <Typography variant="subtitle2" gutterBottom>Diagnosis</Typography>
+                          {prescriptionDetails.diagnosis && prescriptionDetails.diagnosis.length > 0 ? (
+                            prescriptionDetails.diagnosis.map((diag, index) => (
+                              <Typography key={index} variant="body2">
+                                • {diag.diagnosis || diag.name} 
+                                {diag.icd_code ? ` (${diag.icd_code})` : ''}
+                                {diag.duration ? ` - ${diag.duration}` : ''}
+                              </Typography>
+                            ))
+                          ) : (
+                            <Typography variant="body2" color="text.secondary">No diagnosis recorded</Typography>
+                          )}
+                        </Grid>
+                        
+                        {/* Medicines */}
+                        <Grid item xs={12}>
+                          <Typography variant="subtitle2" gutterBottom>Medications</Typography>
+                          {prescriptionDetails.medicines && prescriptionDetails.medicines.length > 0 ? (
+                            prescriptionDetails.medicines.map((med, index) => (
+                              <Typography key={index} variant="body2">
+                                • {med.name || med.medicine} 
+                                {med.dose ? ` ${med.dose}` : ''} 
+                                {med.frequency ? ` - ${med.frequency}` : ''} 
+                                {med.duration ? ` for ${med.duration}` : ''} 
+                                {med.instructions ? ` (${med.instructions})` : ''}
+                                {med.when ? ` ${med.when}` : ''}
+                              </Typography>
+                            ))
+                          ) : (
+                            <Typography variant="body2" color="text.secondary">No medications prescribed</Typography>
+                          )}
+                        </Grid>
+                        
+                        {/* Tests */}
+                        <Grid item xs={12}>
+                          <Typography variant="subtitle2" gutterBottom>Tests</Typography>
+                          {prescriptionDetails.tests && prescriptionDetails.tests.testlist && prescriptionDetails.tests.testlist.length > 0 ? (
+                            prescriptionDetails.tests.testlist.map((test, index) => (
+                              <Typography key={index} variant="body2">• {test}</Typography>
+                            ))
+                          ) : (
+                            <Typography variant="body2" color="text.secondary">No tests prescribed</Typography>
+                          )}
+                        </Grid>
+                        
+                        {/* Advice */}
+                        <Grid item xs={12}>
+                          <Typography variant="subtitle2" gutterBottom>Advice</Typography>
+                          <Typography variant="body2">
+                            {prescriptionDetails.advice && prescriptionDetails.advice.advice ? 
+                              prescriptionDetails.advice.advice : 'No specific advice provided'}
                           </Typography>
-                        ))}
+                        </Grid>
+                        
+                        {/* Attachments */}
+                        {prescriptionDetails.attachments && prescriptionDetails.attachments.length > 0 && (
+                          <Grid item xs={12}>
+                            <Typography variant="subtitle2" gutterBottom>Attachments</Typography>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                              {prescriptionDetails.attachments.map((attachment, index) => (
+                                <Chip
+                                  key={index}
+                                  label={attachment.name || `Attachment ${index + 1}`}
+                                  onClick={() => handleOpenAttachment(attachment)}
+                                  icon={getAttachmentIcon(attachment.type)}
+                                  variant="outlined"
+                                  sx={{ m: 0.5 }}
+                                />
+                              ))}
+                            </Box>
+                          </Grid>
+                        )}
                       </Grid>
-                      
-                      {/* Diagnosis */}
-                      <Grid item xs={12}>
-                        <Typography variant="subtitle2" gutterBottom>Diagnosis</Typography>
-                        {prescriptionDetails.diagnosis.map((diag, index) => (
-                          <Typography key={index} variant="body2">
-                            • {diag.diagnosis} {diag.icd_code && `(${diag.icd_code})`}
-                          </Typography>
-                        ))}
-                      </Grid>
-                      
-                      {/* Medicines */}
-                      <Grid item xs={12}>
-                        <Typography variant="subtitle2" gutterBottom>Medications</Typography>
-                        {prescriptionDetails.medicines.map((med, index) => (
-                          <Typography key={index} variant="body2">
-                            • {med.name} {med.dose} - {med.frequency} for {med.duration} ({med.instructions})
-                          </Typography>
-                        ))}
-                      </Grid>
-                      
-                      {/* Tests */}
-                      <Grid item xs={12}>
-                        <Typography variant="subtitle2" gutterBottom>Tests</Typography>
-                        {prescriptionDetails.tests.testlist.map((test, index) => (
-                          <Typography key={index} variant="body2">• {test}</Typography>
-                        ))}
-                      </Grid>
-                      
-                      {/* Advice */}
-                      <Grid item xs={12}>
-                        <Typography variant="subtitle2" gutterBottom>Advice</Typography>
-                        <Typography variant="body2">{prescriptionDetails.advice.advice}</Typography>
-                      </Grid>
-                    </Grid>
-                  ) : (
-                    <Typography color="text.secondary">No prescription details available</Typography>
-                  )}
-                </Box>
-              </Collapse>
-            </React.Fragment>
-          ))}
-        </List>
-      ) : (
-        <Typography color="text.secondary">No past appointments found</Typography>
-      )}
-    </Box>
-  );
+                    ) : (
+                      <Typography color="text.secondary">No prescription details available</Typography>
+                    )}
+                  </Box>
+                </Collapse>
+              </React.Fragment>
+            ))}
+          </List>
+        ) : (
+          <Paper sx={{ p: 2, bgcolor: 'background.paper', textAlign: 'center' }}>
+            <Typography color="text.secondary">No past appointments found</Typography>
+          </Paper>
+        )}
+      </Box>
+    );
+  };
 
   const handleSaveVitals = async () => {
     try {
@@ -1618,394 +1798,6 @@ console.log(location.state)
         {renderPrescriptionForm()}
       </Paper>
 
-      {/* SECTION 3: Past Appointments */}
-      {previousPrescriptions.length > 0 && (
-        <Paper elevation={2} sx={{ p: 3, mb: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <MedicalServices color="primary" sx={{ mr: 1 }} />
-            <Typography variant="h6" component="h2">
-              Past Appointments
-            </Typography>
-          </Box>
-          <Divider sx={{ mb: 2 }} />
-          
-          {previousPrescriptions.map((prescription, index) => (
-            <Accordion 
-              key={prescription.id}
-              sx={{ 
-                mb: 2,
-                '&:before': { display: 'none' },
-                boxShadow: 'none',
-                border: '1px solid',
-                borderColor: 'divider',
-              }}
-            >
-              <AccordionSummary
-                expandIcon={<ExpandMore />}
-                aria-controls={`panel${index}-content`}
-                id={`panel${index}-header`}
-                sx={{ 
-                  bgcolor: 'background.default',
-                  '&:hover': { bgcolor: 'action.hover' },
-                  p: 1.5
-                }}
-              >
-                <Grid container alignItems="center" spacing={1}>
-                  <Grid item xs={3} sm={2}>
-                    <Typography variant="subtitle2">
-                      {prescription.date}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={3} sm={2}>
-                    <Typography variant="body2" color="text.secondary">
-                      {prescription.doctor}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6} sm={4}>
-                    <Typography variant="body2">
-                      Diagnosis: <Chip 
-                        label={prescription.diagnosis} 
-                        size="small"
-                        color="primary" 
-                        variant="outlined"
-                        sx={{ ml: 0.5 }}
-                      />
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6} sm={4}>
-                    <Typography variant="body2">
-                      Medications: {prescription.medications.length > 0 ? (
-                        <Tooltip 
-                          title={
-                            <React.Fragment>
-                              {prescription.medications.map((med, i) => (
-                                <Typography key={i} variant="body2" component="div">
-                                  {med.medicine} {med.dose}
-                                </Typography>
-                              ))}
-                            </React.Fragment>
-                          } 
-                          arrow
-                        >
-                          <Chip 
-                            label={prescription.medications.length > 1 
-                              ? `${prescription.medications[0].medicine} +${prescription.medications.length - 1} more` 
-                              : prescription.medications[0].medicine}
-                            size="small"
-                            color="secondary" 
-                            variant="outlined"
-                            sx={{ ml: 0.5 }}
-                          />
-                        </Tooltip>
-                      ) : (
-                        <Chip 
-                          label="None" 
-                          size="small"
-                          color="default" 
-                          variant="outlined"
-                          sx={{ ml: 0.5 }}
-                        />
-                      )}
-                    </Typography>
-                  </Grid>
-                </Grid>
-              </AccordionSummary>
-              <AccordionDetails sx={{ p: 3, pt: 1 }}>
-                {/* Patient Details for this appointment */}
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
-                    Patient Details
-                  </Typography>
-                  <Paper variant="outlined" sx={{ p: 2 }}>
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} md={4}>
-                        <Typography variant="caption" color="text.secondary">Appointment Date</Typography>
-                        <Typography variant="body2">{prescription.date}</Typography>
-                      </Grid>
-                      <Grid item xs={12} md={4}>
-                        <Typography variant="caption" color="text.secondary">Doctor</Typography>
-                        <Typography variant="body2">{prescription.doctor}</Typography>
-                      </Grid>
-                      <Grid item xs={12} md={4}>
-                        <Typography variant="caption" color="text.secondary">Diagnosis</Typography>
-                        <Typography variant="body2">{prescription.diagnosis}</Typography>
-                      </Grid>
-                    </Grid>
-                  </Paper>
-                </Box>
-
-                {/* Vitals Section */}
-                <Box sx={{ mt: 2, mb: 2 }}>
-                  <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
-                    Vitals
-                  </Typography>
-                  <Paper variant="outlined" sx={{ p: 2 }}>
-                    <Grid container spacing={2}>
-                      <Grid item xs={6} sm={4} md={2}>
-                        <Typography variant="caption" color="text.secondary">Blood Pressure</Typography>
-                        <Typography variant="body2">{prescription.vitals.bloodPressure} mmHg</Typography>
-                      </Grid>
-                      <Grid item xs={6} sm={4} md={2}>
-                        <Typography variant="caption" color="text.secondary">Heart Rate</Typography>
-                        <Typography variant="body2">{prescription.vitals.heartRate} bpm</Typography>
-                      </Grid>
-                      <Grid item xs={6} sm={4} md={2}>
-                        <Typography variant="caption" color="text.secondary">Temperature</Typography>
-                        <Typography variant="body2">{prescription.vitals.temperature} °C</Typography>
-                      </Grid>
-                      <Grid item xs={6} sm={4} md={2}>
-                        <Typography variant="caption" color="text.secondary">Respiratory Rate</Typography>
-                        <Typography variant="body2">{prescription.vitals.respiratoryRate || "16"} bpm</Typography>
-                      </Grid>
-                      <Grid item xs={6} sm={4} md={2}>
-                        <Typography variant="caption" color="text.secondary">SpO2</Typography>
-                        <Typography variant="body2">{prescription.vitals.spO2 || "98"}%</Typography>
-                      </Grid>
-                    </Grid>
-                  </Paper>
-                </Box>
-
-                {/* Complaints Section */}
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
-            Complaints
-          </Typography>
-                  <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-                    <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Complaint</TableCell>
-                  <TableCell>Severity</TableCell>
-                  <TableCell>Duration</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                          {prescription.complaints ? (
-                            prescription.complaints.map((complaint, idx) => (
-                              <TableRow key={idx} hover>
-                                <TableCell>{complaint.complaint}</TableCell>
-                    <TableCell>
-                                  <Chip 
-                                    label={complaint.severity} 
-                        size="small"
-                                    color={
-                                      complaint.severity === 'High' ? 'error' : 
-                                      complaint.severity === 'Medium' ? 'warning' : 'success'
-                                    }
-                      />
-                    </TableCell>
-                                <TableCell>{complaint.duration}</TableCell>
-                              </TableRow>
-                            ))
-                          ) : (
-                            <TableRow>
-                              <TableCell colSpan={3} align="center">No complaints recorded</TableCell>
-                  </TableRow>
-                          )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-                  </Paper>
-                </Box>
-
-                {/* Diagnosis Section */}
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
-            Diagnosis
-          </Typography>
-                  <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-                    <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Diagnosis</TableCell>
-                  <TableCell>Duration</TableCell>
-                  <TableCell>Notes</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                          {prescription.diagnoses ? (
-                            prescription.diagnoses.map((diagnosis, idx) => (
-                              <TableRow key={idx} hover>
-                                <TableCell>{diagnosis.diagnosis}</TableCell>
-                                <TableCell>{diagnosis.duration}</TableCell>
-                                <TableCell>{diagnosis.notes}</TableCell>
-                              </TableRow>
-                            ))
-                          ) : (
-                            <TableRow hover>
-                              <TableCell>{prescription.diagnosis}</TableCell>
-                              <TableCell>Not specified</TableCell>
-                              <TableCell>No notes provided</TableCell>
-                  </TableRow>
-                          )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-                  </Paper>
-                </Box>
-
-                {/* Medications Section */}
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
-            Medications
-          </Typography>
-                  <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-                    <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Medicine</TableCell>
-                  <TableCell>Dose</TableCell>
-                  <TableCell>Timing</TableCell>
-                  <TableCell>Frequency</TableCell>
-                  <TableCell>Duration</TableCell>
-                  <TableCell>Notes</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                          {prescription.medications.map((med, idx) => (
-                            <TableRow key={idx} hover>
-                              <TableCell>{med.medicine}</TableCell>
-                              <TableCell>{med.dose}</TableCell>
-                              <TableCell>{med.timing}</TableCell>
-                              <TableCell>{med.frequency}</TableCell>
-                              <TableCell>{med.duration}</TableCell>
-                              <TableCell>{med.notes}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Paper>
-          </Box>
-          
-                {/* Tests Section */}
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
-                    Tests
-                  </Typography>
-                  <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-                    {prescription.tests && prescription.tests.length > 0 ? (
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                        {prescription.tests.map((test, idx) => (
-                          <Chip key={idx} label={test} size="small" />
-                        ))}
-                      </Box>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary" sx={{ p: 1 }}>
-                        No tests prescribed
-                      </Typography>
-          )}
-        </Paper>
-                      </Box>
-                      
-                {/* Instructions & Follow-up Section */}
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
-                    Instructions & Follow-up
-                  </Typography>
-                  <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} md={6}>
-                        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Instructions</Typography>
-                        <Typography variant="body2">{prescription.instructions || "No specific instructions"}</Typography>
-                      </Grid>
-                      <Grid item xs={12} md={6}>
-                        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Follow-up</Typography>
-                        <Typography variant="body2">{prescription.followUp || "No follow-up scheduled"}</Typography>
-                      </Grid>
-                    </Grid>
-                  </Paper>
-                </Box>
-
-                {/* Attachments Section */}
-                {prescription.attachments && prescription.attachments.length > 0 && (
-                  <Box sx={{ mt: 2 }}>
-                    <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', color: 'primary.main' }}>
-                      Attachments
-                    </Typography>
-                    <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-                      <Box 
-                        sx={{ 
-                          display: 'grid', 
-                          gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
-                          gap: 2,
-                          p: 0.5,
-                        }}
-                      >
-                        {prescription.attachments.map((attachment) => (
-                          <Box
-                            key={attachment.id}
-                            sx={{ 
-                              border: '1px solid #e0e0e0',
-                              borderRadius: 1,
-                              p: 1.5,
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              transition: 'all 0.2s',
-                              '&:hover': { 
-                                bgcolor: 'rgba(0, 0, 0, 0.03)',
-                                borderColor: 'primary.light'
-                              }
-                            }}
-                            onClick={() => handleOpenAttachment(attachment)}
-                          >
-                            {getAttachmentIcon(attachment.type)}
-                            <Box sx={{ ml: 1.5, flex: 1, overflow: 'hidden' }}>
-                              <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontSize: '0.7rem' }}>
-                                {attachment.reportType === 'ecg-test' ? 'ECG Test Report' : 
-                                 attachment.reportType === 'blood-test' ? 'Blood Test Report' : 
-                                 attachment.reportType === 'lab-test' ? 'Lab Test Report' :
-                                 attachment.type === 'pdf' ? 'PDF Document' :
-                                 attachment.type === 'image' ? 'Image' : 'Document'}
-                              </Typography>
-                              <Typography variant="body2" sx={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {attachment.name}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                {attachment.date} • {attachment.size}
-                              </Typography>
-                            </Box>
-                            <IconButton 
-                              size="small" 
-                              onClick={(e) => handleDeleteAttachment(attachment.id, e)}
-                              sx={{ 
-                                ml: 1,
-                                opacity: 0,
-                                transition: 'opacity 0.2s',
-                                '&:hover': { color: 'error.main' },
-                                '.MuiBox-root:hover &': { opacity: 1 }
-                              }}
-                            >
-                              <Close fontSize="small" />
-                            </IconButton>
-                          </Box>
-                        ))}
-                      </Box>
-                    </Paper>
-                  </Box>
-                )}
-                      
-                {/* Action buttons */}
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2, gap: 1 }}>
-                  <Button 
-                    size="small" 
-                    variant="outlined" 
-                    startIcon={<Print />}
-                    onClick={() => handleOpenPrescription(prescription)}
-                  >
-                    Print
-                  </Button>
-                </Box>
-              </AccordionDetails>
-            </Accordion>
-          ))}
-        </Paper>
-      )}
-
       {/* Attachment Preview Dialog */}
       <Dialog
         open={openAttachmentDialog}
@@ -2014,7 +1806,7 @@ console.log(location.state)
         fullWidth
       >
         <DialogTitle>
-          {selectedAttachment?.name}
+          {selectedAttachment?.name || 'Attachment'}
           <IconButton
             aria-label="close"
             onClick={handleCloseAttachmentDialog}
@@ -2025,28 +1817,77 @@ console.log(location.state)
         </DialogTitle>
         <DialogContent dividers>
           <Box sx={{ p: 2, textAlign: 'center' }}>
-            {selectedAttachment?.type === 'image' ? (
+            {selectedAttachment?.type === 'image' && selectedAttachment?.url ? (
               <Box 
                 component="img" 
-                src="https://via.placeholder.com/800x600?text=Sample+Medical+Image"
-                alt={selectedAttachment?.name}
+                src={selectedAttachment.url}
+                alt={selectedAttachment?.name || 'Medical Image'}
                 sx={{ maxWidth: '100%', maxHeight: '70vh' }}
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = "https://via.placeholder.com/800x600?text=Image+Not+Available";
+                }}
               />
-            ) : selectedAttachment?.type === 'pdf' ? (
-              <Box sx={{ height: '70vh', bgcolor: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography>PDF Viewer would be integrated here</Typography>
+            ) : selectedAttachment?.type === 'pdf' && selectedAttachment?.url ? (
+              <Box sx={{ height: '70vh', width: '100%' }}>
+                <iframe 
+                  src={selectedAttachment.url} 
+                  title={selectedAttachment?.name || 'PDF Document'}
+                  width="100%" 
+                  height="100%" 
+                  style={{ border: 'none' }}
+                  onError={() => {
+                    return (
+                      <Box sx={{ height: '70vh', bgcolor: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Typography>Unable to load PDF. Please download to view.</Typography>
+                      </Box>
+                    );
+                  }}
+                />
               </Box>
             ) : (
               <Box sx={{ height: '70vh', bgcolor: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography>Document Viewer would be integrated here</Typography>
+                <Typography>
+                  {selectedAttachment?.url 
+                    ? 'Preview not available for this file type. Please download to view.' 
+                    : 'File not available for preview.'}
+                </Typography>
               </Box>
             )}
           </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseAttachmentDialog}>Close</Button>
-          <Button startIcon={<Print />} color="primary">Print</Button>
-          <Button startIcon={<Save />} color="primary">Download</Button>
+          {selectedAttachment?.url && (
+            <>
+              <Button 
+                startIcon={<Print />} 
+                color="primary"
+                onClick={() => {
+                  if (selectedAttachment?.url) {
+                    const printWindow = window.open(selectedAttachment.url, '_blank');
+                    if (printWindow) {
+                      printWindow.onload = () => {
+                        printWindow.print();
+                      };
+                    }
+                  }
+                }}
+              >
+                Print
+              </Button>
+              <Button 
+                startIcon={<Save />} 
+                color="primary"
+                component="a"
+                href={selectedAttachment.url}
+                download={selectedAttachment.name || 'download'}
+                target="_blank"
+              >
+                Download
+              </Button>
+            </>
+          )}
         </DialogActions>
       </Dialog>
 
@@ -2722,9 +2563,6 @@ console.log(location.state)
         </DialogActions>
       </Dialog>
       
-      {/* Add the past appointments section */}
-      {renderPastAppointments()}
-
       {/* Save Template Dialog */}
       <Dialog open={openSaveTemplateDialog} onClose={handleSaveTemplateClose}>
         <DialogTitle>Save as Template</DialogTitle>
@@ -2746,6 +2584,9 @@ console.log(location.state)
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Add the past appointments section */}
+      {renderPastAppointments()}
     </Container>
   );
 };
