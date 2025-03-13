@@ -3030,7 +3030,7 @@ export const PrescriptionForm = forwardRef(({
                                 e.stopPropagation();
                                 setMedications(medications.filter((_, i) => i !== index));
                               }}
-                              style={{ visibility: (medications.length > 1 ) ? 'visible' : 'hidden' }}
+                              style={{ visibility: (medications.length >= 1 ) ? 'visible' : 'hidden' }}
                             >
                               <RemoveCircleOutline fontSize="small" color="error" />
                             </IconButton>
@@ -3153,8 +3153,6 @@ export const PrescriptionForm = forwardRef(({
               </Button>
               )}
             </Grid>
-            
-            <Grid item xs={12} sx={{ height: '120px' }}></Grid>
           </Box>
         </form>
       </Container>
