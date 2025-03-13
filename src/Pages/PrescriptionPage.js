@@ -257,12 +257,12 @@ export const PrescriptionForm = forwardRef(({
 
   const [newTest, setNewTest] = useState("");
   const [signature, setSignature] = useState(initialData.signature || "");
-  const canvasRef = useRef(null);
-  const [isDrawing, setIsDrawing] = useState(false);
+ 
+  console.log(initialData);
 
   // Initialize complaints with initialData or default
   const [complaints, setComplaints] = useState(
-     [
+     initialData?.complaints || [
       { complaint: '', severity: '', frequency: '', duration: '', notes: '', isEditing: false }
     ]
   );
@@ -339,14 +339,14 @@ export const PrescriptionForm = forwardRef(({
 
   // Initialize diagnoses with initialData or default
   const [diagnoses, setDiagnoses] = useState(
-     [
+     initialData?.diagnoses || [
     { diagnosis: '', duration: '', notes: '', isEditing: false }
     ]
   );
 
   // Initialize medications with initialData or default
   const [medications, setMedications] = useState(
-    [
+    initialData?.medications || [
     { medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false }
     ]
   );
@@ -591,6 +591,8 @@ export const PrescriptionForm = forwardRef(({
     };
     
     console.log('Updated complaints after click away:', updatedComplaints);
+    // Update both states
+    setComplaints(updatedComplaints);
     setPrescription({
       ...prescription,
       complaints: updatedComplaints
@@ -599,32 +601,15 @@ export const PrescriptionForm = forwardRef(({
 
   // Also modify the handleComplaintChange function to include the auto-close behavior
   const handleComplaintChange = (index, field, value) => {
-    debugger; // Debug point 2: Start of complaint change
-    console.log('Complaint change initiated:', { index, field, value });
-    console.log('Current complaints state:', prescription.complaints);
-    
     const updatedComplaints = [...prescription.complaints];
-    // Preserve all existing data while updating the specific field
-    updatedComplaints[index] = {
-      ...updatedComplaints[index],
-      [field]: value
-    };
-
-    debugger; // Debug point 3: After updating complaint field
-    console.log('Complaints after field update:', updatedComplaints);
-
+    updatedComplaints[index][field] = value;
+    
     // Check if all main fields in the current row have values
     const currentRow = updatedComplaints[index];
-    const hasAllMainFields = currentRow.complaint && 
-                           currentRow.severity && 
-                           currentRow.frequency && 
-                           currentRow.duration;
+    const hasAllMainFields = currentRow.complaint && currentRow.severity && currentRow.duration;
 
     // If all main fields are filled and this is the last row, add a new row
     if (hasAllMainFields && index === prescription.complaints.length - 1) {
-      debugger; // Debug point 4: Before adding new row
-      console.log('All fields filled, adding new row');
-      
       // Add a small delay to ensure the current row's state is updated
       setTimeout(() => {
         const newComplaints = [
@@ -638,9 +623,6 @@ export const PrescriptionForm = forwardRef(({
             isEditing: false
           }
         ];
-        
-        debugger; // Debug point 5: Before setting state with new row
-        console.log('Complaints with new row:', newComplaints);
         
         setPrescription({
           ...prescription,
@@ -683,6 +665,8 @@ export const PrescriptionForm = forwardRef(({
       
       console.log('New complaints state to be set:', newComplaints);
       
+      // Update both states
+      setComplaints(newComplaints);
       setPrescription({
         ...prescription,
         complaints: newComplaints
@@ -1855,6 +1839,38 @@ export const PrescriptionForm = forwardRef(({
     handleSelectionStart();
   };
 
+  // Add useEffect to handle initialData changes
+  useEffect(() => {
+    if (initialData) {
+      console.log('Setting initial data:', initialData);
+      
+      // Update complaints
+      if (initialData.complaints && initialData.complaints.length > 0) {
+        setComplaints(initialData.complaints);
+      }
+      
+      // Update diagnoses
+      if (initialData.diagnoses && initialData.diagnoses.length > 0) {
+        setDiagnoses(initialData.diagnoses);
+      }
+      
+      // Update medications
+      if (initialData.medications && initialData.medications.length > 0) {
+        setMedications(initialData.medications);
+      }
+      
+      // Update prescription state
+      setPrescription(prev => ({
+        ...prev,
+        ...initialData,
+        vitals: {
+          ...prev.vitals,
+          ...initialData.vitals
+        }
+      }));
+    }
+  }, [initialData]);
+
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <Container className="prescription-container" sx={{ 
@@ -2126,33 +2142,13 @@ export const PrescriptionForm = forwardRef(({
                               }
                             }}
                             onChange={(_, value) => {
-                              debugger; // Debug point 10: When complaint value changes
-                              console.log('Complaint value changing:', { index, value });
-                              console.log('Current complaint row:', row);
-                              
-                              // First update the complaint value
                               handleComplaintChange(index, 'complaint', value);
-                              
-                              // Then ensure editing state is preserved
-                              const updatedComplaintsWithEditing = [...prescription.complaints];
-                              updatedComplaintsWithEditing[index] = {
-                                ...updatedComplaintsWithEditing[index],
-                                complaint: value,
-                                isEditing: true
-                              };
-                              
-                              debugger; // Debug point 11: Before setting state after complaint selection
-                              console.log('Setting complaints state after selection:', updatedComplaintsWithEditing);
-                              
-                              setPrescription(prev => {
-                                debugger; // Debug point 12: Inside setPrescription callback
-                                console.log('Previous prescription state:', prev);
-                                const newState = {
-                                  ...prev,
-                                  complaints: updatedComplaintsWithEditing
-                                };
-                                console.log('New prescription state:', newState);
-                                return newState;
+                              // Keep isEditing true after selection
+                              const updatedComplaints = [...prescription.complaints];
+                              updatedComplaints[index].isEditing = true;
+                              setPrescription({
+                                ...prescription,
+                                complaints: updatedComplaints
                               });
                             }}
                             renderInput={(params) => (
@@ -2715,24 +2711,17 @@ export const PrescriptionForm = forwardRef(({
                               console.log('Medications after selection:', JSON.stringify(updatedMedications));
                             }}
                             renderOption={(props, option) => {
-                              console.log('renderOption called with option:', option);
-                              
-                              // Create a unique key based on medicine properties
-                              const uniqueKey = option.data ? 
-                                `${option.value}-${option.data.dose || ''}-${option.data.when || ''}-${option.data.frequency || ''}-${option.data.duration || ''}` :
-                                `${option.value || option.name || ''}-${Date.now()}`;
+                              if (!option) return null;
                               
                               // If option is a string, just render it
                               if (typeof option === 'string') {
-                                return <li {...props} key={uniqueKey}>{option}</li>;
+                                return <li {...props}>{option}</li>;
                               }
                               
-                              // If option has a label that's a React element, use it
-                              if (option.label && React.isValidElement(option.label)) {
-                                return <li {...props} key={uniqueKey}>{option.label}</li>;
-                              }
+                              // Create a unique key safely
+                              const uniqueKey = `${option.value || option.name || ''}-${Date.now()}`;
                               
-                              // Otherwise, build a custom option display
+                              // Get the display data safely
                               const medicineName = option.value || option.name || '';
                               const genericName = option.data?.generic_name || '';
                               const dose = option.data?.dose || '';
@@ -2854,7 +2843,6 @@ export const PrescriptionForm = forwardRef(({
                             size="small"
                             options={medicineTimings}
                             value={row.timing || ''}
-                            // Regular dropdown behavior for other fields
                             open={Boolean(row.isEditing)}
                             onClose={(e, reason) => {
                               if (reason === 'selectOption' || selectionInProgress) {
@@ -2866,6 +2854,12 @@ export const PrescriptionForm = forwardRef(({
                               handleSelectionStart();
                               handleMedicationChange(index, 'timing', value || '');
                             }}
+                            getOptionLabel={(option) => {
+                              return typeof option === 'string' ? option : '';
+                            }}
+                            renderOption={(props, option) => (
+                              <li {...props}>{typeof option === 'string' ? option : ''}</li>
+                            )}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
@@ -2874,13 +2868,9 @@ export const PrescriptionForm = forwardRef(({
                                 onFocus={(e) => {
                                   if (readOnly) return;
                                   e.stopPropagation();
-                                  // Only set editing state if not clicking on notes
-                                  const isNotesField = e.target.closest('td')?.querySelector('#med-notes-' + index);
-                                  if (!isNotesField) {
-                                    const updatedMedications = [...medications];
-                                    updatedMedications[index].isEditing = true;
-                                    setMedications(updatedMedications);
-                                  }
+                                  const updatedMedications = [...medications];
+                                  updatedMedications[index].isEditing = true;
+                                  setMedications(updatedMedications);
                                 }}
                               />
                             )}
@@ -2893,7 +2883,6 @@ export const PrescriptionForm = forwardRef(({
                             size="small"
                             options={medicineFrequency}
                             value={row.frequency || ''}
-                            // Regular dropdown behavior for other fields
                             open={Boolean(row.isEditing)}
                             onClose={(e, reason) => {
                               if (reason === 'selectOption' || selectionInProgress) {
@@ -2905,6 +2894,12 @@ export const PrescriptionForm = forwardRef(({
                               handleSelectionStart();
                               handleMedicationChange(index, 'frequency', value || '');
                             }}
+                            getOptionLabel={(option) => {
+                              return typeof option === 'string' ? option : '';
+                            }}
+                            renderOption={(props, option) => (
+                              <li {...props}>{typeof option === 'string' ? option : ''}</li>
+                            )}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
@@ -2913,13 +2908,9 @@ export const PrescriptionForm = forwardRef(({
                                 onFocus={(e) => {
                                   if (readOnly) return;
                                   e.stopPropagation();
-                                  // Only set editing state if not clicking on notes
-                                  const isNotesField = e.target.closest('td')?.querySelector('#med-notes-' + index);
-                                  if (!isNotesField) {
-                                    const updatedMedications = [...medications];
-                                    updatedMedications[index].isEditing = true;
-                                    setMedications(updatedMedications);
-                                  }
+                                  const updatedMedications = [...medications];
+                                  updatedMedications[index].isEditing = true;
+                                  setMedications(updatedMedications);
                                 }}
                               />
                             )}
@@ -2932,7 +2923,6 @@ export const PrescriptionForm = forwardRef(({
                             size="small"
                             options={medicineDuration}
                             value={row.duration || ''}
-                            // Regular dropdown behavior for other fields
                             open={Boolean(row.isEditing)}
                             onClose={(e, reason) => {
                               if (reason === 'selectOption' || selectionInProgress) {
@@ -2944,6 +2934,12 @@ export const PrescriptionForm = forwardRef(({
                               handleSelectionStart();
                               handleMedicationChange(index, 'duration', value || '');
                             }}
+                            getOptionLabel={(option) => {
+                              return typeof option === 'string' ? option : '';
+                            }}
+                            renderOption={(props, option) => (
+                              <li {...props}>{typeof option === 'string' ? option : ''}</li>
+                            )}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
@@ -2952,13 +2948,9 @@ export const PrescriptionForm = forwardRef(({
                                 onFocus={(e) => {
                                   if (readOnly) return;
                                   e.stopPropagation();
-                                  // Only set editing state if not clicking on notes
-                                  const isNotesField = e.target.closest('td')?.querySelector('#med-notes-' + index);
-                                  if (!isNotesField) {
-                                    const updatedMedications = [...medications];
-                                    updatedMedications[index].isEditing = true;
-                                    setMedications(updatedMedications);
-                                  }
+                                  const updatedMedications = [...medications];
+                                  updatedMedications[index].isEditing = true;
+                                  setMedications(updatedMedications);
                                 }}
                               />
                             )}

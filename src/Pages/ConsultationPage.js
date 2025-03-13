@@ -231,59 +231,19 @@ useEffect(() => {
     patientName: patientInfo?.name || "",
     age: patientInfo?.age || "",
     gender: patientInfo?.gender || "",
-    weight: currentPrescriptionDetails?.vitals?.weight || vitalsInfo.weight || "",
+    weight: currentPrescriptionDetails?.vitals?.weight || "",
     vitals: {
-      bloodPressure: currentPrescriptionDetails?.vitals?.blood_pressure || vitalsInfo.bloodPressure,
-      heartRate: currentPrescriptionDetails?.vitals?.pulse_rate || vitalsInfo.heartRate,
-      temperature: currentPrescriptionDetails?.vitals?.temperature || vitalsInfo.temperature,
-      respiratoryRate: vitalsInfo.respiratoryRate, // Not in the API response
-      spO2: currentPrescriptionDetails?.vitals?.spo2 || vitalsInfo.spO2,
+      bloodPressure: currentPrescriptionDetails?.vitals?.blood_pressure || "",
+      heartRate: currentPrescriptionDetails?.vitals?.pulse_rate || "",
+      temperature: currentPrescriptionDetails?.vitals?.temperature || "",
+      respiratoryRate: "",
+      spO2: currentPrescriptionDetails?.vitals?.spo2 || "",
+      weight: currentPrescriptionDetails?.vitals?.weight || "",
+      height: currentPrescriptionDetails?.vitals?.height || "",
+      bloodSugar: currentPrescriptionDetails?.vitals?.blood_sugar || ""
     },
-    // For the prescription.medications array (uses drug, dosage)
+    // For the medications array
     medications: currentPrescriptionDetails?.medicines?.length > 0
-      ? currentPrescriptionDetails.medicines.map(med => ({
-          medicine: med.name || '',
-          dose: med.dose || '',
-          frequency: med.frequency || '',
-          duration: med.duration || '',
-          withFood: false,
-          notes: med.notes || ''
-        }))
-      : [{ medicine: '', dose: '', frequency: '', duration: '', withFood: false }],
-    tests: currentPrescriptionDetails?.tests?.length > 0 && currentPrescriptionDetails.tests[0]?.testlist
-      ? currentPrescriptionDetails.tests[0].testlist
-      : [],
-    instructions: currentPrescriptionDetails?.advice?.length > 0 && currentPrescriptionDetails.advice[0]?.advice
-      ? currentPrescriptionDetails.advice[0].advice
-      : "",
-    followUp: currentPrescriptionDetails?.followup || "",
-    signature: "Dr. Amit Mittal",
-    // Add attachments from the API response
-    attachments: currentPrescriptionDetails?.attachments || [],
-    
-    // For the separate state variables in PrescriptionForm
-    // For the complaints state array (uses complaint, severity, duration)
-    complaints: currentPrescriptionDetails?.complaints?.length > 0
-      ? currentPrescriptionDetails.complaints.map(complaint => ({
-          complaint: complaint.name || '',
-          severity: complaint.severity || '',
-          duration: complaint.duration || '',
-          frequency: complaint.frequency || '', // Added frequency field
-          notes: complaint.notes || '',
-          isEditing: false
-        }))
-      : [{ complaint: '', severity: '', duration: '', frequency: '', notes: '', isEditing: false }],
-    // For the diagnoses state array
-    diagnoses: currentPrescriptionDetails?.diagnosis?.length > 0
-      ? currentPrescriptionDetails.diagnosis.map(diagnosis => ({
-          diagnosis: diagnosis.name || '',
-          duration: diagnosis.duration || '',
-          notes: diagnosis.notes || '',
-          isEditing: false
-        }))
-      : [{ diagnosis: '', duration: '', notes: '', isEditing: false }],
-    // For the medications state array (uses medicine, dose, timing)
-    medicationsArray: currentPrescriptionDetails?.medicines?.length > 0
       ? currentPrescriptionDetails.medicines.map(med => ({
           medicine: med.name || '',
           dose: med.dose || '',
@@ -294,6 +254,30 @@ useEffect(() => {
           isEditing: false
         }))
       : [{ medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false }],
+    // For the complaints array
+    complaints: currentPrescriptionDetails?.complaints?.length > 0
+      ? currentPrescriptionDetails.complaints.map(complaint => ({
+          complaint: complaint.name || '',
+          severity: complaint.severity || '',
+          duration: complaint.duration || '',
+          frequency: complaint.frequency || '',
+          notes: complaint.notes || '',
+          isEditing: false
+        }))
+      : [{ complaint: '', severity: '', duration: '', frequency: '', notes: '', isEditing: false }],
+    // For the diagnoses array
+    diagnoses: currentPrescriptionDetails?.diagnosis?.length > 0
+      ? currentPrescriptionDetails.diagnosis.map(diagnosis => ({
+          diagnosis: diagnosis.name || '',
+          duration: diagnosis.duration || '',
+          notes: diagnosis.notes || '',
+          isEditing: false
+        }))
+      : [{ diagnosis: '', duration: '', notes: '', isEditing: false }],
+    tests: currentPrescriptionDetails?.tests?.[0]?.testlist || [],
+    instructions: currentPrescriptionDetails?.advice?.[0]?.advice || "",
+    followUp: "",
+    signature: ""
   };
 
   useEffect(() =>{
@@ -384,12 +368,10 @@ useEffect(() => {
 
   // Modify the handlePrescriptionSubmit function to handle direct submission
   const handlePrescriptionSubmit = (formData) => {
-    debugger; // Debug point 7: When prescription form is submitted
-    console.log("Raw form data received:", JSON.stringify(formData, null, 2));
+    console.log("Raw form data received:", formData);
     
     // Check if medications exist and have the expected structure
     if (formData.medications) {
-      debugger; // Debug point 8: Examining medications from form data
       console.log("Medications from form:", JSON.stringify(formData.medications, null, 2));
       
       // Log each medication individually for debugging
@@ -405,7 +387,6 @@ useEffect(() => {
       });
     }
     
-    debugger; // Debug point 9: Before creating API payload
     const payload = {
       appointment_id: appointmentInfo.id || "",
       complaints: Array.isArray(formData.complaints) 
@@ -428,8 +409,7 @@ useEffect(() => {
         ? formData.medications
             .filter(medication => medication.medicine || medication.dose || medication.frequency || medication.duration)
             .map(medication => {
-              debugger; // Debug point 10: Processing each medication for API payload
-              console.log("Processing medication:", JSON.stringify(medication));
+              console.log("Processing medication:", medication);
               return {
                 name: medication.medicine || "",
                 dose: medication.dose || "",
@@ -444,18 +424,14 @@ useEffect(() => {
       tests: Array.isArray(formData.tests) ? formData.tests : []
     };
 
-    debugger; // Debug point 11: Final API payload before sending
     console.log("Saving prescription with payload:", JSON.stringify(payload, null, 2));
-    
     // Here you would typically call the savePrescription API with the payload
     savePrescription(payload)
       .then(data => {
-        debugger; // Debug point 12: API response success
         console.log('Prescription saved successfully:', data);
         // Optionally, handle success (e.g., show a success message)
       })
       .catch(error => {
-        debugger; // Debug point 13: API response error
         console.error('Error saving prescription:', error);
         // Optionally, handle error (e.g., show an error message)
       });
