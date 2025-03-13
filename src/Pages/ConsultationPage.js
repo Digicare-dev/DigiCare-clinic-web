@@ -170,6 +170,7 @@ const ConsultationPage = () => {
         setIsLoadingPrescriptions(true);
         const user = JSON.parse(localStorage.getItem("user"));
         const cabinId = user?.checkupcabindata?.[0]?.id;
+
         if (patientInfo.id && cabinId) {
           const response = await getPastPrescriptions(patientInfo.id, cabinId);
           console.log("Past Prescriptions Response:", response);

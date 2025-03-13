@@ -1,6 +1,7 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect, useRef } from "react";
 import { logout } from "../services/authService";
 import { AuthContext } from "../context/AuthContext";
+import { useAppointmentForm } from "../context/AppointmentFormContext";
 import { useNavigate } from "react-router-dom";
 import {
   Button,
@@ -22,6 +23,8 @@ import {
 import logo from "../assets/DigiCare__logo.png";
 import LogoutIcon from "@mui/icons-material/Logout";
 import SearchIcon from "@mui/icons-material/Search";
+import AddCircleIcon from "@mui/icons-material/AddCircle";
+import CloseIcon from "@mui/icons-material/Close";
 import "./Header.module.css";
 import { getPatientProfile, getPatientDetails } from "../services/api";
 
@@ -29,12 +32,14 @@ function Header({ closeEventSource }) {
   const isMobile = window.innerWidth <= 768;
   const [open, setOpen] = useState(false);
   const { setUser } = useContext(AuthContext);
+  const { openAppointmentForm } = useAppointmentForm();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [patients, setPatients] = useState([]);
   const [showPatientList, setShowPatientList] = useState(false);
+  const searchContainerRef = useRef(null);
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -114,68 +119,148 @@ function Header({ closeEventSource }) {
     }
   };
 
-  const handleSearch = async (event) => {
-    if (event.key === 'Enter') {
-      try {
-        setLoading(true);
-        setError(null);
-        setPatients([]);
+  const handleSearch = async (phoneNumber) => {
+    try {
+      setLoading(true);
+      setError(null);
+      setPatients([]);
+      setShowPatientList(false);
+      
+      // Only search if query is a 10-digit phone number
+      const isPhoneNumber = /^\d{10}$/.test(phoneNumber.trim());
+      
+      if (!isPhoneNumber) {
+        // Don't show error until they've entered 10 digits
+        return;
+      }
+      
+      const response = await getPatientProfile(phoneNumber.trim());
+      console.log('Search response:', response);
+      
+      if (Array.isArray(response) && response.length > 0) {
+        setPatients(response);
+        setShowPatientList(true);
+      } else {
+        setError("No patient found with the provided phone number");
+      }
+    } catch (error) {
+      console.error('Error searching patient:', error);
+      setError("Failed to search patient. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle input change for search query
+  const handleSearchInputChange = (e) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    setError(null);
+    
+    // Auto-search when 10 digits are entered
+    if (value.length === 10 && /^\d{10}$/.test(value)) {
+      handleSearch(value);
+    } else if (value.length > 0) {
+      // Clear results when input changes
+      setPatients([]);
+      setShowPatientList(false);
+    }
+  };
+
+  // Add click outside listener to close patient list
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
         setShowPatientList(false);
-        
-        // Only search if query is a 10-digit phone number
-        const isPhoneNumber = /^\d{10}$/.test(searchQuery.trim());
-        
-        if (!isPhoneNumber) {
-          setError("Please enter a valid 10-digit phone number");
-          return;
-        }
-        
-        const response = await getPatientProfile(searchQuery.trim());
-        console.log('Search response:', response);
-        
-        if (Array.isArray(response) && response.length > 0) {
-          setPatients(response);
-          setShowPatientList(true);
-        } else {
-          setError("No patient found with the provided phone number");
-        }
-      } catch (error) {
-        console.error('Error searching patient:', error);
-        setError("Failed to search patient. Please try again.");
-      } finally {
-        setLoading(false);
       }
     }
+
+    // Add event listener when patient list is shown
+    if (showPatientList) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    
+    // Clean up the event listener
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showPatientList]);
+
+  // Add a function to clear the search
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    setPatients([]);
+    setShowPatientList(false);
+    setError(null);
   };
 
   return (
     <header>
-      <img
-        src={logo}
-        alt="DigiCare"
-        style={{ width: "150px", height: "40px" }}
-      />
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <img
+          src={logo}
+          alt="DigiCare"
+          style={{ width: "150px", height: "40px" }}
+        />
+      </Box>
 
-      {/* Patient Search Bar - Center */}
+      {/* Patient Search Bar - Center with New Appointment Button */}
       <Box 
+        ref={searchContainerRef}
         sx={{ 
           flex: 1, 
-          maxWidth: '500px', 
+          maxWidth: '550px', 
           mx: 'auto',
-          position: 'relative'
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2
         }}
       >
+        <Button 
+          variant="contained"
+          startIcon={<AddCircleIcon sx={{ color: 'white' }} />}
+          onClick={() => openAppointmentForm()}
+          sx={{
+            backgroundColor: '#1976d2',
+            color: 'white',
+            fontWeight: 600,
+            fontSize: '0.9rem',
+            height: '40px',
+            padding: '0 24px',
+            minWidth: '180px',
+            borderRadius: '20px',
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+            transition: 'all 0.3s ease',
+            textTransform: 'none',
+            whiteSpace: 'nowrap',
+            "&:hover": {
+              backgroundColor: '#1565c0',
+              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
+              transform: 'translateY(-2px)'
+            },
+            "&:active": {
+              transform: 'translateY(0px)',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+            },
+            display: { xs: 'none', md: 'flex' }
+          }}
+        >
+          New Appointment
+        </Button>
+
         <TextField
           placeholder="Enter 10-digit phone number to search patient..."
           variant="outlined"
           size="small"
           fullWidth
           value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            setError(null);
+          onChange={handleSearchInputChange}
+          onKeyPress={(event) => {
+            if (event.key === 'Enter' && searchQuery.length > 0) {
+              handleSearch(searchQuery);
+            }
           }}
-          onKeyPress={handleSearch}
           disabled={loading}
           error={!!error}
           helperText={error}
@@ -185,10 +270,22 @@ function Header({ closeEventSource }) {
                 <SearchIcon color="action" />
               </InputAdornment>
             ),
-            endAdornment: loading && (
-              <InputAdornment position="end">
-                <CircularProgress size={20} />
-              </InputAdornment>
+            endAdornment: (
+              <>
+                {loading && <CircularProgress size={20} />}
+                {searchQuery && !loading && (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="clear search"
+                      onClick={handleClearSearch}
+                      edge="end"
+                      size="small"
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                )}
+              </>
             ),
           }}
         />
@@ -210,7 +307,7 @@ function Header({ closeEventSource }) {
               overflowY: 'auto',
             }}
           >
-            <List>
+            <List sx={{ p: 0 }}>
               {patients.map((patient, index) => (
                 <ListItem
                   key={patient.patient_id}
@@ -218,21 +315,33 @@ function Header({ closeEventSource }) {
                   onClick={() => handlePatientSelect(patient)}
                   divider={index < patients.length - 1}
                   sx={{
+                    py: 1.5,
                     '&:hover': {
-                      bgcolor: 'action.hover',
+                      bgcolor: 'rgba(25, 118, 210, 0.08)',
                     },
                   }}
                 >
                   <ListItemText
                     primary={
-                      <Typography variant="subtitle1" component="div">
+                      <Typography variant="subtitle1" component="div" sx={{ fontWeight: 500 }}>
                         {patient.name}
                       </Typography>
                     }
                     secondary={
-                      <Typography variant="body2" color="text.secondary">
-                        {`${patient.age || 'N/A'} years • ${patient.gender || 'N/A'} • ${patient.phone_number}`}
-                      </Typography>
+                      <Box sx={{ mt: 0.5 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <span>{patient.phone_number}</span>
+                          <span>•</span>
+                          <span>{patient.age || 'N/A'} years</span>
+                          <span>•</span>
+                          <span>{patient.gender === 'M' ? 'Male' : patient.gender === 'F' ? 'Female' : patient.gender || 'N/A'}</span>
+                        </Typography>
+                        {patient.location && (
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                            {patient.location}
+                          </Typography>
+                        )}
+                      </Box>
                     }
                   />
                 </ListItem>

@@ -2,6 +2,7 @@ import React,  { useContext, useEffect, useState, useCallback, createContext } f
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Box } from "@mui/material";
 import { AuthContext } from "./context/AuthContext";
+import { AppointmentFormProvider } from "./context/AppointmentFormContext";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
 import BottomNavigator from "./components/BottomNavigator";
@@ -19,7 +20,7 @@ import AddAppointmentMobile from "./Pages/AddAppointmentMobile";
 import MobileAppointmentTable from "./Pages/MobileAppointmentTable";
 import PastAppointmentsPage from "./Pages/PastAppointments";
 import { Navigate } from "react-router-dom";
-
+import AppointmentForm from "./components/AppointmentForm";
 
 import PrescriptionTablePage from "./Pages/Prescriptiondemo";
 
@@ -225,171 +226,176 @@ const App = () => {
   // };
 
   return (
-    <ThemeProvider theme={theme}>
-      <Router>
-        <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-          {user !== null && (
-            <Header 
-              patients={patients || []} 
-              closeEventSource={() => {}} 
-            />
-          )}
-          <Box
-            sx={{
-              display: "flex",
-              flex: 1,
-              overflow: "hidden",
-            }}
-          >
-            {!isMobile && user !== null && <Sidebar />}
+    <AppointmentFormProvider>
+      <ThemeProvider theme={theme}>
+        <Router>
+          <AppointmentForm />
+          <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+            {user !== null && (
+              <Header 
+                patients={patients || []} 
+                closeEventSource={() => {}} 
+              />
+            )}
             <Box
-              component="main"
               sx={{
-                flexGrow: 1,
-                padding: "6px",
-                height: "100%",
-                width: "100%",
-                overflowY: "auto",
-                marginBottom: "200px",
+                display: "flex",
+                flex: 1,
+                overflow: "hidden",
               }}
             >
-              <Routes>
-                <Route
-                  path="/login"
-                  element={user ? <Navigate to="/" replace /> : <Login />}
-                />
-                <Route
-                  path="/"
-                  element={
-                    <PrivateRoute>
-                      <Dashboard 
-                        patients={patients}
-                        setPatients={setPatients}
-                        currentPosition={currentPosition}
-                        loading={loading}
-                        handleNextPatient={handleNextPatient}
-                        handleLatePatient={handleLatePatient}
-                        shufflePosition={shufflePosition}
-                        fetchPatientsData={fetchPatientsData}
-                      />
-                    </PrivateRoute>
-                  }
-                />
-                <Route
-                  path="/appointments"
-                  element={
-                    <PrivateRoute>
-                      <AppointmentTable 
-                        fetchPatientsData={fetchPatientsData}
-                        currentCabinSlot={currentCabinSlot}
-                      />
-                    </PrivateRoute>
-                  }
-                />
-                <Route
-                  path="/past-appointments"
-                  element={
-                    <PrivateRoute>{<PastAppointmentsPage />}</PrivateRoute>
-                  }
-                />
-                <Route
-                  path="/prescription"
-                  element={
-                    <PrivateRoute>
-                      {/* <PrescriptionTablePage /> */}
-                      <PrescriptionPage />
-                    </PrivateRoute>
-                  }
-                />
+              {!isMobile && user !== null && <Sidebar />}
+              <Box
+                component="main"
+                sx={{
+                  flexGrow: 1,
+                  padding: "6px",
+                  height: "100%",
+                  width: "100%",
+                  overflowY: "auto",
+                  marginBottom: "200px",
+                }}
+              >
+                <Routes>
+                  <Route
+                    path="/login"
+                    element={user ? <Navigate to="/" replace /> : <Login />}
+                  />
+                  <Route
+                    path="/"
+                    element={
+                      <PrivateRoute>
+                        <Dashboard 
+                          patients={patients}
+                          setPatients={setPatients}
+                          currentPosition={currentPosition}
+                          loading={loading}
+                          handleNextPatient={handleNextPatient}
+                          handleLatePatient={handleLatePatient}
+                          shufflePosition={shufflePosition}
+                          fetchPatientsData={fetchPatientsData}
+                        />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/appointments"
+                    element={
+                      <PrivateRoute>
+                        <AppointmentTable 
+                          fetchPatientsData={fetchPatientsData}
+                          currentCabinSlot={currentCabinSlot}
+                        />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/past-appointments"
+                    element={
+                      <PrivateRoute>{<PastAppointmentsPage />}</PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/prescription"
+                    element={
+                      <PrivateRoute>
+                        {/* <PrescriptionTablePage /> */}
+                        <PrescriptionPage />
+                      </PrivateRoute>
+                    }
+                  />
 
-<Route
-                  path="/patient-info"
-                  element={
-                    <PrivateRoute>
-                      <PatientInfoPage />
-                    </PrivateRoute>
-                  }
-                />
+  <Route
+                    path="/patient-info"
+                    element={
+                      <PrivateRoute>
+                        <PatientInfoPage />
+                      </PrivateRoute>
+                    }
+                  />
 
-                <Route
-                  path="/appointment-details"
-                  element={
-                    <PrivateRoute>
-                      <AppointmentDetails />
-                    </PrivateRoute>
-                  }
-                />
+                  <Route
+                    path="/appointment-details"
+                    element={
+                      <PrivateRoute>
+                        <AppointmentDetails />
+                      </PrivateRoute>
+                    }
+                  />
 
-                <Route
-                  path="/help"
-                  element={
-                    <PrivateRoute>
-                      <Help />
-                    </PrivateRoute>
-                  }
-                />
+                  <Route
+                    path="/help"
+                    element={
+                      <PrivateRoute>
+                        <Help />
+                      </PrivateRoute>
+                    }
+                  />
 
-                <Route
-                  path="/add-appointment"
-                  element={
-                    <PrivateRoute>
-                      <AddAppointmentMobile patients={patients} />
-                    </PrivateRoute>
-                  }
-                />
-                <Route
-                  path="/mobile-appointments"
-                  element={
-                    <PrivateRoute>
-                      <MobileAppointmentTable />
-                    </PrivateRoute>
-                  }
-                />
-                <Route
-                  path="/queue"
-                  element={
-                    <PrivateRoute>
-                      <Home
-                        currentPosition={currentPosition}
-                        setCurrentPosition={setCurrentPosition}
-                        patients={patients}
-                        setPatients={(patients) => setPatients(patients)}
-                        handleNextPatient={handleNextPatient}
-                        handleLatePatient={(id, pos) => handleLatePatient(id, pos)}
-                        shufflePosition={(payload) => shufflePosition(payload)}
-                        loading={loading}
-                        fetchPatientsData={fetchPatientsData}
-                      />
-                    </PrivateRoute>
-                  }
-                />
-                <Route
-                  path="/consultation"
-                  element={
-                    <PrivateRoute>
-                      <ConsultationPage />
-                    </PrivateRoute>
-                  }
-                />
-                
-                <Route path="*" element={<Navigate to="/login" replace />} />
-              </Routes>
+                  <Route
+                    path="/add-appointment"
+                    element={
+                      <PrivateRoute>
+                        <AddAppointmentMobile patients={patients} />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/mobile-appointments"
+                    element={
+                      <PrivateRoute>
+                        <MobileAppointmentTable />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/queue"
+                    element={
+                      <PrivateRoute>
+                        <Home
+                          currentPosition={currentPosition}
+                          setCurrentPosition={setCurrentPosition}
+                          patients={patients}
+                          setPatients={(patients) => setPatients(patients)}
+                          handleNextPatient={handleNextPatient}
+                          handleLatePatient={(id, pos) => handleLatePatient(id, pos)}
+                          shufflePosition={(payload) => shufflePosition(payload)}
+                          loading={loading}
+                          fetchPatientsData={fetchPatientsData}
+                        />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/consultation"
+                    element={
+                      <PrivateRoute>
+                        <ConsultationPage />
+                      </PrivateRoute>
+                    }
+                  />
+                  
+                  <Route path="*" element={<Navigate to="/login" replace />} />
+                </Routes>
+              </Box>
             </Box>
+            {user !== null && isMobile && <BottomNavigator />}
+            
+            {/* Global appointment form - available from anywhere */}
+            <AppointmentForm />
+            
+            {/* PDF Viewer for reports/prescriptions */}
+            {pdfViewerState.isOpen && (
+              <PDFViewer
+                url={pdfViewerState.pdfUrl}
+                onClose={closePdfViewer}
+                title={pdfViewerState.title}
+              />
+            )}
           </Box>
-          {user !== null && isMobile && <BottomNavigator />}
-          
-          {/* Remove Demo Banner */}
-          
-          {/* Add PDF Viewer */}
-          <PDFViewer 
-            open={pdfViewerState.open}
-            onClose={closePdfViewer}
-            pdfUrl={pdfViewerState.pdfUrl}
-            title={pdfViewerState.title}
-          />
-        </Box>
-      </Router>
-    </ThemeProvider>
+        </Router>
+      </ThemeProvider>
+    </AppointmentFormProvider>
   );
 };
 
