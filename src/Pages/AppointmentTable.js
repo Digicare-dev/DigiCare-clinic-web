@@ -922,12 +922,20 @@ export default function AppointmentTable() {
     const appointmentInfo = {
       id: appointment.appointment_id,
       status: mapStatusToReadable(appointment.status),
-      type: appointment.appointment_type || '',
-      doctor: 'Dr. Amit Mittal',
-      fees: appointment.fees_paid || 0,
-      paymentStatus: appointment.paid ? 'Paid' : 'Pending',
-      paymentMode: appointment.mode || '',
+      appointment_type: appointment.appointment_type || '',
+      disease: appointment.disease || '',
+      doctor: `Dr. ${user.checkupcabindata[0].doctor}` || '',
+      department: 'General Medicine',
+      date: date,
+      time: time,
+      fees_paid: appointment.fees_paid || 0,
+      paid: appointment.paid || false,
+      mode: appointment.mode || '',
+      token: appointment.token || '',
+      checkin: appointment.checkin || false
     };
+
+    
     
     // Navigate to the appointment details page with the patient and appointment info
     navigate('/appointment-details', { 

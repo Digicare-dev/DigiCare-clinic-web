@@ -127,13 +127,29 @@ const AppointmentDetails = () => {
   };
 
   useEffect(() => {
-    // Get data from location state or fetch from API if available
+    
+    // Get data from location 
+    // state or fetch from API if available
     if (location.state) {
-      const { appointmentInfo, fromPastAppointments } = location.state;
+      const { patientInfo: receivedPatientInfo, appointmentInfo: receivedAppointmentInfo, from, fromPastAppointments } = location.state;
       
-      if (appointmentInfo && appointmentInfo.id) {
+      // If coming from appointment table, use the passed data directly
+      if (from === 'appointment-table' && receivedPatientInfo && receivedAppointmentInfo) {
+        // Fix any field name differences
+        const fixedPatientInfo = {
+          ...receivedPatientInfo,
+          // Handle guardian field which might be named differently
+          guardian: receivedPatientInfo.guardian || receivedPatientInfo.guardianName || ''
+        };
+        
+        setPatientInfo(fixedPatientInfo);
+        setAppointmentInfo(receivedAppointmentInfo);
+        setIsFromPastAppointments(fromPastAppointments || false);
+      }
+      // Otherwise, fetch from API using the ID
+      else if (receivedAppointmentInfo && receivedAppointmentInfo.id) {
         // Fetch from API using the ID from location state
-        fetchAppointmentDetails(appointmentInfo.id);
+        fetchAppointmentDetails(receivedAppointmentInfo.id);
         setIsFromPastAppointments(fromPastAppointments || false);
       } else {
         console.error('No appointment ID provided');
@@ -153,6 +169,7 @@ const AppointmentDetails = () => {
 
   // If we don't have appointment data yet, show a loading state
   if (!appointmentInfo) {
+    
     return (
       <Layout>
         <PageHeader title="Appointment Details" />

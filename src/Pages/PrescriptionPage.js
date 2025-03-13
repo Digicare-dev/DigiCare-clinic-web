@@ -449,7 +449,7 @@ export const PrescriptionForm = forwardRef(({
           return formData;
         },
         submitForm: () => {
-          debugger;
+          
           const formData = {
             ...prescription,
             complaints,
