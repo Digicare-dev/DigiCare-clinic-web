@@ -156,6 +156,7 @@ const PatientInfoPage = () => {
   const [attachmentsLoading, setAttachmentsLoading] = useState(false);
   const [vitalsLoading, setVitalsLoading] = useState(false);
   const [complaints, setComplaints] = useState(location.state?.complaintsData || []);
+  const [prescriptionLoadingMap, setPrescriptionLoadingMap] = useState({});
 
   const user = JSON.parse(localStorage.getItem("user"));
   const cabinId = user?.checkupcabindata?.[0]?.id;
@@ -182,182 +183,115 @@ const PatientInfoPage = () => {
   const late = location.state?.late || false;
   const status = location.state?.status || 'pending';
 
-  // Create a function to fetch vitals
-  const fetchVitals = async () => {
-    if (!location.state?.appointmentInfo?.id && !currentAppointment?.id) return;
-    
-    try {
-      setVitalsLoading(true);
-      setVitalsError(null);
-      
-      const appointmentId = currentAppointment?.id || location.state.appointmentInfo.id;
-      const response = await getVitals(appointmentId);
-      console.log("Vitals response:", response);
-      
-      if (response) {
-        setVitals({
-          bloodPressure: response.blood_pressure || '',
-          heartRate: response.pulse_rate || '',
-          temperature: response.temperature || '',
-          respiratoryRate: response.respiratory_rate || '',
-          spO2: response.spo2 || '',
-          height: response.height || '',
-          weight: response.weight || '',
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching vitals:", error);
-      setVitalsError("Failed to load vitals. Please try again.");
-    } finally {
-      setVitalsLoading(false);
-    }
-  };
-
   const fetchPatientDetails = async () => {
     try {
       setLoading(true);
-      const response = await getPatientDetails(location.state.patientInfo.id);
-      console.log("Patient details response:", response);
+      setError(null);
       
-      // Update patient data if available
-      if (response && response.patient) {
-        setPatient({
-          ...location.state.patientInfo, // Keep existing data for compatibility
-          ...response.patient, // Override with API data
-          id: response.patient.patient_id // Ensure ID is mapped correctly
-        });
-      }
-      
-      // Handle current appointment data if available
-      if (response && response.current_appointment) {
-        // Set hasCurrentAppointment to true since we have current appointment data
-        const currentAppData = response.current_appointment;
-        
-        // Map the current appointment data to the format expected by the component
-        const mappedCurrentAppointment = {
-          id: currentAppData.appointment_id,
-          token: currentAppData.token,
-          date: new Date().toISOString().split('T')[0], // Default to today
-          time: "10:00 AM", // Default time
-          doctor: user.checkupcabindata[0].doctor,
-          department: "General", // Default department
-          type: currentAppData.appointment_type,
-          status: currentAppData.status,
-          reason: currentAppData.disease || "General Checkup",
-          paid: currentAppData.paid,
-          checkin: currentAppData.checkin,
-          fees: currentAppData.fees_paid,
-          mode: currentAppData.mode
-        };
-        
-        // Update the current appointment state
-        setCurrentAppointment(mappedCurrentAppointment);
-        setHasCurrentAppointment(true);
-        
-        // If we have vitals data in the response, update the vitals state
+      // If we have a patient ID, fetch patient details
+      if (patient?.id) {
+        const response = await getPatientDetails(patient.id);
+      if (response) {
+          // Set patient details
+          setPatient(response.patient);
+          
+          // Set current appointment if available
+          if (response.current_appointment) {
+            setCurrentAppointment(response.current_appointment);
+            setHasCurrentAppointment(true);
+          }
+          
+          // Set past appointments
+          if (response.other_appointments) {
+            setPastAppointments(response.other_appointments);
+          }
+          
+          // Set prescriptions from appointments
+          const prescriptionsList = response.other_appointments
+            ?.filter(app => app.prescription)
+            .map(app => ({
+              ...app.prescription,
+              appointmentId: app.id,
+              date: app.date
+            })) || [];
+          setPrescriptions(prescriptionsList);
+          
+          // Set vitals if available
         if (response.vitals) {
           setVitals({
             bloodPressure: response.vitals.blood_pressure || '',
             heartRate: response.vitals.pulse_rate || '',
             temperature: response.vitals.temperature || '',
-            respiratoryRate: '', // Not provided in the API response
+              respiratoryRate: response.vitals.respiratory_rate || '',
             spO2: response.vitals.spo2 || '',
             height: response.vitals.height || '',
             weight: response.vitals.weight || '',
           });
         }
         
-        // If we have attachments data in the response, update the attachments state
-        if (response.attachments && Array.isArray(response.attachments)) {
+          // Set attachments if available
+          if (response.attachments) {
           setAttachments(response.attachments.map(att => ({
             id: att.id,
             name: att.file_name,
             type: att.file_type.includes('pdf') ? 'pdf' : 
                   att.file_type.includes('image') ? 'image' : 'document',
             reportType: 'custom',
-            date: new Date(att.uploaded_at || Date.now()).toLocaleDateString(),
-            size: '1 MB', // Since size is not provided in the API
+              date: new Date(att.uploaded_at).toLocaleDateString(),
+              size: '1 MB',
             url: getFullAttachmentUrl(att.file),
             description: att.description
           })));
         }
       }
-      
-      // Update other appointments if available
-      if (response && response.other_appointments && response.other_appointments.length > 0) {
-        // Map other appointments to past appointments
-        const mappedAppointments = response.other_appointments.map(app => ({
-          id: app.appointment_id,
-          date: new Date().toISOString().split('T')[0], // Default to today
-          time: "10:00 AM", // Default time
-          doctor: user?.name || "Dr. Smith",
-          department: "General", // Default department
-          diagnosis: app.disease || "General Checkup",
-          prescription: "View",
-          status: app.status,
-          appointmentType: app.appointment_type,
-          token: app.token,
-          disease: app.disease || "",
-          paid: app.paid,
-          mode: app.mode
-        }));
-        
-        // Update past appointments with real data
-        setPastAppointments(mappedAppointments);
-      }
-      
-      setError(null);
-    } catch (error) {
-      console.error("Error fetching patient details:", error);
-      setError("Failed to load patient details. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
+      } else if (currentAppointment?.appointment_id) {
+        // If no patient but we have an appointment ID, fetch vitals and attachments for the appointment
+        try {
+          // Fetch vitals for the appointment
+          const vitalsResponse = await getVitals(currentAppointment.appointment_id);
+          if (vitalsResponse) {
+            setVitals({
+              bloodPressure: vitalsResponse.blood_pressure || '',
+              heartRate: vitalsResponse.pulse_rate || '',
+              temperature: vitalsResponse.temperature || '',
+              respiratoryRate: vitalsResponse.respiratory_rate || '',
+              spO2: vitalsResponse.spo2 || '',
+              height: vitalsResponse.height || '',
+              weight: vitalsResponse.weight || '',
+            });
+          }
 
-  const fetchPrescription = async (appointmentId) => {
-    const response = await getPrescriptions(appointmentId);
-    // setPatient(response);
-  }
-
-  const fetchPastPrescriptions = async () => {
-    const response = await getPastPrescriptions(location.state.patientInfo.id, cabinId);
-    
-    // setPatient(response);
-  }
-
-  // Update the fetchAttachments function
-  const fetchAttachments = async () => {
-    if (!location.state?.appointmentInfo?.id && !currentAppointment?.id) return;
-    
-    try {
-      setAttachmentsLoading(true);
-      setAttachmentsError(null);
-      
-      const appointmentId = currentAppointment?.id || location.state.appointmentInfo.id;
-      const response = await getAttachments(appointmentId);
-      console.log("Attachments response:", response);
-      
-      if (response) {
-        setAttachments(response.map(att => ({
+          // Fetch attachments for the appointment
+          const attachmentsResponse = await getAttachments(currentAppointment.appointment_id);
+          if (attachmentsResponse) {
+            setAttachments(attachmentsResponse.map(att => ({
           id: att.id,
           name: att.file_name,
           type: att.file_type.includes('pdf') ? 'pdf' : 
                 att.file_type.includes('image') ? 'image' : 'document',
           reportType: 'custom',
           date: new Date(att.uploaded_at).toLocaleDateString(),
-          size: '1 MB', // Since size is not provided in the API
+              size: '1 MB',
           url: getFullAttachmentUrl(att.file),
           description: att.description
         })));
       }
     } catch (error) {
-      console.error("Error fetching attachments:", error);
-      setAttachmentsError("Failed to load attachments. Please try again.");
+          console.error("Error fetching appointment vitals/attachments:", error);
+          // Don't set error state here as these are optional data
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching patient details:", error);
+      setError("Failed to load patient details. Please try again.");
     } finally {
-      setAttachmentsLoading(false);
+      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchPatientDetails();
+  }, [patient?.id]);
 
   useEffect(() => {
     // Update state variables when location.state changes
@@ -369,31 +303,7 @@ const PatientInfoPage = () => {
       setCurrentAppointment(location.state.appointmentInfo);
       setHasCurrentAppointment(true);
     }
-    
-    // Fetch patient details when component mounts or location state changes
-    if (location.state?.patientInfo && location.state.patientInfo.id) {
-      fetchPatientDetails();
-      fetchPastPrescriptions(location.state.patientInfo.id, cabinId);
-    }
-    
-    // Fetch attachments and vitals if there's a current appointment
-    if (location.state?.appointmentInfo?.id) {
-      fetchAttachments();
-      fetchVitals();
-    }
-  }, [location.state]); // Add location.state as a dependency
-  
-  // Add a useEffect to update hasCurrentAppointment when currentAppointment changes
-  useEffect(() => {
-    // If currentAppointment has a valid ID, set hasCurrentAppointment to true
-    if (currentAppointment && currentAppointment.id) {
-      setHasCurrentAppointment(true);
-      
-      // Fetch attachments and vitals for the current appointment
-      fetchAttachments();
-      fetchVitals();
-    }
-  }, [currentAppointment]);
+  }, [location.state]);
 
   const currentAttachments = [
     { id: 1, name: 'Blood Test Results.pdf', type: 'pdf', reportType: 'blood-test', date: '2024-03-10', size: '1.2 MB' },
@@ -485,9 +395,27 @@ const PatientInfoPage = () => {
       setVitalsLoading(true);
       setVitalsError(null);
 
+      // Debug logs
+      console.log("Current Appointment:", currentAppointment);
+      console.log("Location State:", location.state);
+
+      // Get appointment from location state first
+      const appointmentFromState = location.state?.appointmentInfo;
+      if (appointmentFromState) {
+        setCurrentAppointment(appointmentFromState);
+      }
+
+      // Get appointment ID from either currentAppointment or location state
+      const appointmentId = currentAppointment?.appointment_id || location.state?.appointmentId;
+      
+      if (!appointmentId) {
+        setVitalsError("No active appointment found. Please select an appointment first.");
+        return;
+      }
+
       // Prepare the payload for the API
       const vitalsPayload = {
-        appointment_id: currentAppointment?.id,
+        appointment_id: appointmentId,
         vitals: {
           blood_pressure: vitals.bloodPressure,
           pulse_rate: vitals.heartRate,
@@ -500,12 +428,12 @@ const PatientInfoPage = () => {
         }
       };
 
+      // Debug log for payload
+      console.log("Vitals Payload:", vitalsPayload);
+
       // Call the API
       const response = await manageVitals(vitalsPayload);
       console.log("Vitals updated successfully:", response);
-
-      // Refetch vitals to ensure we have the latest data
-      // await fetchVitals();
 
       // Update the UI state
       setEditingVitals(false);
@@ -537,75 +465,95 @@ const PatientInfoPage = () => {
     navigate(-1); // Navigate back to the previous page
   };
 
-  // Update the handleOpenPrescription function to open the modal instead of navigating
-  const handleOpenPrescription = (appointment) => {
-    setSelectedPrescription({
-      patientInfo: patientInfo,
-      appointmentInfo: {
-        ...appointment,
-        status: 'Completed',
-        paid: true,
-        checkin: true
-      },
-      initialData: {
-        patientName: patientInfo.name,
-        patientId: patientInfo.id,
-        patientAge: patientInfo.age,
-        patientGender: patientInfo.gender,
-        appointmentId: appointment.id,
-        appointmentDate: appointment.date,
-        doctor: appointment.doctor,
-        department: appointment.department,
-        complaints: [{ 
-          name: appointment.diagnosis || 'General Checkup',
-          duration: "2 weeks", 
-          severity: "Moderate",
-          notes: ""
-        }],
-        diagnosis: [{ 
-          name: appointment.diagnosis || 'General Checkup',
-          notes: "Patient responded well to treatment" 
-        }],
-        medications: [
-          { 
-            name: "Amlodipine", 
-            dose: "5mg", 
-            frequency: "Once daily", 
-            duration: "30 days",
-            timing: "After breakfast",
-            notes: "Take regularly"
+  // Update the handleOpenPrescription function
+  const handleOpenPrescription = async (appointment) => {
+    try {
+      // Set loading state for this specific appointment
+      setPrescriptionLoadingMap(prev => ({
+        ...prev,
+        [appointment.id]: true
+      }));
+
+      // Debug logs
+      console.log("Opening prescription for appointment:", appointment);
+      
+      // Get appointment ID from either appointment.id or appointment.appointment_id
+      const appointmentId = appointment.id || appointment.appointment_id;
+      
+      if (!appointmentId) {
+        console.error("No appointment ID found in:", appointment);
+        return;
+      }
+
+      // Fetch prescription data using the appointment ID
+      const prescriptionData = await getPrescriptions(appointmentId);
+      console.log("Fetched prescription data:", prescriptionData);
+      
+      if (prescriptionData) {
+        setSelectedPrescription({
+          patientInfo: patientInfo,
+          appointmentInfo: {
+            ...appointment,
+            status: 'Completed',
+            paid: true,
+            checkin: true
           },
-          { 
-            name: "Pantoprazole", 
-            dose: "40mg", 
-            frequency: "Once daily", 
-            duration: "15 days",
-            timing: "Before breakfast",
-            notes: "Take on empty stomach"
+          initialData: {
+            patientName: patientInfo.name,
+            patientId: patientInfo.id,
+            patientAge: patientInfo.age,
+            patientGender: patientInfo.gender,
+            appointmentId: appointmentId,
+            appointmentDate: appointment.date,
+            doctor: appointment.doctor,
+            department: appointment.department,
+            complaints: prescriptionData.complaints || [{ 
+              name: appointment.diagnosis || 'General Checkup',
+              duration: "2 weeks", 
+              severity: "Moderate",
+              notes: ""
+            }],
+            diagnosis: prescriptionData.diagnosis || [{ 
+              name: appointment.diagnosis || 'General Checkup',
+              notes: "Patient responded well to treatment" 
+            }],
+            medications: prescriptionData.medications || [
+              { 
+                name: "Amlodipine", 
+                dose: "5mg", 
+                frequency: "Once daily", 
+                duration: "30 days",
+                timing: "After breakfast",
+                notes: "Take regularly"
+              }
+            ],
+            tests: prescriptionData.tests || ["Complete Blood Count", "Lipid Profile"],
+            advice: prescriptionData.advice || "Maintain a healthy diet and exercise regularly",
+            followUpDate: prescriptionData.followUpDate || dayjs(appointment.date).add(2, 'week').format('YYYY-MM-DD'),
+            vitals: prescriptionData.vitals || {
+              bloodPressure: "120/80",
+              heartRate: "72",
+              temperature: "98.6",
+              respiratoryRate: "16",
+              spO2: "98",
+            }
           },
-          { 
-            name: "Ecosprin", 
-            dose: "75mg", 
-            frequency: "Once daily", 
-            duration: "30 days",
-            timing: "After dinner",
-            notes: "Do not skip doses"
-          }
-        ],
-        tests: ["Complete Blood Count", "Lipid Profile"],
-        advice: "Maintain a healthy diet and exercise regularly",
-        followUpDate: dayjs(appointment.date).add(2, 'week').format('YYYY-MM-DD'),
-        vitals: {
-          bloodPressure: "120/80",
-          heartRate: "72",
-          temperature: "98.6",
-          respiratoryRate: "16",
-          spO2: "98",
-        }
-      },
-      readOnly: true
-    });
-    setPrescriptionModalOpen(true);
+          readOnly: true
+        });
+        setPrescriptionModalOpen(true);
+      } else {
+        // Handle case where no prescription data is found
+        console.error("No prescription data found for appointment ID:", appointmentId);
+      }
+    } catch (error) {
+      console.error("Error fetching prescription data:", error);
+    } finally {
+      // Clear loading state for this specific appointment
+      setPrescriptionLoadingMap(prev => ({
+        ...prev,
+        [appointment.id]: false
+      }));
+    }
   };
   
   // Add function to handle closing the prescription modal
@@ -872,8 +820,8 @@ const PatientInfoPage = () => {
       const response = await uploadAttachment(formData);
       console.log('File uploaded successfully:', response);
       
-      // Refresh attachments list
-      await fetchAttachments();
+      // Refresh patient details to get updated attachments
+      await fetchPatientDetails();
       
       // Close the modal
       handleCloseUploadModal();
@@ -903,8 +851,8 @@ const PatientInfoPage = () => {
       await deleteAttachment(attachmentToDelete);
       console.log('Attachment deleted successfully');
       
-      // Refresh attachments list
-      await fetchAttachments();
+      // Refresh patient details to get updated attachments
+      await fetchPatientDetails();
       
     } catch (error) {
       console.error('Error deleting attachment:', error);
@@ -977,9 +925,9 @@ const PatientInfoPage = () => {
       firstName: patient.name.split(' ')[0] || '',
       lastName: patient.name.split(' ').slice(1).join(' ') || '',
       age: patient.age || '',
-      phone_number: patient.phone.replace(/\+91 /, '') || '',
+      phone_number: patient.phone_number || patient.phone || '',
       sex: patient.gender === 'Male' ? 'M' : patient.gender === 'Female' ? 'F' : 'O',
-      location: patient.address || '',
+      location: patient.location || patient.address || '',
       guardian: patient.guardian || '',
     };
     
@@ -1313,7 +1261,7 @@ const PatientInfoPage = () => {
                           <Alert 
                             severity="error" 
                             action={
-                              <Button color="inherit" size="small" onClick={fetchAttachments}>
+                              <Button color="inherit" size="small" onClick={fetchPatientDetails}>
                                 Retry
                               </Button>
                             }
@@ -1427,20 +1375,20 @@ const PatientInfoPage = () => {
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell>Date</TableCell>
-                      <TableCell>Token</TableCell>
+                      <TableCell>Date/Slot</TableCell>
                       <TableCell>Type</TableCell>
                       <TableCell>Status</TableCell>
-                      <TableCell>Diagnosis</TableCell>
+                      <TableCell>Fees Paid</TableCell>
+                      <TableCell>Mode</TableCell>
+                      <TableCell>Disease</TableCell>
                       <TableCell>Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {pastAppointments.map((appointment) => (
                       <TableRow key={appointment.id}>
-                        <TableCell>{appointment.date}</TableCell>
-                        <TableCell>{appointment.token}</TableCell>
-                        <TableCell>{appointment.appointmentType}</TableCell>
+                        <TableCell>{appointment.slot}</TableCell>
+                        <TableCell>{appointment.appointment_type}</TableCell>
                         <TableCell>
                           <Chip 
                             label={appointment.status}
@@ -1453,15 +1401,32 @@ const PatientInfoPage = () => {
                             variant="outlined"
                           />
                         </TableCell>
-                        <TableCell>{appointment.diagnosis || appointment.disease || 'N/A'}</TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={appointment.paid ? 'Paid' : 'Unpaid'}
+                            size="small"
+                            color={appointment.paid ? 'success' : 'error'}
+                            variant="outlined"
+                          />
+                        </TableCell>
+                        <TableCell>{appointment.mode || 'N/A'}</TableCell>
+                        <TableCell>{appointment.disease || 'N/A'}</TableCell>
                         <TableCell>
                           <Box sx={{ display: 'flex', gap: 1 }}>
                             <Button
                               size="small"
                               variant="outlined"
                               onClick={() => handleOpenPrescription(appointment)}
+                              disabled={prescriptionLoadingMap[appointment.id]}
                             >
-                              Prescription
+                              {prescriptionLoadingMap[appointment.id] ? (
+                                <>
+                                  <CircularProgress size={16} sx={{ mr: 1 }} />
+                                  Loading...
+                                </>
+                              ) : (
+                                'Prescription'
+                              )}
                             </Button>
                             <Button
                               size="small"
@@ -1557,7 +1522,7 @@ const PatientInfoPage = () => {
             <Alert 
               severity="error" 
               action={
-                <Button color="inherit" size="small" onClick={fetchAttachments}>
+                <Button color="inherit" size="small" onClick={fetchPatientDetails}>
                   Retry
                 </Button>
               }
@@ -1644,7 +1609,7 @@ const PatientInfoPage = () => {
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <MedicalServices color="primary" sx={{ mr: 1 }} />
-            Prescription - {selectedPrescription?.appointmentInfo?.date}
+            Prescription Details
           </Box>
           <Box>
             <Button 
@@ -1663,9 +1628,9 @@ const PatientInfoPage = () => {
         </DialogTitle>
         <DialogContent dividers>
           {selectedPrescription && (
-            <Box sx={{ p: 2, bgcolor: '#fff' }}>
-              {/* Prescription Header */}
-              <Box sx={{ textAlign: 'center', mb: 3, pb: 2, borderBottom: '2px solid #2196f3' }}>
+            <Box sx={{ p: 2 }}>
+              {/* Header Section */}
+              <Box sx={{ mb: 3, textAlign: 'center' }}>
                 <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
                   DigiCare Medical Center
                 </Typography>
@@ -1676,63 +1641,140 @@ const PatientInfoPage = () => {
                   {selectedPrescription.appointmentInfo.department}
                 </Typography>
               </Box>
-              
-              {/* Patient Information */}
-              <Grid container spacing={2} sx={{ mb: 3, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+
+              {/* Patient and Appointment Info */}
+              <Grid container spacing={2} sx={{ mb: 3 }}>
                 <Grid item xs={12} md={6}>
-                  <Typography variant="body2">
-                    <strong>Patient Name:</strong> {patientInfo.name}
+                  <Typography variant="subtitle2" color="primary" gutterBottom>
+                    Patient Information
                   </Typography>
                   <Typography variant="body2">
-                    <strong>Patient ID:</strong> {patientInfo.id}
+                    <strong>Name:</strong> {selectedPrescription.initialData.patientName}
                   </Typography>
                   <Typography variant="body2">
-                    <strong>Age/Gender:</strong> {patientInfo.age} years, {patientInfo.gender}
+                    <strong>ID:</strong> {selectedPrescription.initialData.patientId}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Age/Gender:</strong> {selectedPrescription.initialData.patientAge} years, {selectedPrescription.initialData.patientGender}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} md={6}>
-                  <Typography variant="body2">
-                    <strong>Date:</strong> {selectedPrescription.appointmentInfo.date}
+                  <Typography variant="subtitle2" color="primary" gutterBottom>
+                    Appointment Details
                   </Typography>
                   <Typography variant="body2">
-                    <strong>Appointment ID:</strong> {selectedPrescription.appointmentInfo.id}
+                    <strong>Date:</strong> {selectedPrescription.initialData.appointmentDate}
                   </Typography>
                   <Typography variant="body2">
-                    <strong>BP:</strong> {selectedPrescription.initialData.vitals.bloodPressure} mmHg | <strong>Temp:</strong> {selectedPrescription.initialData.vitals.temperature}°C
+                    <strong>ID:</strong> {selectedPrescription.initialData.appointmentId}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Status:</strong> {selectedPrescription.appointmentInfo.status}
                   </Typography>
                 </Grid>
               </Grid>
-              
-              {/* Diagnosis */}
+
+              {/* Vitals Section */}
               <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" sx={{ mb: 1, pb: 0.5, borderBottom: '1px solid #eee', color: 'primary.main' }}>
+                <Typography variant="subtitle2" color="primary" gutterBottom>
+                  Vitals
+                </Typography>
+                <Grid container spacing={2}>
+                  {Object.entries(selectedPrescription.initialData.vitals).map(([key, value]) => (
+                    <Grid item xs={6} sm={3} key={key}>
+                      <Box sx={{ 
+                        p: 1.5, 
+                        bgcolor: 'background.default',
+                        borderRadius: 1,
+                        border: '1px solid',
+                        borderColor: 'divider'
+                      }}>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                        </Typography>
+                        <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
+                          {value}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  ))}
+                </Grid>
+              </Box>
+
+              {/* Complaints Section */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" color="primary" gutterBottom>
+                  Complaints
+                </Typography>
+                <TableContainer component={Paper} variant="outlined">
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Complaint</TableCell>
+                        <TableCell>Duration</TableCell>
+                        <TableCell>Severity</TableCell>
+                        <TableCell>Notes</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {selectedPrescription.initialData.complaints.map((complaint, index) => (
+                        <TableRow key={index}>
+                          <TableCell>{complaint.name}</TableCell>
+                          <TableCell>{complaint.duration}</TableCell>
+                          <TableCell>{complaint.severity}</TableCell>
+                          <TableCell>{complaint.notes}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+
+              {/* Diagnosis Section */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" color="primary" gutterBottom>
                   Diagnosis
                 </Typography>
-                <Typography variant="body1">
-                  {selectedPrescription.initialData.diagnosis?.[0]?.diagnosis || selectedPrescription.appointmentInfo.diagnosis}
-                </Typography>
+                <TableContainer component={Paper} variant="outlined">
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Diagnosis</TableCell>
+                        <TableCell>Notes</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {selectedPrescription.initialData.diagnosis.map((diag, index) => (
+                        <TableRow key={index}>
+                          <TableCell>{diag.name}</TableCell>
+                          <TableCell>{diag.notes}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               </Box>
-              
-              {/* Medications */}
+
+              {/* Medications Section */}
               <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" sx={{ mb: 1, pb: 0.5, borderBottom: '1px solid #eee', color: 'primary.main' }}>
+                <Typography variant="subtitle2" color="primary" gutterBottom>
                   Medications
                 </Typography>
                 <TableContainer component={Paper} variant="outlined">
                   <Table size="small">
                     <TableHead>
                       <TableRow>
-                        <TableCell><strong>Medication</strong></TableCell>
-                        <TableCell><strong>Dose</strong></TableCell>
-                        <TableCell><strong>Frequency</strong></TableCell>
-                        <TableCell><strong>Duration</strong></TableCell>
-                        <TableCell><strong>Instructions</strong></TableCell>
+                        <TableCell>Medicine</TableCell>
+                        <TableCell>Dose</TableCell>
+                        <TableCell>Frequency</TableCell>
+                        <TableCell>Duration</TableCell>
+                        <TableCell>Instructions</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {selectedPrescription.initialData.medications.map((med, index) => (
                         <TableRow key={index}>
-                          <TableCell>{med.medicine}</TableCell>
+                          <TableCell>{med.name}</TableCell>
                           <TableCell>{med.dose}</TableCell>
                           <TableCell>{med.frequency}</TableCell>
                           <TableCell>{med.duration}</TableCell>
@@ -1743,13 +1785,19 @@ const PatientInfoPage = () => {
                   </Table>
                 </TableContainer>
               </Box>
-              
-              {/* Tests */}
+
+              {/* Tests Section */}
               <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" sx={{ mb: 1, pb: 0.5, borderBottom: '1px solid #eee', color: 'primary.main' }}>
+                <Typography variant="subtitle2" color="primary" gutterBottom>
                   Tests Recommended
                 </Typography>
-                <Box sx={{ p: 2, bgcolor: '#f9f9f9', borderRadius: 1 }}>
+                <Box sx={{ 
+                  p: 2, 
+                  bgcolor: 'background.default',
+                  borderRadius: 1,
+                  border: '1px solid',
+                  borderColor: 'divider'
+                }}>
                   {selectedPrescription.initialData.tests.map((test, index) => (
                     <Typography key={index} variant="body2" sx={{ mb: 0.5 }}>
                       • {test}
@@ -1757,30 +1805,36 @@ const PatientInfoPage = () => {
                   ))}
                 </Box>
               </Box>
-              
-              {/* Advice */}
+
+              {/* Advice Section */}
               <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" sx={{ mb: 1, pb: 0.5, borderBottom: '1px solid #eee', color: 'primary.main' }}>
+                <Typography variant="subtitle2" color="primary" gutterBottom>
                   Advice
                 </Typography>
-                <Box sx={{ p: 2, bgcolor: '#f9f9f9', borderRadius: 1 }}>
-                  <Typography variant="body1">
+                <Box sx={{ 
+                  p: 2, 
+                  bgcolor: 'background.default',
+                  borderRadius: 1,
+                  border: '1px solid',
+                  borderColor: 'divider'
+                }}>
+                  <Typography variant="body2">
                     {selectedPrescription.initialData.advice}
                   </Typography>
                 </Box>
               </Box>
-              
-              {/* Follow-up */}
+
+              {/* Follow-up Section */}
               <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" sx={{ mb: 1, pb: 0.5, borderBottom: '1px solid #eee', color: 'primary.main' }}>
+                <Typography variant="subtitle2" color="primary" gutterBottom>
                   Follow-up
                 </Typography>
-                <Typography variant="body1">
-                  Please return for follow-up on {selectedPrescription.initialData.followUpDate}.
+                <Typography variant="body2">
+                  Please return for follow-up on {selectedPrescription.initialData.followUpDate}
                 </Typography>
               </Box>
-              
-              {/* Signature */}
+
+              {/* Signature Section */}
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 4 }}>
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography variant="body1" sx={{ fontWeight: 'medium' }}>

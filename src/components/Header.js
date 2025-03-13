@@ -296,16 +296,15 @@ function Header({ closeEventSource }) {
             sx={{
               position: 'absolute',
               top: '100%',
-              left: { xs: 0, md: '180px' }, // Account for the New Appointment button on desktop
+              left: 0,
               right: 0,
               zIndex: 1000,
               mt: 1,
               bgcolor: 'background.paper',
               borderRadius: 1,
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+              boxShadow: 3,
               maxHeight: '300px',
               overflowY: 'auto',
-              border: '1px solid #e0e0e0',
             }}
           >
             <List sx={{ p: 0 }}>

@@ -232,6 +232,7 @@ const App = () => {
     <AppointmentFormProvider>
       <ThemeProvider theme={theme}>
         <Router>
+          <AppointmentForm />
           <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
             {user !== null && (
               <Header 

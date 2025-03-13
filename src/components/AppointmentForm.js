@@ -411,8 +411,14 @@ const AppointmentForm = () => {
                       name="phone_number"
                       value={newAppointment.phone_number}
                       onChange={(e) => {
-                        handleInputChange(e);
-                        handleMobileSearch(e.target.value);
+                        const value = e.target.value;
+                        if (value.length <= 10) {
+                          setNewAppointment(prev => ({
+                            ...prev,
+                            phone_number: value
+                          }));
+                          handleMobileSearch(value);
+                        }
                       }}
                       inputProps={{
                         ...params.inputProps,
