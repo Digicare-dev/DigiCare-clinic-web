@@ -35,7 +35,7 @@ const commonDiagnoses = [
   "Osteoarthritis",
 ];
 
-const dummyDrugs = [
+const dummyMedicines = [
   { label: "Paracetamol", doses: ["500mg", "650mg"], frequency: ["OD", "BD"] },
   { label: "Amoxicillin", doses: ["250mg", "500mg"], frequency: ["TDS"] },
   { label: "Omeprazole", doses: ["20mg", "40mg"], frequency: ["OD"] },
@@ -563,24 +563,24 @@ const PrescriptionTablePage = () => {
                 <Autocomplete
                   freeSolo
                   open={isActive}
-                  options={dummyDrugs.map((drug) => drug.label)}
+                  options={dummyMedicines.map((medicine) => medicine.label)}
                   value={row.medicine}
                   onMouseDown={(e) => e.stopPropagation()}
                   onChange={(e, newValue) => {
-                    const selectedDrug = dummyDrugs.find(
-                      (d) => d.label === newValue
+                    const selectedMedicine = dummyMedicines.find(
+                      (m) => m.label === newValue
                     );
                     handleMedicationChange(index, "medicine", newValue || "");
-                    if (selectedDrug) {
+                    if (selectedMedicine) {
                       handleMedicationChange(
                         index,
                         "dose",
-                        selectedDrug.doses[0]
+                        selectedMedicine.doses[0]
                       );
                       handleMedicationChange(
                         index,
                         "frequency",
-                        selectedDrug.frequency[0]
+                        selectedMedicine.frequency[0]
                       );
                     }
                     handleRowClick("medications", index);

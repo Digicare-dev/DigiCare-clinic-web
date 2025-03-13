@@ -192,15 +192,6 @@ const PrescriptionForm = React.forwardRef(({
     if (value) {
       const currentRow = updatedMedications[index];
       
-      // Auto-focus next field logic
-      const fields = ['medicine', 'dose', 'timing', 'frequency', 'duration'];
-      const currentFieldIndex = fields.indexOf(field);
-      if (currentFieldIndex < fields.length - 1) {
-        const nextField = fields[currentFieldIndex + 1];
-        const nextElement = document.querySelector(`#med-${nextField}-${index}`);
-        if (nextElement) nextElement.focus();
-      }
-
       // Check if all fields are filled
       if (currentRow.medicine && currentRow.dose && currentRow.timing && 
           currentRow.frequency && currentRow.duration) {
