@@ -60,7 +60,7 @@ axiosInstance.interceptors.response.use(
     }
 
     // Handle 429 Unauthorized
-    if (error.response?.status === 429 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedRequestsQueue.push({ resolve, reject });
