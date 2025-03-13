@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
 import "./AppointmentTable.css";
-import { DataGrid, GridToolbar } from "@mui/x-data-grid";
+import { DataGrid, GridToolbar, GridToolbarContainer, GridToolbarQuickFilter } from "@mui/x-data-grid";
 import {
   Button,
   Modal,
@@ -26,11 +26,13 @@ import {
   Autocomplete,
   IconButton,
   Chip,
+  Tooltip,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CloseIcon from "@mui/icons-material/Close";
-import Tooltip from "@mui/material/Tooltip";
 import EditIcon from "@mui/icons-material/Edit";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import AddCircleIcon from "@mui/icons-material/AddCircle";
 // Import dummy data service instead of API
 import {
   fetchAppointments,
@@ -41,8 +43,9 @@ import {
 } from "../services/api";
 import CustomSnackbar from "../components/CustomSnackbar";
 import { getLatestCabinSlot } from '../utils/dateUtils';
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { EventSource } from "eventsource";
+import { useAppointmentForm } from "../context/AppointmentFormContext";
 
 const modalStyle = {
   position: "absolute",
@@ -110,6 +113,22 @@ function generateDisplayRows(actualRows) {
 }
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
+// Update the custom toolbar component before the AppointmentTable component
+function CustomToolbar(props) {
+  return (
+    <GridToolbarContainer sx={{ 
+      display: 'flex', 
+      justifyContent: 'space-between', 
+      alignItems: 'center',
+      p: 1
+    }}>
+      <Box sx={{ display: 'flex', gap: 1 }}>
+        <GridToolbarQuickFilter />
+      </Box>
+    </GridToolbarContainer>
+  );
+}
 
 export default function AppointmentTable() {
   const user = JSON.parse(localStorage.getItem("user"));
@@ -224,6 +243,9 @@ export default function AppointmentTable() {
   const [mobileSearchResults, setMobileSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
 
+  const location = useLocation();
+  const { openAppointmentForm } = useAppointmentForm();
+
   const handleOpenSnackbar = (message, severity = "success") => {
     setSnackbar({ open: true, message, severity });
   };
@@ -234,6 +256,8 @@ export default function AppointmentTable() {
 
   const [editModalOpen, setEditModalOpen] = React.useState(false);
   const [selectedAppointment, setSelectedAppointment] = React.useState(null);
+  const [editMobileSearchResults, setEditMobileSearchResults] = useState([]);
+  const [isEditSearching, setIsEditSearching] = useState(false);
 
   const displayedRows = React.useMemo(() => generateDisplayRows(rows), [rows]);
 
@@ -374,9 +398,16 @@ export default function AppointmentTable() {
   };
 
   const handleOpen = () => {
-    // Suggest next token number
+    // Set token number to max token + 1
     const maxToken = rows.length > 0 ? Math.max(...rows.map((r) => r.token)) : 0;
-    setSuggestedToken(maxToken + 1);
+    const nextToken = maxToken + 1;
+    
+    // Set the token directly in the form
+    setNewAppointment(prev => ({
+      ...prev,
+      token: nextToken.toString()
+    }));
+    
     setOpen(true);
   };
 
@@ -555,22 +586,43 @@ export default function AppointmentTable() {
             color="primary"
             variant="outlined"
             size="small"
-            startIcon={<EditIcon />}
+            startIcon={<VisibilityIcon />}
             onClick={(e) => {
               e.stopPropagation(); // Prevent row click from triggering
-              handleEditClick(params.row);
+              handleAppointmentClick(params.row);
             }}
             sx={{ fontSize: '0.75rem', py: 0.5 }}
           >
-            Edit
+            Details
           </Button>
         ),
     },
   ];
 
-  const handleEditClick = (row) => {
-    setSelectedAppointment(row);
+  const handleRowClick = (params) => {
+    if (params.row.isPlaceholder) return;
+    
+    // Create a clean copy of the row data with default values for null/undefined fields
+    const appointmentData = {
+      ...params.row,
+      firstName: params.row.firstName || "",
+      lastName: params.row.lastName || "",
+      phone_number: params.row.phone_number || "",
+      age: params.row.age || "",
+      sex: params.row.sex || "",
+      guardian: params.row.guardian || "",
+      location: params.row.location || "",
+      disease: params.row.disease || "",
+      appointment_type: params.row.appointment_type || "New",
+      mode: params.row.mode || "cash",
+      fees_paid: params.row.fees_paid || 0
+    };
+    
+    setSelectedAppointment(appointmentData);
     setEditModalOpen(true);
+    
+    // Clear any previous search results
+    setEditMobileSearchResults([]);
   };
 
   const handleEditModalClose = () => {
@@ -946,22 +998,57 @@ export default function AppointmentTable() {
               value={selectedAppointment.token}
               InputProps={{ readOnly: true }}
             />
-            <TextField
+            <Autocomplete
               fullWidth
-              label="Mobile"
-              value={selectedAppointment.phone_number}
-              onChange={(e) =>
-                setSelectedAppointment((prev) => ({
-                  ...prev,
-                  phone_number: e.target.value,
-                }))
-              }
-              inputProps={{ maxLength: 10 }}
+              options={editMobileSearchResults}
+              getOptionLabel={(option) => option.phone_number || ""}
+              loading={isEditSearching}
+              value={null}
+              onChange={(_, newValue) => handleEditPatientSelect(newValue)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Mobile"
+                  value={selectedAppointment.phone_number || ""}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSelectedAppointment(prev => ({
+                      ...prev,
+                      phone_number: value
+                    }));
+                    handleEditMobileSearch(value);
+                  }}
+                  inputProps={{
+                    ...params.inputProps,
+                    maxLength: 10,
+                    value: selectedAppointment.phone_number || ""
+                  }}
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {isEditSearching ? <CircularProgress color="inherit" size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+              renderOption={(props, option) => (
+                <li {...props}>
+                  <div>
+                    <Typography variant="body1">{option.name}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {option.phone_number}
+                    </Typography>
+                  </div>
+                </li>
+              )}
             />
             <TextField
               fullWidth
               label="First Name"
-              value={selectedAppointment.firstName}
+              value={selectedAppointment.firstName || ""}
               onChange={(e) =>
                 setSelectedAppointment((prev) => ({
                   ...prev,
@@ -972,7 +1059,7 @@ export default function AppointmentTable() {
             <TextField
               fullWidth
               label="Last Name"
-              value={selectedAppointment.lastName}
+              value={selectedAppointment.lastName || ""}
               onChange={(e) =>
                 setSelectedAppointment((prev) => ({
                   ...prev,
@@ -1035,7 +1122,7 @@ export default function AppointmentTable() {
                 <FormControl fullWidth>
                   <InputLabel>Payment Mode</InputLabel>
                   <Select
-                    value={selectedAppointment.mode}
+                    value={selectedAppointment.mode || "cash"}
                     onChange={(e) =>
                       setSelectedAppointment((prev) => ({
                         ...prev,
@@ -1052,7 +1139,7 @@ export default function AppointmentTable() {
                   fullWidth
                   label="Fees"
                   type="number"
-                  value={selectedAppointment.fees_paid}
+                  value={selectedAppointment.fees_paid || 0}
                   onChange={(e) =>
                     setSelectedAppointment((prev) => ({
                       ...prev,
@@ -1066,7 +1153,7 @@ export default function AppointmentTable() {
               fullWidth
               label="Age"
               type="number"
-              value={selectedAppointment.age}
+              value={selectedAppointment.age || ""}
               onChange={(e) =>
                 setSelectedAppointment((prev) => ({
                   ...prev,
@@ -1076,7 +1163,7 @@ export default function AppointmentTable() {
             />
             <FormControl component="fieldset">
               <ToggleButtonGroup
-                value={selectedAppointment.sex}
+                value={selectedAppointment.sex || ""}
                 exclusive
                 onChange={(_, newValue) =>
                   setSelectedAppointment((prev) => ({
@@ -1098,7 +1185,7 @@ export default function AppointmentTable() {
             <TextField
               fullWidth
               label="Guardian"
-              value={selectedAppointment.guardian}
+              value={selectedAppointment.guardian || ""}
               onChange={(e) =>
                 setSelectedAppointment((prev) => ({
                   ...prev,
@@ -1109,7 +1196,7 @@ export default function AppointmentTable() {
             <TextField
               fullWidth
               label="Place"
-              value={selectedAppointment.location}
+              value={selectedAppointment.location || ""}
               onChange={(e) =>
                 setSelectedAppointment((prev) => ({
                   ...prev,
@@ -1120,7 +1207,7 @@ export default function AppointmentTable() {
             <FormControl fullWidth>
               <InputLabel>Appointment Type</InputLabel>
               <Select
-                value={selectedAppointment.appointment_type}
+                value={selectedAppointment.appointment_type || "New"}
                 onChange={(e) =>
                   setSelectedAppointment((prev) => ({
                     ...prev,
@@ -1138,7 +1225,7 @@ export default function AppointmentTable() {
             <TextField
               fullWidth
               label="Complaint"
-              value={selectedAppointment.disease}
+              value={selectedAppointment.disease || ""}
               onChange={(e) =>
                 setSelectedAppointment((prev) => ({
                   ...prev,
@@ -1217,6 +1304,44 @@ export default function AppointmentTable() {
     }
   };
 
+  const handleEditMobileSearch = async (value) => {
+    if (!value || value.length !== 10) {
+      setEditMobileSearchResults([]);
+      return;
+    }
+
+    setIsEditSearching(true);
+    try {
+      const result = await getPatientProfile(value);
+      if (result && result.length > 0) {
+        setEditMobileSearchResults(result);
+      } else {
+        setEditMobileSearchResults([]);
+      }
+    } catch (error) {
+      console.error("Error searching patient profile:", error);
+      setEditMobileSearchResults([]);
+    } finally {
+      setIsEditSearching(false);
+    }
+  };
+
+  const handleEditPatientSelect = (patient) => {
+    if (patient) {
+      setSelectedAppointment(prev => ({
+        ...prev,
+        phone_number: patient.phone_number,
+        firstName: patient.name.split(" ")[0] || "",
+        lastName: patient.name.split(" ").slice(1).join(" ") || "",
+        age: patient.age || "",
+        sex: patient.gender || "",
+        location: patient.location || "",
+        guardian: patient.guardian || "",
+      }));
+      setEditMobileSearchResults([]);
+    }
+  };
+
   return (
     <div
       style={{
@@ -1225,18 +1350,14 @@ export default function AppointmentTable() {
         padding: "8px",
         minWidth: "600px",
         maxWidth: "95%",
+        position: "relative",
       }}
     >
       <Box sx={{ display: "flex", gap: 2, mb: 2, alignItems: "center" }}>
-        <Button onClick={handleOpen} variant="contained">
-          New Appointment
-        </Button>
-
         <Button
           variant="outlined"
           onClick={() => setShowCollectionDetails(!showCollectionDetails)}
           sx={{
-            ml: 2,
             backgroundColor: showCollectionDetails ? "#f0f0f0" : "transparent",
             "&:hover": { backgroundColor: "#f5f5f5" },
           }}
@@ -1327,7 +1448,7 @@ export default function AppointmentTable() {
         <DataGrid
           rows={displayedRows}
           columns={columns}
-          slots={{ toolbar: GridToolbar, noRowsOverlay: CustomNoRowsOverlay }}
+          slots={{ toolbar: CustomToolbar }}
           paginationModel={paginationModel}
           onPaginationModelChange={setPaginationModel}
           pageSizeOptions={[10, 25, 50]}
@@ -1336,7 +1457,7 @@ export default function AppointmentTable() {
           loading={loading}
           onRowClick={(params) => {
             if (!params.row.isPlaceholder) {
-              handleAppointmentClick(params.row);
+              handleRowClick(params);
             }
           }}
           sx={{
@@ -1443,7 +1564,6 @@ export default function AppointmentTable() {
               value={newAppointment.token}
               onChange={handleInputChange}
               required
-              helperText={`Suggested token: ${suggestedToken}`}
             />
             <Autocomplete
               fullWidth
@@ -1658,6 +1778,36 @@ export default function AppointmentTable() {
         severity={snackbar.severity}
         onClose={handleCloseSnackbar}
       />
+
+      {/* Floating action button for mobile */}
+      <IconButton
+        aria-label="add appointment"
+        onClick={() => openAppointmentForm()}
+        sx={{
+          position: 'fixed',
+          bottom: 16,
+          right: 16,
+          backgroundColor: '#1976d2',
+          color: 'white',
+          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+          '&:hover': {
+            backgroundColor: '#1565c0',
+            boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
+            transform: 'translateY(-2px)'
+          },
+          '&:active': {
+            transform: 'translateY(0px)',
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+          },
+          transition: 'all 0.3s ease',
+          zIndex: 1000,
+          width: 64,
+          height: 64,
+          display: { xs: 'flex', md: 'none' }
+        }}
+      >
+        <AddCircleIcon fontSize="large" />
+      </IconButton>
     </div>
   );
 }

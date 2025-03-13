@@ -78,6 +78,7 @@ import dayjs from 'dayjs';
 import { PrescriptionForm } from './PrescriptionPage';
 import { PageHeader } from '../components/common/PageHeader';
 import { getPatientDetails, getPrescriptions, getPastPrescriptions, getAppointmentDetails, manageVitals, getAttachments, uploadAttachment, deleteAttachment, getVitals } from '../services/api';
+import { useAppointmentForm } from '../context/AppointmentFormContext';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
@@ -104,18 +105,63 @@ const modalStyle = {
 };
 
 const PatientInfoPage = () => {
-  const navigate = useNavigate();
   const location = useLocation();
+  const navigate = useNavigate();
+  const { openAppointmentForm } = useAppointmentForm();
+  
+  // Consolidated state declarations
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [patient, setPatient] = useState(location.state?.patientInfo || {});
+  const [currentAppointment, setCurrentAppointment] = useState(location.state?.appointmentInfo || null);
+  const [vitals, setVitals] = useState(location.state?.vitalsInfo || {
+    bloodPressure: '',
+    heartRate: '',
+    temperature: '',
+    respiratoryRate: '',
+    spO2: '',
+    height: '',
+    weight: '',
+  });
+  const [editableVitals, setEditableVitals] = useState({});
+  const [isEditingVitals, setIsEditingVitals] = useState(false);
+  const [isSavingVitals, setIsSavingVitals] = useState(false);
+  const [vitalsError, setVitalsError] = useState(null);
+  const [pastAppointments, setPastAppointments] = useState([]);
+  const [prescriptions, setPrescriptions] = useState([]);
+  const [selectedPrescription, setSelectedPrescription] = useState(null);
+  const [prescriptionModalOpen, setPrescriptionModalOpen] = useState(false);
+  const [attachments, setAttachments] = useState([]);
+  const [attachmentDialogOpen, setAttachmentDialogOpen] = useState(false);
+  const [selectedAttachment, setSelectedAttachment] = useState(null);
+  const [reportsModalOpen, setReportsModalOpen] = useState(false);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+  const [attachmentsError, setAttachmentsError] = useState(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [attachmentToDelete, setAttachmentToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+  const [appointmentDetailsOpen, setAppointmentDetailsOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [hasCurrentAppointment, setHasCurrentAppointment] = useState(location.state?.appointmentInfo !== undefined);
+  const [openAttachmentDialog, setOpenAttachmentDialog] = useState(false);
+  const [editingVitals, setEditingVitals] = useState(false);
+  const [uploadFileName, setUploadFileName] = useState('');
+  const [uploadFileType, setUploadFileType] = useState('pdf');
+  const [isDragging, setIsDragging] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
+  const [vitalsLoading, setVitalsLoading] = useState(false);
+  const [complaints, setComplaints] = useState(location.state?.complaintsData || []);
+
   const user = JSON.parse(localStorage.getItem("user"));
   const cabinId = user?.checkupcabindata?.[0]?.id;
 
-  const patientInfo = location.state?.patientInfo;
-  console.log(location.state);
-
-  // Update hasCurrentAppointment to check both location state and currentAppointment state
-  const [hasCurrentAppointment, setHasCurrentAppointment] = useState(location.state?.appointmentInfo !== undefined);
-  
-  const appointmentInfo = location.state?.appointmentInfo 
+  const appointmentInfo = location.state?.appointmentInfo;
+  const patientInfo = location.state?.patientInfo || {};
 
   // Get vitals data from location state or use default values
   const vitalsInfo = location.state?.vitalsInfo || {
@@ -135,24 +181,6 @@ const PatientInfoPage = () => {
   const position = location.state?.position || 0;
   const late = location.state?.late || false;
   const status = location.state?.status || 'pending';
-
-  const [openAttachmentDialog, setOpenAttachmentDialog] = useState(false);
-  const [selectedAttachment, setSelectedAttachment] = useState(null);
-  const [editingVitals, setEditingVitals] = useState(false);
-  
-  // Add loading and error states
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  
-  // Update patient state to use the data from location
-  const [patient, setPatient] = useState(patientInfo);
-  const [currentAppointment, setCurrentAppointment] = useState(appointmentInfo);
-  const [vitals, setVitals] = useState(vitalsInfo);
-  const [complaints, setComplaints] = useState(complaintsData);
-
-  // Add new state variables for vitals fetching
-  const [vitalsLoading, setVitalsLoading] = useState(false);
-  const [vitalsError, setVitalsError] = useState(null);
 
   // Create a function to fetch vitals
   const fetchVitals = async () => {
@@ -184,17 +212,6 @@ const PatientInfoPage = () => {
       setVitalsLoading(false);
     }
   };
-
-  // Create a state for past appointments
-  const [pastAppointments, setPastAppointments] = useState([]);
-
-  // Add new state variables for attachments management
-  const [attachments, setAttachments] = useState([]);
-  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
-  const [attachmentsError, setAttachmentsError] = useState(null);
-
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [attachmentToDelete, setAttachmentToDelete] = useState(null);
 
   const fetchPatientDetails = async () => {
     try {
@@ -382,44 +399,6 @@ const PatientInfoPage = () => {
     { id: 1, name: 'Blood Test Results.pdf', type: 'pdf', reportType: 'blood-test', date: '2024-03-10', size: '1.2 MB' },
     { id: 2, name: 'ECG Report.pdf', type: 'pdf', reportType: 'ecg-test', date: '2024-03-10', size: '3.5 MB' },
   ];
-
-  // Add state for the reports modal
-  const [reportsModalOpen, setReportsModalOpen] = useState(false);
-
-  // Add state for the prescription modal
-  const [prescriptionModalOpen, setPrescriptionModalOpen] = useState(false);
-  const [selectedPrescription, setSelectedPrescription] = useState(null);
-  
-  // Add state for the file upload modal
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [uploadFile, setUploadFile] = useState(null);
-  const [uploadFileName, setUploadFileName] = useState('');
-  const [uploadFileType, setUploadFileType] = useState('pdf');
-  const [isDragging, setIsDragging] = useState(false);
-  
-  // New appointment modal state
-  const [open, setOpen] = useState(false);
-  const [newAppointment, setNewAppointment] = useState({
-    id: "",
-    token: "",
-    appointment_id: "",
-    firstName: "",
-    lastName: "",
-    checkin: false,
-    paid: false,
-    mode: "cash",
-    fees_paid: 0,
-    status: "pending",
-    disease: "",
-    age: "",
-    phone_number: "",
-    location: "",
-    sex: "",
-    guardian: "",
-    appointment_type: "New",
-  });
-  const [suggestedToken, setSuggestedToken] = useState(1);
-  const [isAdding, setIsAdding] = useState(false);
 
   const handleCreatePrescription = () => {
     navigate('/prescription', { 
@@ -842,7 +821,7 @@ const PatientInfoPage = () => {
   // Add function to handle closing the upload modal
   const handleCloseUploadModal = () => {
     setUploadModalOpen(false);
-    setUploadFile(null);
+    setSelectedFile(null);
     setUploadFileName('');
     setUploadFileType('pdf');
     setIsDragging(false);
@@ -861,7 +840,7 @@ const PatientInfoPage = () => {
   
   // Add function to handle file selection
   const handleFileSelect = (file) => {
-    setUploadFile(file);
+    setSelectedFile(file);
     
     // Set default file name from the file (without extension)
     const fileName = file.name.split('.').slice(0, -1).join('.');
@@ -875,7 +854,7 @@ const PatientInfoPage = () => {
   
   // Update the handleFileUpload function
   const handleFileUpload = async () => {
-    if (!uploadFile || !uploadFileName) return;
+    if (!selectedFile || !uploadFileName) return;
     
     try {
       setAttachmentsLoading(true);
@@ -884,9 +863,9 @@ const PatientInfoPage = () => {
       // Create form data
       const formData = new FormData();
       formData.append('appointment_id', currentAppointment.id);
-      formData.append('file', uploadFile);
+      formData.append('file', selectedFile);
       formData.append('file_name', uploadFileName);
-      formData.append('file_type', uploadFile.type);
+      formData.append('file_type', selectedFile.type);
       formData.append('description', `Medical record uploaded for appointment ${currentAppointment.id}`);
       
       // Upload the file
@@ -984,104 +963,28 @@ const PatientInfoPage = () => {
           }
         };
       } else {
-        setAttachmentsError('Pop-up blocked. Please allow pop-ups to print files.');
+        setAttachmentsError('This file type cannot be printed directly. Please download it first.');
       }
     } else {
       setAttachmentsError('This file type cannot be printed directly. Please download it first.');
     }
   };
 
-  // New appointment modal handlers
+  // Add the handleOpenAppointmentModal function back
   const handleOpenAppointmentModal = () => {
-    // Initialize with patient info
-    setNewAppointment({
-      ...newAppointment,
+    // Format patient data for the appointment form
+    const patientData = {
       firstName: patient.name.split(' ')[0] || '',
       lastName: patient.name.split(' ').slice(1).join(' ') || '',
       age: patient.age || '',
       phone_number: patient.phone.replace(/\+91 /, '') || '',
       sex: patient.gender === 'Male' ? 'M' : patient.gender === 'Female' ? 'F' : 'O',
-    });
+      location: patient.address || '',
+      guardian: patient.guardian || '',
+    };
     
-    // Suggest token number (this would typically come from your API)
-    setSuggestedToken(Math.floor(Math.random() * 90) + 10); // For demo, random number between 10-99
-    setOpen(true);
-  };
-
-  const handleCloseAppointmentModal = () => {
-    resetAppointmentForm();
-    setOpen(false);
-  };
-
-  const resetAppointmentForm = () => {
-    setNewAppointment({
-      id: "",
-      token: "",
-      appointment_id: "",
-      firstName: "",
-      lastName: "",
-      checkin: false,
-      paid: false,
-      mode: "cash",
-      fees_paid: 0,
-      status: "pending",
-      disease: "",
-      age: "",
-      phone_number: "",
-      location: "",
-      sex: "",
-      guardian: "",
-      appointment_type: "New",
-    });
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewAppointment((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleSexChange = (event, newSex) => {
-    if (newSex !== null) {
-      setNewAppointment((prev) => ({ ...prev, sex: newSex }));
-    }
-  };
-
-  const handleAddAppointment = async () => {
-    try {
-      setIsAdding(true);
-      setError("");
-
-      // Here you would typically call your API to add the appointment
-      // For demo purposes, we'll just simulate a successful API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Success notification would go here
-      
-      handleCloseAppointmentModal();
-      
-      // Optionally reload the page or update the state to show the new appointment
-      // For demo purposes, we'll just add the appointment to currentAppointment
-      setCurrentAppointment({
-        token: newAppointment.token || suggestedToken,
-        date: new Date().toISOString().split('T')[0],
-        time: new Date().toLocaleTimeString(),
-        doctor: "Dr. Amit Mittal",
-        type: newAppointment.appointment_type,
-        status: "Pending",
-        id: "AP" + Math.floor(Math.random() * 10000),
-        reason: newAppointment.disease,
-        department: "General",
-      });
-
-    } catch (error) {
-      console.error("Error adding appointment:", error);
-      setError("Failed to add appointment. Please try again.");
-    } finally {
-      setIsAdding(false);
-    }
+    // Open the global appointment form with patient data
+    openAppointmentForm(patientData);
   };
 
   return (
@@ -1947,7 +1850,7 @@ const PatientInfoPage = () => {
               />
               <CloudUpload color="primary" sx={{ fontSize: '3rem', mb: 1 }} />
               <Typography variant="body1" sx={{ mb: 1 }}>
-                {uploadFile ? uploadFile.name : 'Drag and drop a file here or click to browse'}
+                {selectedFile ? selectedFile.name : 'Drag and drop a file here or click to browse'}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 Supported file types: PDF, JPG, PNG, DOC
@@ -1955,7 +1858,7 @@ const PatientInfoPage = () => {
             </Box>
             
             {/* File Details Form */}
-            {uploadFile && (
+            {selectedFile && (
               <Box sx={{ mt: 3 }}>
                 <TextField
                   fullWidth
@@ -1998,7 +1901,7 @@ const PatientInfoPage = () => {
                 
                 <Box sx={{ mt: 3, display: 'flex', alignItems: 'center' }}>
                   <Typography variant="body2" color="text.secondary">
-                    File Size: {(uploadFile.size / (1024 * 1024)).toFixed(2)} MB
+                    File Size: {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
                   </Typography>
                 </Box>
               </Box>
@@ -2012,214 +1915,12 @@ const PatientInfoPage = () => {
             color="primary" 
             startIcon={<CloudUpload />}
             onClick={handleFileUpload}
-            disabled={!uploadFile || !uploadFileName}
+            disabled={!selectedFile || !uploadFileName}
           >
             Upload File
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* New Appointment Modal */}
-      <Modal open={open} onClose={handleCloseAppointmentModal}>
-        <Box sx={modalStyle}>
-          <Typography variant="h5" sx={{ mb: 2 }}>
-            New Appointment
-          </Typography>
-
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-
-          <div
-            style={{
-              display: "grid",
-              gap: "16px",
-              gridTemplateColumns: "1fr 1fr",
-            }}
-          >
-            <TextField
-              fullWidth
-              label="Token Number"
-              name="token"
-              type="number"
-              value={newAppointment.token}
-              onChange={handleInputChange}
-              required
-              helperText={`Suggested token: ${suggestedToken}`}
-            />
-            <TextField
-              label="Mobile"
-              name="phone_number"
-              value={newAppointment.phone_number}
-              onChange={handleInputChange}
-              slotProps={{ input: { maxLength: 10 } }}
-              fullWidth
-            />
-            <TextField
-              label="First Name"
-              name="firstName"
-              value={newAppointment.firstName}
-              onChange={handleInputChange}
-              required
-            />
-            <TextField
-              label="Last Name"
-              name="lastName"
-              value={newAppointment.lastName}
-              onChange={handleInputChange}
-              required
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={newAppointment.checkin}
-                  onChange={(e) =>
-                    setNewAppointment((prev) => ({
-                      ...prev,
-                      checkin: e.target.checked,
-                    }))
-                  }
-                />
-              }
-              label={
-                <Typography 
-                  variant="body1" 
-                  sx={{ 
-                    fontWeight: newAppointment.checkin ? 'bold' : 'normal',
-                    color: newAppointment.checkin ? 'primary.main' : 'text.primary'
-                  }}
-                >
-                  Present in Clinic
-                </Typography>
-              }
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={newAppointment.paid}
-                  onChange={(e) =>
-                    setNewAppointment((prev) => ({
-                      ...prev,
-                      paid: e.target.checked,
-                      mode: e.target.checked ? "cash" : "",
-                    }))
-                  }
-                />
-              }
-              label={
-                <Typography 
-                  variant="body1" 
-                  sx={{ 
-                    fontWeight: newAppointment.paid ? 'bold' : 'normal',
-                    color: newAppointment.paid ? 'primary.main' : 'text.primary'
-                  }}
-                >
-                  Payment Done
-                </Typography>
-              }
-            />
-            {newAppointment.paid && (
-              <>
-                <FormControl fullWidth>
-                  <InputLabel>Payment Mode</InputLabel>
-                  <Select
-                    name="mode"
-                    value={newAppointment.mode}
-                    onChange={handleInputChange}
-                    label="Payment Mode"
-                  >
-                    <MenuItem value="cash">Cash</MenuItem>
-                    <MenuItem value="online">Online</MenuItem>
-                  </Select>
-                </FormControl>
-                <TextField
-                  fullWidth
-                  label="Fees"
-                  name="fees_paid"
-                  type="number"
-                  value={newAppointment.fees_paid}
-                  onChange={handleInputChange}
-                  InputProps={{ inputProps: { min: 0 } }}
-                />
-              </>
-            )}
-            <TextField
-              label="Age"
-              name="age"
-              type="number"
-              value={newAppointment.age}
-              onChange={handleInputChange}
-            />
-            <FormControl component="fieldset">
-              <ToggleButtonGroup
-                value={newAppointment.sex}
-                exclusive
-                onChange={handleSexChange}
-                color="primary"
-              >
-                <ToggleButton value="M" color="primary">
-                  Male
-                </ToggleButton>
-                <ToggleButton value="F" color="secondary">
-                  Female
-                </ToggleButton>
-                <ToggleButton value="O">Other</ToggleButton>
-              </ToggleButtonGroup>
-            </FormControl>
-            <TextField
-              label="Guardian"
-              name="guardian"
-              value={newAppointment.guardian}
-              onChange={handleInputChange}
-            />
-            <TextField
-              label="Place"
-              name="location"
-              value={newAppointment.location}
-              onChange={handleInputChange}
-            />
-            <FormControl fullWidth>
-              <InputLabel>Appointment Type *</InputLabel>
-              <Select
-                name="appointment_type"
-                value={newAppointment.appointment_type}
-                onChange={handleInputChange}
-                label="Appointment Type"
-              >
-                <MenuItem value="New">New</MenuItem>
-                <MenuItem value="Follow-up">Follow-up</MenuItem>
-                <MenuItem value="Emergency">Emergency</MenuItem>
-                <MenuItem value="Routine">Routine</MenuItem>
-              </Select>
-            </FormControl>
-            <TextField
-              label="Complaint"
-              name="disease"
-              value={newAppointment.disease}
-              onChange={handleInputChange}
-            />
-          </div>
-
-          <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end" }}>
-            <Button onClick={handleCloseAppointmentModal} sx={{ mr: 2 }} disabled={isAdding}>
-              Cancel
-            </Button>
-            <Button
-              variant="contained"
-              onClick={handleAddAppointment}
-              disabled={isAdding}
-            >
-              {isAdding ? (
-                <CircularProgress size={24} color="inherit" />
-              ) : (
-                "Add Appointment"
-              )}
-            </Button>
-          </Box>
-        </Box>
-      </Modal>
 
       {/* Add Delete Confirmation Dialog */}
       <Dialog
