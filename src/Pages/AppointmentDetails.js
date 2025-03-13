@@ -208,8 +208,8 @@ const AppointmentDetails = () => {
         diagnosis: [{ diagnosis: appointmentInfo.reason, notes: "Patient responded well to treatment" }],
         medications: [
           { 
-            drug: "Amlodipine", 
-            dosage: "5mg", 
+            medicine: "Amlodipine", 
+            dose: "5mg", 
             frequency: "Once daily", 
             duration: "30 days",
             timing: "After breakfast",
@@ -356,7 +356,7 @@ const AppointmentDetails = () => {
           <thead>
             <tr>
               <th>Medication</th>
-              <th>Dosage</th>
+              <th>Dose</th>
               <th>Frequency</th>
               <th>Duration</th>
               <th>Instructions</th>
@@ -1165,7 +1165,7 @@ const AppointmentDetails = () => {
                     <TableHead>
                       <TableRow>
                         <TableCell><strong>Medication</strong></TableCell>
-                        <TableCell><strong>Dosage</strong></TableCell>
+                        <TableCell><strong>Dose</strong></TableCell>
                         <TableCell><strong>Frequency</strong></TableCell>
                         <TableCell><strong>Duration</strong></TableCell>
                         <TableCell><strong>Instructions</strong></TableCell>

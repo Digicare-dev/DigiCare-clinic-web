@@ -242,14 +242,14 @@ useEffect(() => {
     // For the prescription.medications array (uses drug, dosage)
     medications: currentPrescriptionDetails?.medicines?.length > 0
       ? currentPrescriptionDetails.medicines.map(med => ({
-          drug: med.name || '',
-          dosage: med.dose || '',
+          medicine: med.name || '',
+          dose: med.dose || '',
           frequency: med.frequency || '',
           duration: med.duration || '',
           withFood: false,
           notes: med.notes || ''
         }))
-      : [{ drug: '', dosage: '', frequency: '', duration: '', withFood: false }],
+      : [{ medicine: '', dose: '', frequency: '', duration: '', withFood: false }],
     tests: currentPrescriptionDetails?.tests?.length > 0 && currentPrescriptionDetails.tests[0]?.testlist
       ? currentPrescriptionDetails.tests[0].testlist
       : [],
@@ -384,13 +384,28 @@ useEffect(() => {
 
   // Modify the handlePrescriptionSubmit function to handle direct submission
   const handlePrescriptionSubmit = (formData) => {
-    console.log("Raw form data received:", formData);
+    debugger; // Debug point 7: When prescription form is submitted
+    console.log("Raw form data received:", JSON.stringify(formData, null, 2));
     
     // Check if medications exist and have the expected structure
     if (formData.medications) {
-      console.log("Medications from form:", formData.medications);
+      debugger; // Debug point 8: Examining medications from form data
+      console.log("Medications from form:", JSON.stringify(formData.medications, null, 2));
+      
+      // Log each medication individually for debugging
+      formData.medications.forEach((med, index) => {
+        console.log(`Medication ${index}:`, {
+          medicine: med.medicine,
+          dose: med.dose,
+          frequency: med.frequency,
+          timing: med.timing,
+          duration: med.duration,
+          notes: med.notes
+        });
+      });
     }
     
+    debugger; // Debug point 9: Before creating API payload
     const payload = {
       appointment_id: appointmentInfo.id || "",
       complaints: Array.isArray(formData.complaints) 
@@ -413,10 +428,10 @@ useEffect(() => {
         ? formData.medications
             .filter(medication => medication.medicine || medication.dose || medication.frequency || medication.duration)
             .map(medication => {
-              console.log("Processing medication:", medication);
-              // Ensure we're using the correct field for the medicine name
+              debugger; // Debug point 10: Processing each medication for API payload
+              console.log("Processing medication:", JSON.stringify(medication));
               return {
-                name: medication.medicine || "", // This is the key change - using medicine field directly
+                name: medication.medicine || "",
                 dose: medication.dose || "",
                 frequency: medication.frequency || "",
                 when: medication.timing || "",
@@ -429,14 +444,18 @@ useEffect(() => {
       tests: Array.isArray(formData.tests) ? formData.tests : []
     };
 
-    console.log("Saving prescription with payload:", payload);
+    debugger; // Debug point 11: Final API payload before sending
+    console.log("Saving prescription with payload:", JSON.stringify(payload, null, 2));
+    
     // Here you would typically call the savePrescription API with the payload
     savePrescription(payload)
       .then(data => {
+        debugger; // Debug point 12: API response success
         console.log('Prescription saved successfully:', data);
         // Optionally, handle success (e.g., show a success message)
       })
       .catch(error => {
+        debugger; // Debug point 13: API response error
         console.error('Error saving prescription:', error);
         // Optionally, handle error (e.g., show an error message)
       });
@@ -1279,7 +1298,8 @@ useEffect(() => {
           <thead>
             <tr>
               <th>Medication</th>
-              <th>Dosage</th>
+              <th>Dose</th>
+              <th>When</th>
               <th>Frequency</th>
               <th>Duration</th>
               <th>Instructions</th>
@@ -1290,11 +1310,12 @@ useEffect(() => {
               <tr>
                 <td>${med.medicine || 'N/A'}</td>
                 <td>${med.dose || 'N/A'}</td>
+                <td>${med.timing || ''}</td>
                 <td>${med.frequency || 'N/A'}</td>
                 <td>${med.duration || 'N/A'}</td>
-                <td>${med.timing || ''} ${med.notes || ''}</td>
+                <td>${med.notes || ''}</td>
               </tr>
-            `).join('') || '<tr><td colspan="5">No medications prescribed</td></tr>'}
+            `).join('') || '<tr><td colspan="6">No medications prescribed</td></tr>'}
           </tbody>
         </table>
         
@@ -2365,7 +2386,8 @@ useEffect(() => {
                     <TableHead>
                       <TableRow>
                         <TableCell>Medicine</TableCell>
-                        <TableCell>Dosage</TableCell>
+                        <TableCell>Dose</TableCell>
+                        <TableCell>When</TableCell>
                         <TableCell>Frequency</TableCell>
                         <TableCell>Duration</TableCell>
                         <TableCell>Instructions</TableCell>
@@ -2375,16 +2397,17 @@ useEffect(() => {
                       {selectedPrescription.initialData.medications && selectedPrescription.initialData.medications.length > 0 ? (
                         selectedPrescription.initialData.medications.map((med, idx) => (
                           <TableRow key={idx}>
-                            <TableCell>{med.name}</TableCell>
+                            <TableCell>{med.medicine}</TableCell>
                             <TableCell>{med.dose}</TableCell>
+                            <TableCell>{med.timing || med.when}</TableCell>
                             <TableCell>{med.frequency}</TableCell>
                             <TableCell>{med.duration}</TableCell>
-                            <TableCell>{med.instructions || med.when}</TableCell>
+                            <TableCell>{med.notes}</TableCell>
                           </TableRow>
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={5} align="center">No medications prescribed</TableCell>
+                          <TableCell colSpan={6} align="center">No medications prescribed</TableCell>
                         </TableRow>
                       )}
                     </TableBody>

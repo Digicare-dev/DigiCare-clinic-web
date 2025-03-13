@@ -590,7 +590,7 @@ const PatientInfoPage = () => {
         medications: [
           { 
             name: "Amlodipine", 
-            dosage: "5mg", 
+            dose: "5mg", 
             frequency: "Once daily", 
             duration: "30 days",
             timing: "After breakfast",
@@ -598,7 +598,7 @@ const PatientInfoPage = () => {
           },
           { 
             name: "Pantoprazole", 
-            dosage: "40mg", 
+            dose: "40mg", 
             frequency: "Once daily", 
             duration: "15 days",
             timing: "Before breakfast",
@@ -606,7 +606,7 @@ const PatientInfoPage = () => {
           },
           { 
             name: "Ecosprin", 
-            dosage: "75mg", 
+            dose: "75mg", 
             frequency: "Once daily", 
             duration: "30 days",
             timing: "After dinner",
@@ -753,7 +753,7 @@ const PatientInfoPage = () => {
           <thead>
             <tr>
               <th>Medication</th>
-              <th>Dosage</th>
+              <th>Dose</th>
               <th>Frequency</th>
               <th>Duration</th>
               <th>Instructions</th>
@@ -1820,7 +1820,7 @@ const PatientInfoPage = () => {
                     <TableHead>
                       <TableRow>
                         <TableCell><strong>Medication</strong></TableCell>
-                        <TableCell><strong>Dosage</strong></TableCell>
+                        <TableCell><strong>Dose</strong></TableCell>
                         <TableCell><strong>Frequency</strong></TableCell>
                         <TableCell><strong>Duration</strong></TableCell>
                         <TableCell><strong>Instructions</strong></TableCell>
