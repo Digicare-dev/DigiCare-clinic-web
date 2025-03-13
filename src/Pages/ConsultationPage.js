@@ -132,7 +132,7 @@ const ConsultationPage = () => {
   };
 
   // Get vitals data from location state or use default values
-  const vitalsInfo = location.state?.vitalsInfo || {
+  const vitalsInfo = {
     bloodPressure: '',
     heartRate: '',
     temperature: '',
@@ -1128,37 +1128,25 @@ useEffect(() => {
     // Create a new window with the prescription content
     const printWindow = window.open('', '_blank');
     
-    // Get current prescription data
+    // Get current prescription data from the form
+    const formData = prescriptionFormRef.current?.getFormData() || {};
     const currentPrescriptionData = {
       patientInfo: patientInfo,
       appointmentInfo: appointmentInfo,
-      vitals: editedVitals,
-      medications: document.querySelectorAll('table[aria-label="Medications"] tbody tr').length > 0 
-        ? Array.from(document.querySelectorAll('table[aria-label="Medications"] tbody tr')).map(row => {
-            const cells = row.querySelectorAll('td');
-            return {
-              medicine: cells[0]?.textContent || '',
-              dose: cells[1]?.textContent || '',
-              timing: cells[2]?.textContent || '',
-              frequency: cells[3]?.textContent || '',
-              duration: cells[4]?.textContent || '',
-              notes: cells[5]?.textContent || ''
-            };
-          })
-        : [],
-      diagnoses: document.querySelectorAll('table[aria-label="Diagnoses"] tbody tr').length > 0 
-        ? Array.from(document.querySelectorAll('table[aria-label="Diagnoses"] tbody tr')).map(row => {
-            const cells = row.querySelectorAll('td');
-            return {
-              diagnosis: cells[0]?.textContent || '',
-              duration: cells[1]?.textContent || '',
-              notes: cells[2]?.textContent || ''
-            };
-          })
-        : [],
-      tests: Array.from(document.querySelectorAll('[data-testtype="test-item"]')).map(el => el.textContent),
-      instructions: document.querySelector('[name="instructions"]')?.value || '',
-      followUp: document.querySelector('[name="followUp"]')?.value || ''
+      vitals: {
+        bloodPressure: editedVitals.bloodPressure || 'N/A',
+        heartRate: editedVitals.heartRate || 'N/A',
+        temperature: editedVitals.temperature || 'N/A',
+        respiratoryRate: editedVitals.respiratoryRate || 'N/A',
+        spO2: editedVitals.spO2 || 'N/A',
+        height: editedVitals.height || 'N/A',
+        weight: editedVitals.weight || 'N/A'
+      },
+      medications: formData.medications || [],
+      diagnoses: formData.diagnoses || [],
+      tests: formData.tests || [],
+      instructions: formData.instructions || '',
+      followUp: formData.followUp || ''
     };
     
     // Generate the prescription HTML content
@@ -1170,78 +1158,118 @@ useEffect(() => {
         <style>
           body {
             font-family: Arial, sans-serif;
-            margin: 20px;
+            margin: 15px;
             color: #333;
+            line-height: 1.4;
           }
           .header {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             border-bottom: 2px solid #2196f3;
-            padding-bottom: 10px;
+            padding-bottom: 8px;
           }
           .clinic-name {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: bold;
             color: #2196f3;
+            margin-bottom: 4px;
           }
           .doctor-info {
-            font-size: 16px;
-            margin: 5px 0;
+            font-size: 14px;
+            margin: 2px 0;
+            color: #666;
           }
           .patient-info {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 20px;
-            padding: 10px;
-            background-color: #f5f5f5;
-            border-radius: 5px;
+            margin-bottom: 15px;
+            padding: 8px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            font-size: 13px;
           }
           .patient-details, .appointment-details {
             flex: 1;
           }
+          .patient-details p, .appointment-details p {
+            margin: 2px 0;
+          }
           .section-title {
-            font-size: 18px;
+            font-size: 15px;
             font-weight: bold;
-            margin: 15px 0 10px 0;
+            margin: 12px 0 6px 0;
             color: #2196f3;
             border-bottom: 1px solid #eee;
-            padding-bottom: 5px;
+            padding-bottom: 3px;
           }
           .medication-table {
             width: 100%;
             border-collapse: collapse;
-            margin: 10px 0 20px 0;
+            margin: 6px 0 12px 0;
+            font-size: 13px;
           }
           .medication-table th, .medication-table td {
             border: 1px solid #ddd;
-            padding: 8px;
+            padding: 6px;
             text-align: left;
           }
           .medication-table th {
             background-color: #f5f5f5;
+            font-weight: 600;
+          }
+          .medication-table tr:nth-child(even) {
+            background-color: #fafafa;
           }
           .tests-list, .advice {
-            margin: 10px 0;
-            padding: 10px;
-            background-color: #f9f9f9;
-            border-radius: 5px;
+            margin: 6px 0;
+            padding: 8px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            font-size: 13px;
           }
           .footer {
-            margin-top: 30px;
+            margin-top: 20px;
             display: flex;
             justify-content: space-between;
           }
           .signature {
             text-align: right;
-            margin-top: 50px;
+            margin-top: 30px;
+          }
+          .signature p {
+            margin: 2px 0;
+            font-size: 13px;
+          }
+          .vitals-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin: 8px 0;
+            font-size: 13px;
+          }
+          .vital-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 8px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+          }
+          .vital-label {
+            color: #666;
+          }
+          .vital-value {
+            font-weight: 500;
           }
           @media print {
             body {
-              margin: 0;
-              padding: 15px;
+              margin: 10px;
+              padding: 10px;
             }
             button {
               display: none;
+            }
+            .medication-table {
+              page-break-inside: avoid;
             }
           }
         </style>
@@ -1249,70 +1277,99 @@ useEffect(() => {
       <body>
         <div class="header">
           <div class="clinic-name">DigiCare Medical Center</div>
-          <div class="doctor-info">${appointmentInfo?.doctor || 'Doctor'}</div>
-          <div class="doctor-info">General Medicine</div>
+          <div class="doctor-info">${currentPrescriptionData.appointmentInfo?.doctor || 'Dr. Amit Mittal'}</div>
+          <div class="doctor-info">${currentPrescriptionData.appointmentInfo?.department || 'General Medicine'}</div>
         </div>
         
         <div class="patient-info">
           <div class="patient-details">
-            <p><strong>Patient Name:</strong> ${patientInfo?.name || 'Patient'}</p>
-            <p><strong>Patient ID:</strong> ${patientInfo?.id || 'N/A'}</p>
-            <p><strong>Age/Gender:</strong> ${patientInfo?.age || 'N/A'} years, ${patientInfo?.gender || 'N/A'}</p>
+            <p><strong>Patient Name:</strong> ${currentPrescriptionData.patientInfo?.name}</p>
+            <p><strong>Patient ID:</strong> ${currentPrescriptionData.patientInfo?.id}</p>
+            <p><strong>Age/Gender:</strong> ${currentPrescriptionData.patientInfo?.age} years, ${currentPrescriptionData.patientInfo?.gender}</p>
           </div>
           <div class="appointment-details">
-            <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
-            <p><strong>Appointment ID:</strong> ${appointmentInfo?.id || 'N/A'}</p>
-            <p><strong>BP:</strong> ${currentPrescriptionData.vitals?.bloodPressure || 'N/A'} mmHg | <strong>Temp:</strong> ${currentPrescriptionData.vitals?.temperature || 'N/A'}°C</p>
+            <p><strong>Date:</strong> ${currentPrescriptionData.appointmentInfo?.date}</p>
+            <p><strong>Appointment ID:</strong> ${currentPrescriptionData.appointmentInfo?.id}</p>
+          </div>
+        </div>
+
+        <div class="section-title">Vitals</div>
+        <div class="vitals-grid">
+          <div class="vital-item">
+            <span class="vital-label">Blood Pressure:</span>
+            <span class="vital-value">${currentPrescriptionData.vitals?.bloodPressure || 'N/A'}</span>
+          </div>
+          <div class="vital-item">
+            <span class="vital-label">Heart Rate:</span>
+            <span class="vital-value">${currentPrescriptionData.vitals?.heartRate || 'N/A'}</span>
+          </div>
+          <div class="vital-item">
+            <span class="vital-label">Temperature:</span>
+            <span class="vital-value">${currentPrescriptionData.vitals?.temperature || 'N/A'}</span>
+          </div>
+          <div class="vital-item">
+            <span class="vital-label">Respiratory Rate:</span>
+            <span class="vital-value">${currentPrescriptionData.vitals?.respiratoryRate || 'N/A'}</span>
+          </div>
+          <div class="vital-item">
+            <span class="vital-label">SpO2:</span>
+            <span class="vital-value">${currentPrescriptionData.vitals?.spO2 || 'N/A'}</span>
+          </div>
+          <div class="vital-item">
+            <span class="vital-label">Weight:</span>
+            <span class="vital-value">${currentPrescriptionData.vitals?.weight || 'N/A'}</span>
           </div>
         </div>
         
         <div class="section-title">Diagnosis</div>
-        <p>${currentPrescriptionData.diagnoses.map(diag => diag.diagnosis).join(', ') || 'No diagnosis provided'}</p>
+        <div class="tests-list">
+          ${currentPrescriptionData.diagnoses?.map(d => `<p>• ${d.diagnosis} (${d.duration})</p>`).join('') || 'No diagnosis provided'}
+        </div>
         
         <div class="section-title">Medications</div>
         <table class="medication-table">
           <thead>
             <tr>
-              <th>Medication</th>
+              <th>Medicine</th>
               <th>Dose</th>
-              <th>When</th>
+              <th>Timing</th>
               <th>Frequency</th>
               <th>Duration</th>
-              <th>Instructions</th>
             </tr>
           </thead>
           <tbody>
-            ${currentPrescriptionData.medications.map(med => `
+            ${currentPrescriptionData.medications?.map(med => `
               <tr>
-                <td>${med.medicine || 'N/A'}</td>
-                <td>${med.dose || 'N/A'}</td>
-                <td>${med.timing || ''}</td>
-                <td>${med.frequency || 'N/A'}</td>
-                <td>${med.duration || 'N/A'}</td>
-                <td>${med.notes || ''}</td>
+                <td>${med.medicine}</td>
+                <td>${med.dose}</td>
+                <td>${med.timing}</td>
+                <td>${med.frequency}</td>
+                <td>${med.duration}</td>
               </tr>
-            `).join('') || '<tr><td colspan="6">No medications prescribed</td></tr>'}
+            `).join('') || ''}
           </tbody>
         </table>
         
         <div class="section-title">Tests Recommended</div>
         <div class="tests-list">
-          ${currentPrescriptionData.tests.length > 0 ? currentPrescriptionData.tests.map(test => `<p>• ${test}</p>`).join('') : 'No tests recommended'}
+          ${currentPrescriptionData.tests?.map(test => `<p>• ${test}</p>`).join('') || 'No tests recommended'}
         </div>
         
-        <div class="section-title">Advice</div>
+        <div class="section-title">Instructions</div>
         <div class="advice">
-          <p>${currentPrescriptionData.instructions || 'Follow a healthy diet and exercise regularly.'}</p>
+          ${currentPrescriptionData.instructions || 'No special instructions provided.'}
         </div>
         
         <div class="section-title">Follow-up</div>
-        <p>Please return for follow-up on ${currentPrescriptionData.followUp ? new Date(currentPrescriptionData.followUp).toLocaleDateString() : 'as advised'}.</p>
+        <div class="advice">
+          ${currentPrescriptionData.followUp || 'Follow-up as advised.'}
+        </div>
         
         <div class="footer">
           <div></div>
           <div class="signature">
-            <p>${appointmentInfo?.doctor || 'Doctor'}</p>
-            <p>General Medicine</p>
+            <p>${currentPrescriptionData.appointmentInfo?.doctor || 'Dr. Amit Mittal'}</p>
+            <p>${currentPrescriptionData.appointmentInfo?.department || 'General Medicine'}</p>
           </div>
         </div>
       </body>
@@ -1596,6 +1653,48 @@ useEffect(() => {
   };
 
   const [isSavingVitals, setIsSavingVitals] = useState(false);
+  const [vitalsLoading, setVitalsLoading] = useState(false);
+  const [vitalsError, setVitalsError] = useState(null);
+
+  // Add function to fetch vitals
+  const fetchVitals = async () => {
+    if (!appointmentInfo?.id) return;
+    
+    try {
+      setVitalsLoading(true);
+      setVitalsError(null);
+      
+      const response = await getVitals(appointmentInfo.id);
+      console.log("Vitals response:", response);
+      
+      if (response) {
+        setEditedVitals({
+          bloodPressure: response.blood_pressure || '',
+          heartRate: response.pulse_rate || '',
+          temperature: response.temperature || '',
+          respiratoryRate: response.respiratory_rate || '',
+          spO2: response.spo2 || '',
+          height: response.height || '',
+          weight: response.weight || '',
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching vitals:", error);
+      setVitalsError("Failed to load vitals. Please try again.");
+    } finally {
+      setVitalsLoading(false);
+    }
+  };
+
+  // Add useEffect to fetch vitals on component mount
+  useEffect(() => {
+    if (appointmentInfo?.id) {
+      fetchVitals();
+    }
+  }, [appointmentInfo?.id]);
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [attachmentToDelete, setAttachmentToDelete] = useState(null);
 
   const handleSaveVitals = async () => {
     try {
@@ -1629,9 +1728,6 @@ useEffect(() => {
       setIsSavingVitals(false);
     }
   };
-
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [attachmentToDelete, setAttachmentToDelete] = useState(null);
 
   return (
     <Container maxWidth="xl" sx={{ mt: 3, mb: 10 }}>
@@ -1739,7 +1835,7 @@ useEffect(() => {
                 size="small" 
                 startIcon={isEditingVitals ? (isSavingVitals ? <CircularProgress size={20} /> : <Save />) : <Edit />}
                 onClick={handleEditVitals}
-                disabled={isSavingVitals}
+                disabled={isSavingVitals || vitalsLoading}
                 sx={{ ml: 2 }}
               >
                 {isEditingVitals ? (isSavingVitals ? "Saving..." : "Save Vitals") : "Edit Vitals"}
@@ -1747,98 +1843,109 @@ useEffect(() => {
             </Box>
           </Box>
           <Paper variant="outlined" sx={{ p: 2, bgcolor: isEditingVitals ? 'background.paper' : '#f8f9fa' }}>
-            <Grid container spacing={3}>
-              <Grid item xs={6} sm={4} md={2}>
-              <TextField
-                  label="Blood Pressure"
-                  value={editedVitals.bloodPressure}
-                  variant="outlined"
-                  size="small"
-                fullWidth
-                  disabled={!isEditingVitals}
-                  InputProps={{ 
-                    endAdornment: <Typography variant="caption">mmHg</Typography>,
-                    sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
-                  }}
-                  onChange={(e) => handleVitalsChange('bloodPressure', e.target.value)}
-              />
-            </Grid>
-              <Grid item xs={6} sm={4} md={2}>
-              <TextField
-                  label="Heart Rate"
-                  value={editedVitals.heartRate}
-                  variant="outlined"
-                  size="small"
-                fullWidth
-                  disabled={!isEditingVitals}
-                  InputProps={{ 
-                    endAdornment: <Typography variant="caption">bpm</Typography>,
-                    sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
-                  }}
-                  onChange={(e) => handleVitalsChange('heartRate', e.target.value)}
-              />
-            </Grid>
-              <Grid item xs={6} sm={4} md={2}>
-              <TextField
-                  label="Temperature"
-                  value={editedVitals.temperature}
-                  variant="outlined"
-                  size="small"
-                fullWidth
-                  disabled={!isEditingVitals}
-                  InputProps={{ 
-                    endAdornment: <Typography variant="caption">°C</Typography>,
-                    sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
-                  }}
-                  onChange={(e) => handleVitalsChange('temperature', e.target.value)}
-              />
-            </Grid>
-              <Grid item xs={6} sm={4} md={2}>
-              <TextField
-                  label="Respiratory Rate"
-                  value={editedVitals.respiratoryRate}
-                  variant="outlined"
-                  size="small"
-                fullWidth
-                  disabled={!isEditingVitals}
-                  InputProps={{ 
-                    endAdornment: <Typography variant="caption">bpm</Typography>,
-                    sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
-                  }}
-                  onChange={(e) => handleVitalsChange('respiratoryRate', e.target.value)}
-              />
-            </Grid>
-              <Grid item xs={6} sm={4} md={2}>
-              <TextField
-                  label="SpO2"
-                  value={editedVitals.spO2}
-                  variant="outlined"
-                  size="small"
-                fullWidth
-                  disabled={!isEditingVitals}
-                  InputProps={{ 
-                    endAdornment: <Typography variant="caption">%</Typography>,
-                    sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
-                  }}
-                  onChange={(e) => handleVitalsChange('spO2', e.target.value)}
-              />
-            </Grid>
-              <Grid item xs={6} sm={4} md={2}>
-              <TextField
-                  label="Weight"
-                  value={editedVitals.weight}
-                  variant="outlined"
-                  size="small"
-                fullWidth
-                  disabled={!isEditingVitals}
-                  InputProps={{ 
-                    endAdornment: <Typography variant="caption">kg</Typography>,
-                    sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
-                  }}
-                  onChange={(e) => handleVitalsChange('weight', e.target.value)}
+            {vitalsError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {vitalsError}
+              </Alert>
+            )}
+            {vitalsLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                <CircularProgress size={24} />
+              </Box>
+            ) : (
+              <Grid container spacing={3}>
+                <Grid item xs={6} sm={4} md={2}>
+                <TextField
+                    label="Blood Pressure"
+                    value={editedVitals.bloodPressure}
+                    variant="outlined"
+                    size="small"
+                  fullWidth
+                    disabled={!isEditingVitals}
+                    InputProps={{ 
+                      endAdornment: <Typography variant="caption">mmHg</Typography>,
+                      sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
+                    }}
+                    onChange={(e) => handleVitalsChange('bloodPressure', e.target.value)}
                 />
               </Grid>
-            </Grid>
+                <Grid item xs={6} sm={4} md={2}>
+                <TextField
+                    label="Heart Rate"
+                    value={editedVitals.heartRate}
+                    variant="outlined"
+                    size="small"
+                  fullWidth
+                    disabled={!isEditingVitals}
+                    InputProps={{ 
+                      endAdornment: <Typography variant="caption">bpm</Typography>,
+                      sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
+                    }}
+                    onChange={(e) => handleVitalsChange('heartRate', e.target.value)}
+                />
+              </Grid>
+                <Grid item xs={6} sm={4} md={2}>
+                <TextField
+                    label="Temperature"
+                    value={editedVitals.temperature}
+                    variant="outlined"
+                    size="small"
+                  fullWidth
+                    disabled={!isEditingVitals}
+                    InputProps={{ 
+                      endAdornment: <Typography variant="caption">°C</Typography>,
+                      sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
+                    }}
+                    onChange={(e) => handleVitalsChange('temperature', e.target.value)}
+                />
+              </Grid>
+                <Grid item xs={6} sm={4} md={2}>
+                <TextField
+                    label="Respiratory Rate"
+                    value={editedVitals.respiratoryRate}
+                    variant="outlined"
+                    size="small"
+                  fullWidth
+                    disabled={!isEditingVitals}
+                    InputProps={{ 
+                      endAdornment: <Typography variant="caption">bpm</Typography>,
+                      sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
+                    }}
+                    onChange={(e) => handleVitalsChange('respiratoryRate', e.target.value)}
+                />
+              </Grid>
+                <Grid item xs={6} sm={4} md={2}>
+                <TextField
+                    label="SpO2"
+                    value={editedVitals.spO2}
+                    variant="outlined"
+                    size="small"
+                  fullWidth
+                    disabled={!isEditingVitals}
+                    InputProps={{ 
+                      endAdornment: <Typography variant="caption">%</Typography>,
+                      sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
+                    }}
+                    onChange={(e) => handleVitalsChange('spO2', e.target.value)}
+                />
+              </Grid>
+                <Grid item xs={6} sm={4} md={2}>
+                <TextField
+                    label="Weight"
+                    value={editedVitals.weight}
+                    variant="outlined"
+                    size="small"
+                  fullWidth
+                    disabled={!isEditingVitals}
+                    InputProps={{ 
+                      endAdornment: <Typography variant="caption">kg</Typography>,
+                      sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
+                    }}
+                    onChange={(e) => handleVitalsChange('weight', e.target.value)}
+                  />
+                </Grid>
+              </Grid>
+            )}
           </Paper>
         </Box>
         

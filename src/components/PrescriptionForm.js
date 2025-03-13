@@ -47,7 +47,10 @@ const PrescriptionForm = React.forwardRef(({
       complaints,
       diagnoses,
       medications,
-      instructions
+      instructions,
+      tests: [],
+      followUp: '',
+      vitals: vitals || {}
     })
   }));
 
