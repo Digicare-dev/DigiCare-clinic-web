@@ -211,7 +211,8 @@ useEffect(() => {
       setIsLoadingCurrentPrescription(true);
       setCurrentPrescriptionError(null);
 
-      const prescriptionData = await getCurrentPrescription(appointmentInfo.id);
+      const prescriptionData = await getCurrentPrescription(appointmentInfo.appointment_id,
+);
       console.log("Current prescription data:", prescriptionData);
 
       // The API returns the prescription data directly, not in an array
@@ -366,7 +367,8 @@ useEffect(() => {
       setIsCompletingConsultation(true);
       setConfirmDoneDialog(false);
       // Call the markPatientAsDone API
-      await markPatientAsDone(appointmentInfo.id);
+      await markPatientAsDone(appointmentInfo.appointment_id,
+);
       console.log("Patient marked as done successfully");
       // Navigate to the queue page
       navigate('/queue');
@@ -407,7 +409,7 @@ useEffect(() => {
     }
     
     const payload = {
-      appointment_id: appointmentInfo.id || "",
+      appointment_id: appointmentInfo.appointment_id || "",
       complaints: Array.isArray(formData.complaints) 
         ? formData.complaints.filter(complaint => complaint.complaint || complaint.duration || complaint.severity).map(complaint => ({
             name: complaint.complaint || "",
@@ -631,7 +633,8 @@ useEffect(() => {
       if (response && response.other_appointments && Array.isArray(response.other_appointments)) {
         // Map the other_appointments to our pastAppointments state with proper structure
         const formattedAppointments = response.other_appointments
-          .filter(app => app.appointment_id !== appointmentInfo.id) // Filter out current appointment
+          .filter(app => app.appointment_id !== appointmentInfo.appointment_id,
+) // Filter out current appointment
           .map(app => {
             // Extract date from appointment_id if possible
             let appointmentDate;
@@ -834,11 +837,12 @@ useEffect(() => {
       
       // Create form data
       const formData = new FormData();
-      formData.append('appointment_id', appointmentInfo.id);
+      formData.append('appointment_id', appointmentInfo.appointment_id,
+);
       formData.append('file', uploadFile);
       formData.append('file_name', uploadFileName);
       formData.append('file_type', uploadFile.type);
-      formData.append('description', `Medical record uploaded for appointment ${appointmentInfo.id}`);
+      formData.append('description', `Medical record uploaded for appointment ${appointmentInfo.appointment_id}`);
       
       // Upload the file
       const response = await uploadAttachment(formData);
@@ -1027,7 +1031,7 @@ useEffect(() => {
           </div>
           <div class="appointment-details">
             <p><strong>Date:</strong> ${selectedPrescription.appointmentInfo.date}</p>
-            <p><strong>Appointment ID:</strong> ${selectedPrescription.appointmentInfo.id}</p>
+            <p><strong>Appointment ID:</strong> ${selectedPrescription.appointmentInfo.appointment_id}</p>
           </div>
         </div>
         
@@ -1117,7 +1121,7 @@ useEffect(() => {
     <Box>
       <PrescriptionForm 
         initialData={prefilledPrescriptionData}
-        appointmentId={appointmentInfo.id}
+        appointmentId={appointmentInfo.appointment_id}
         initialize={true}
         onSubmit={handlePrescriptionSubmit}
         showPrintButton={false}
@@ -1426,7 +1430,8 @@ useEffect(() => {
       setAttachmentsLoading(true);
       setAttachmentsError(null);
       
-      const response = await getAttachments(appointmentInfo.id);
+      const response = await getAttachments(appointmentInfo.appointment_id,
+);
       console.log("Attachments response:", response);
       
       if (response) {
@@ -1695,7 +1700,8 @@ useEffect(() => {
       setVitalsLoading(true);
       setVitalsError(null);
       
-      const response = await getVitals(appointmentInfo.id);
+      const response = await getVitals(appointmentInfo.appointment_id,
+);
       console.log("Vitals response:", response);
       
       if (response) {
@@ -1729,10 +1735,11 @@ useEffect(() => {
 
   const handleSaveVitals = async () => {
     try {
+      debugger;
       setIsSavingVitals(true);
       // Prepare the payload for the API
       const vitalsPayload = {
-        appointment_id: appointmentInfo.id,
+        appointment_id: appointmentInfo.appointment_id,
         vitals: {
           blood_pressure: editedVitals.bloodPressure,
           pulse_rate: editedVitals.heartRate,
