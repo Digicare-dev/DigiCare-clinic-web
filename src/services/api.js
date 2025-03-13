@@ -431,3 +431,25 @@ export const suggestMedicine = async(query) => {
     throw error;
   }
 }
+
+export const getMaxTokenNumber = async(cabinId, slot) => {
+  try {
+    // First fetch all appointments for the slot
+    const appointmentsData = await fetchAppointments(cabinId, slot);
+    
+    // If there are no appointments, return 0 (so first token will be 1)
+    if (!appointmentsData || !appointmentsData.length) {
+      return 0;
+    }
+    
+    // Find the maximum token number
+    const tokens = appointmentsData.map(appointment => 
+      parseInt(appointment.token, 10)
+    ).filter(token => !isNaN(token));
+    
+    return tokens.length ? Math.max(...tokens) : 0;
+  } catch (error) {
+    console.error("Error calculating max token number:", error);
+    throw error;
+  }
+}
