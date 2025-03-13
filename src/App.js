@@ -112,25 +112,22 @@ const App = () => {
         const parsedData = JSON.parse(event.data);
 
         // console.log("SSE Data:", parsedData);
-
         if (parsedData.queue) {
-          // Assuming the update is the whole patients array
+          // Update the patients array with the new patient data
           setPatients((prevPatients) => {
-            // Find if the patient already exists
-            const existingIndex = prevPatients.findIndex(
-              (p) =>
-                p.appointment.appointment_id ===
-                parsedData.queue.appointment.appointment_id
-            );
-
-            // Create updated patient object with defaults
             const updatedPatient = {
-              ...parsedData.queue,
+              position: parsedData.queue.position,
+              late: parsedData.queue.late || false,
+              status: parsedData.queue.status || "pending",
               paid: parsedData.queue.paid || false,
               checkin: parsedData.queue.checkin || false,
-              status: parsedData.queue.status || "pending",
-              position: parsedData.queue.position,
+              appointment: parsedData.queue.appointment
             };
+
+            // Find if the patient already exists
+            const existingIndex = prevPatients.findIndex(
+              (p) => p.appointment.appointment_id === parsedData.queue.appointment.appointment_id
+            );
 
             const newPatients = [...prevPatients];
             if (existingIndex !== -1) {
