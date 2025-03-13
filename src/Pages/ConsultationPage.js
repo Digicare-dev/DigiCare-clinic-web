@@ -205,7 +205,7 @@ useEffect(() => {
 
   // Function to fetch current prescription
   const fetchCurrentPrescription = async () => {
-    if (!appointmentInfo?.id) return;
+    if (!appointmentInfo?.appointment_id) return;
 
     try {
       setIsLoadingCurrentPrescription(true);
@@ -229,10 +229,10 @@ useEffect(() => {
 
   // Add useEffect to fetch current prescription
   useEffect(() => {
-    if (appointmentInfo?.id) {
+    if (appointmentInfo?.appointment_id) {
       fetchCurrentPrescription();
     }
-  }, [appointmentInfo?.id]);
+  }, [appointmentInfo?.appointment_id]);
 
   // Update the prefilledPrescriptionData to use current prescription if available
   const prefilledPrescriptionData = {
@@ -872,7 +872,7 @@ useEffect(() => {
         date: new Date().toLocaleDateString(),
         doctor: appointmentInfo?.doctor || 'Doctor',
         diagnosis: prescription.diagnosis?.[0]?.name || '',
-        id: appointmentInfo?.id || ''
+        id: appointmentInfo?.appointment_id || ''
       },
       initialData: {
         vitals: {
@@ -1324,7 +1324,7 @@ useEffect(() => {
           </div>
           <div class="appointment-details">
             <p><strong>Date:</strong> ${currentPrescriptionData.appointmentInfo?.date}</p>
-            <p><strong>Appointment ID:</strong> ${currentPrescriptionData.appointmentInfo?.id}</p>
+            <p><strong>Appointment ID:</strong> ${currentPrescriptionData.appointmentInfo?.appointment_id}</p>
           </div>
         </div>
 
@@ -1424,7 +1424,7 @@ useEffect(() => {
 
   // Add function to fetch attachments
   const fetchAttachments = async () => {
-    if (!appointmentInfo?.id) return;
+    if (!appointmentInfo?.appointment_id) return;
     
     try {
       setAttachmentsLoading(true);
@@ -1694,7 +1694,7 @@ useEffect(() => {
 
   // Add function to fetch vitals
   const fetchVitals = async () => {
-    if (!appointmentInfo?.id) return;
+    if (!appointmentInfo?.appointment_id) return;
     
     try {
       setVitalsLoading(true);
@@ -1725,10 +1725,11 @@ useEffect(() => {
 
   // Add useEffect to fetch vitals on component mount
   useEffect(() => {
-    if (appointmentInfo?.id) {
+    if (appointmentInfo?.appointment_id) {
       fetchVitals();
     }
-  }, [appointmentInfo?.id]);
+  }, [appointmentInfo?.appointment_id,
+]);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [attachmentToDelete, setAttachmentToDelete] = useState(null);
