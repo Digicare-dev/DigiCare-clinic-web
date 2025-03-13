@@ -437,7 +437,6 @@ export const PrescriptionForm = forwardRef(({
     if (ref) {
       ref.current = {
         getFormData: () => {
-          debugger; // Debug point 5: When form data is requested via ref
           const formData = {
             complaints,
             diagnoses,
@@ -450,7 +449,6 @@ export const PrescriptionForm = forwardRef(({
           return formData;
         },
         submitForm: () => {
-          debugger; // Debug point 6: When form is submitted via ref
           const formData = {
             ...prescription,
             complaints,
@@ -472,7 +470,7 @@ export const PrescriptionForm = forwardRef(({
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    debugger; // Debug point 3: Before form submission
+     // Debug point 3: Before form submission
     // Debug output for medications
     console.log('Medications state before submission:', JSON.stringify(medications));
     
@@ -485,7 +483,7 @@ export const PrescriptionForm = forwardRef(({
       signature
     };
     
-    debugger; // Debug point 4: Form data prepared for submission
+     // Debug point 4: Form data prepared for submission
     console.log('Form data being submitted:', JSON.stringify(formData));
     
     // Call the onSubmit function passed as prop
@@ -579,7 +577,7 @@ export const PrescriptionForm = forwardRef(({
 
   // Add this function near your other handlers
   const handleClickAway = (index) => {
-    debugger; // Debug point 1: When clicking away from a complaint field
+     // Debug point 1: When clicking away from a complaint field
     console.log('Clicking away from complaint row:', index);
     console.log('Current complaints state:', prescription.complaints);
     
@@ -642,7 +640,7 @@ export const PrescriptionForm = forwardRef(({
   const addNewComplaintRow = () => {
     if (readOnly) return;
     
-    debugger; // Debug point 6: Start of adding new complaint row
+     // Debug point 6: Start of adding new complaint row
     console.log('Adding new complaint row');
     console.log('Current complaints:', prescription.complaints);
     
@@ -650,7 +648,7 @@ export const PrescriptionForm = forwardRef(({
     updatedComplaints[updatedComplaints.length - 1].isEditing = false;
     
     setTimeout(() => {
-      debugger; // Debug point 7: Before setting state with new empty row
+       // Debug point 7: Before setting state with new empty row
       const newComplaints = [
         ...updatedComplaints,
         { 
@@ -682,7 +680,7 @@ export const PrescriptionForm = forwardRef(({
 
   // Add useEffect to monitor complaints state changes
   useEffect(() => {
-    debugger; // Debug point 8: Whenever complaints state changes
+     // Debug point 8: Whenever complaints state changes
     console.log('Complaints state updated:', prescription.complaints);
   }, [prescription.complaints]);
 
@@ -726,7 +724,7 @@ export const PrescriptionForm = forwardRef(({
     // Set selection in progress first
     handleSelectionStart();
     
-    debugger; // Debug point 1: When medication field is changed
+     // Debug point 1: When medication field is changed
     console.log('Before update - medications state:', JSON.stringify(medications));
     
     // Update the medication
@@ -750,7 +748,7 @@ export const PrescriptionForm = forwardRef(({
     
     setMedications(updatedMedications);
     
-    debugger; // Debug point 2: After medications state is updated
+     // Debug point 2: After medications state is updated
     console.log('Final medications state after update:', JSON.stringify(updatedMedications));
   };
 
@@ -819,7 +817,7 @@ export const PrescriptionForm = forwardRef(({
       const { getPastPrescriptions  } = await import('../services/api');
       
       // Fetch past prescriptions for the patient
-      debugger;
+      
       console.log("Calling fetchPastPrescriptions with ID:", patientInfo.id);
       const response = await getPastPrescriptions(patientInfo.id, cabinId);
       console.log("Fetched prescriptions response:", response);
@@ -1628,19 +1626,19 @@ export const PrescriptionForm = forwardRef(({
 
   // Function to fetch medicine suggestions
   const fetchMedicineSuggestions = async (query) => {
-    debugger; // Debug point 25: Start of fetchMedicineSuggestions
+     // Debug point 25: Start of fetchMedicineSuggestions
     // Ensure query is trimmed and not empty
     if (!query || query.trim().length === 0) return [];
     
     try {
       console.log('Fetching medicine suggestions for query:', query);
-      debugger; // Debug point 26: Before calling suggestMedicine API
+       // Debug point 26: Before calling suggestMedicine API
       const suggestions = await suggestMedicine(query);
-      debugger; // Debug point 27: After receiving suggestions from API
+       // Debug point 27: After receiving suggestions from API
       console.log('API response for medicine suggestions:', JSON.stringify(suggestions, null, 2));
       
       const mappedSuggestions = suggestions.map(medicine => {
-        debugger; // Debug point 28: Processing each medicine suggestion
+         // Debug point 28: Processing each medicine suggestion
         console.log('Processing medicine suggestion:', JSON.stringify(medicine, null, 2));
         return {
           value: medicine.name, // This is what gets displayed in the input after selection
@@ -1663,7 +1661,7 @@ export const PrescriptionForm = forwardRef(({
         };
       });
       
-      debugger; // Debug point 29: Final mapped suggestions
+       // Debug point 29: Final mapped suggestions
       console.log('Final mapped suggestions:', JSON.stringify(mappedSuggestions, null, 2));
       return mappedSuggestions;
     } catch (error) {
@@ -1777,9 +1775,9 @@ export const PrescriptionForm = forwardRef(({
       if (trimmedQuery.length >= 2) {
         setIsLoadingSuggestions(true);
         try {
-          debugger; // Debug point 30: Before calling fetchMedicineSuggestions in searchMedicines
+           // Debug point 30: Before calling fetchMedicineSuggestions in searchMedicines
           const suggestions = await fetchMedicineSuggestions(trimmedQuery);
-          debugger; // Debug point 31: After receiving suggestions from fetchMedicineSuggestions
+           // Debug point 31: After receiving suggestions from fetchMedicineSuggestions
           console.log('Suggestions received in searchMedicines:', JSON.stringify(suggestions, null, 2));
           setSuggestedMedicines(suggestions);
         } catch (error) {
@@ -1799,7 +1797,7 @@ export const PrescriptionForm = forwardRef(({
 
   // Add a function to explicitly trigger a medicine search
   const triggerMedicineSearch = async (query) => {
-    debugger; // Debug point 32: Start of triggerMedicineSearch
+     // Debug point 32: Start of triggerMedicineSearch
     // Trim the query and check if it's empty
     const trimmedQuery = query ? query.trim() : "";
     
@@ -1813,17 +1811,17 @@ export const PrescriptionForm = forwardRef(({
     setMedicineSearchQuery(trimmedQuery);
     
     try {
-      debugger; // Debug point 33: Before calling fetchMedicineSuggestions in triggerMedicineSearch
+       // Debug point 33: Before calling fetchMedicineSuggestions in triggerMedicineSearch
       console.log("Calling fetchMedicineSuggestions with query:", trimmedQuery);
       const suggestions = await fetchMedicineSuggestions(trimmedQuery);
-      debugger; // Debug point 34: After receiving suggestions in triggerMedicineSearch
+       // Debug point 34: After receiving suggestions in triggerMedicineSearch
       console.log("Received suggestions:", suggestions.length, "items");
       console.log("Suggestions data:", JSON.stringify(suggestions, null, 2));
       setSuggestedMedicines(suggestions);
-      debugger; // Debug point 35: After updating suggestedMedicines state
+       // Debug point 35: After updating suggestedMedicines state
       console.log("Updated suggestedMedicines state");
     } catch (error) {
-      debugger; // Debug point 36: Error in triggerMedicineSearch
+       // Debug point 36: Error in triggerMedicineSearch
       console.error("Error fetching medicine suggestions:", error);
     }
   };
@@ -2186,7 +2184,7 @@ export const PrescriptionForm = forwardRef(({
                             value={row.complaint}
                             open={row.isEditing}
                             onClose={(e, reason) => {
-                              debugger; // Debug point 9: When complaint autocomplete closes
+                               // Debug point 9: When complaint autocomplete closes
                               console.log('Autocomplete closing:', { reason, currentValue: row.complaint });
                               // Only close when clicking away, not when selecting an item
                               if (reason === 'escape' || reason === 'blur') {
@@ -2702,7 +2700,7 @@ export const PrescriptionForm = forwardRef(({
                             }}
                             onInputChange={(event, newInputValue) => {
                               if (event) {
-                                debugger; // Debug point 14: When typing in medicine field
+                                 // Debug point 14: When typing in medicine field
                                 console.log('Medicine search input:', newInputValue);
                                 setMedicineSearchQuery(newInputValue);
                                 // Set isEditing to true when typing
@@ -2712,7 +2710,7 @@ export const PrescriptionForm = forwardRef(({
                               }
                             }}
                             onChange={(_, value) => {
-                              debugger; // Debug point 15: When medicine is selected from dropdown
+                               // Debug point 15: When medicine is selected from dropdown
                               console.log('Medicine selected:', value);
                               handleSelectionStart();
                               let medicineValue;
@@ -2722,7 +2720,7 @@ export const PrescriptionForm = forwardRef(({
                                 console.log('String value selected:', medicineValue);
                               } else if (value && typeof value === 'object') {
                                 if (value.data) {
-                                  debugger; // Debug point 16: When medicine with data is selected
+                                   // Debug point 16: When medicine with data is selected
                                   const medicine = value.data;
                                   medicineValue = medicine.name;
                                   console.log('Medicine with data selected:', medicine);
@@ -2741,7 +2739,7 @@ export const PrescriptionForm = forwardRef(({
                                 console.log('Empty value selected');
                               }
                               
-                              debugger; // Debug point 17: Before calling handleMedicationChange
+                               // Debug point 17: Before calling handleMedicationChange
                               console.log('Final medicine value to be set:', medicineValue);
                               
                               // Update the medication with the medicine value
@@ -2759,7 +2757,7 @@ export const PrescriptionForm = forwardRef(({
                               setSuggestedMedicines([]);
                               setMedicineSearchQuery('');
                               
-                              debugger; // Debug point 18: After medicine selection is complete
+                               // Debug point 18: After medicine selection is complete
                               console.log('Medications after selection:', JSON.stringify(updatedMedications));
                             }}
                             renderOption={(props, option) => {

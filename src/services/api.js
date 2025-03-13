@@ -223,7 +223,7 @@ export const getCurrentPrescription = async (appointment_id) => {
 
 export const savePrescription = async (payload) => {
   try {
-    debugger; // Debug point 19: Before sending API request
+     // Debug point 19: Before sending API request
     console.log("API payload for savePrescription:", JSON.stringify(payload, null, 2));
     
     const response = await axiosInstance.post(
@@ -232,12 +232,12 @@ export const savePrescription = async (payload) => {
       { withCredentials: true }
     );
     
-    debugger; // Debug point 20: After receiving API response
+     // Debug point 20: After receiving API response
     console.log("API response from savePrescription:", JSON.stringify(response.data, null, 2));
     
     return response.data;
   } catch (error) {
-    debugger; // Debug point 21: API error
+     // Debug point 21: API error
     console.error("Error saving prescription:", error);
     throw error;
   }
@@ -413,7 +413,7 @@ export const getPatientProfile = async(phone_number) => {
 
 export const suggestMedicine = async(query) => {
   try {
-    debugger; // Debug point 22: Before fetching medicine suggestions
+     // Debug point 22: Before fetching medicine suggestions
     console.log("Fetching medicine suggestions for query:", query);
     
     const response = await axiosInstance.get(
@@ -421,12 +421,12 @@ export const suggestMedicine = async(query) => {
       {withCredentials:true}
     );
     
-    debugger; // Debug point 23: After receiving medicine suggestions
+     // Debug point 23: After receiving medicine suggestions
     console.log("Medicine suggestions response:", JSON.stringify(response.data, null, 2));
     
     return response.data;
   } catch(error) {
-    debugger; // Debug point 24: Error fetching medicine suggestions
+     // Debug point 24: Error fetching medicine suggestions
     console.error("Error suggesting medications:", error);
     throw error;
   }
