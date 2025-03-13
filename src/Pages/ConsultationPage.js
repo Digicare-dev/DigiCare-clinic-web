@@ -103,6 +103,11 @@ const getFullAttachmentUrl = (relativePath) => {
   return `${baseUrl}${path}`;
 };
 
+// Placeholder for showNotification function
+const showNotification = (message, type) => {
+  console.log(`Notification: ${type} - ${message}`);
+};
+
 const ConsultationPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -456,13 +461,19 @@ useEffect(() => {
       .then(data => {
         console.log('Prescription saved successfully:', data);
         setSaveSuccess(true);
+        // Show success notification
+        showNotification('Prescription saved successfully', 'success');
         // Reset success state after 2 seconds
         setTimeout(() => {
           setSaveSuccess(false);
         }, 2000);
-      })
+        // Set shouldInitialize to false after successful save
+        setShouldInitialize(false);
+        fetchCurrentPrescription();
+        })
       .catch(error => {
         console.error('Error saving prescription:', error);
+        showNotification('Error saving prescription', 'error');
       })
       .finally(() => {
         setIsSavingPrescription(false);
@@ -622,6 +633,23 @@ useEffect(() => {
       alert('Failed to save template. Please try again.');
     }
   };
+
+  function formatDate(slot) {
+    // Split the string at 'T' to get the date part
+    const datePart = slot.split('T')[0];
+  
+    // Create a Date object from the date part
+    const date = new Date(datePart);
+  
+    // Extract day, month, and year
+    const day = String(date.getDate()).padStart(2, '0'); // Ensure two digits
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-indexed
+    const year = date.getFullYear();
+  
+    // Return the formatted date
+    return `${day}/${month}/${year}`;
+  }
+  
 
   // Add function to fetch patient details
   const fetchPatientDetails = async () => {
@@ -1736,7 +1764,6 @@ useEffect(() => {
 
   const handleSaveVitals = async () => {
     try {
-      debugger;
       setIsSavingVitals(true);
       // Prepare the payload for the API
       const vitalsPayload = {
@@ -1767,6 +1794,9 @@ useEffect(() => {
       setIsSavingVitals(false);
     }
   };
+
+  // Add state for shouldInitialize
+  const [shouldInitialize, setShouldInitialize] = useState(true);
 
   return (
     <Container maxWidth="lg" sx={{ mt: 2, mb: 4, px: { xs: 1, sm: 2 } }}>
@@ -2158,7 +2188,7 @@ useEffect(() => {
                   borderColor: 'divider'
                 }}>
                   <CalendarToday fontSize="small" color="action" sx={{ mr: 0.75 }} />
-                  <Typography variant="body2">{new Date().toLocaleDateString()}</Typography>
+                  <Typography variant="body2">{formatDate(prescription.slot)}</Typography>
                   <Divider orientation="vertical" flexItem sx={{ mx: 1.5 }} />
                   {prescription.diagnosis && prescription.diagnosis.length > 0 && (
                     <>

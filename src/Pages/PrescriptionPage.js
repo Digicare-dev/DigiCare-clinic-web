@@ -449,6 +449,7 @@ export const PrescriptionForm = forwardRef(({
           return formData;
         },
         submitForm: () => {
+          debugger;
           const formData = {
             ...prescription,
             complaints,
@@ -489,6 +490,8 @@ export const PrescriptionForm = forwardRef(({
     // Call the onSubmit function passed as prop
     if (onSubmit) {
       onSubmit(formData);
+      // Don't reset the form after submission
+      showNotification('Prescription saved successfully', 'success');
     }
   };
 
@@ -733,6 +736,11 @@ export const PrescriptionForm = forwardRef(({
       ...updatedMedications[index],
       [field]: value
     };
+    
+    // If we're updating the medicine field, set isEditing to false
+    if (field === 'medicine') {
+      updatedMedications[index].isEditing = false;
+    }
     
     console.log('After update - updatedMedications:', JSON.stringify(updatedMedications));
     
@@ -1762,8 +1770,11 @@ export const PrescriptionForm = forwardRef(({
       }
     };
 
-    initializePrescription();
-  }, [initialize, appointmentId]);
+    // Only initialize if initialize is true and we haven't initialized before
+    if (initialize) {
+      initializePrescription();
+    }
+  }, [initialize, appointmentId]); // Remove prescription from dependencies to prevent re-initialization
 
   // Add this useEffect to handle medicine search
   useEffect(() => {
@@ -2686,8 +2697,8 @@ export const PrescriptionForm = forwardRef(({
                               return '';
                             }}
                             value={row.medicine || ''}
-                            // Only open the dropdown when there are suggestions available
-                            open={Boolean(row.isEditing && suggestedMedicines.length > 0)}
+                            // Modified to ensure dropdown opens when typing and suggestions are available
+                            open={row.isEditing && suggestedMedicines.length > 0}
                             loading={isLoadingSuggestions}
                             noOptionsText="Start typing to search medicines"
                             filterOptions={(x) => x}
@@ -2695,24 +2706,30 @@ export const PrescriptionForm = forwardRef(({
                               style: { 
                                 maxHeight: '300px',
                                 padding: '8px 0'
-                              },
-                              onMouseDown: handleOptionClick
+                              }
+                              // Removed the onMouseDown handler that was preventing selection
                             }}
                             onInputChange={(event, newInputValue) => {
                               if (event) {
                                  // Debug point 14: When typing in medicine field
                                 console.log('Medicine search input:', newInputValue);
-                                setMedicineSearchQuery(newInputValue);
+                                
                                 // Set isEditing to true when typing
                                 const updatedMedications = [...medications];
                                 updatedMedications[index].isEditing = true;
                                 setMedications(updatedMedications);
+                                
+                                // Trigger search with a slight delay to avoid too many API calls
+                                if (newInputValue && newInputValue.trim().length > 0) {
+                                  setMedicineSearchQuery(newInputValue);
+                                  // This will trigger the useEffect that calls searchMedicines
+                                }
                               }
                             }}
                             onChange={(_, value) => {
                                // Debug point 15: When medicine is selected from dropdown
                               console.log('Medicine selected:', value);
-                              handleSelectionStart();
+                              
                               let medicineValue;
                               
                               if (typeof value === 'string') {
@@ -2739,26 +2756,15 @@ export const PrescriptionForm = forwardRef(({
                                 console.log('Empty value selected');
                               }
                               
-                               // Debug point 17: Before calling handleMedicationChange
-                              console.log('Final medicine value to be set:', medicineValue);
-                              
                               // Update the medication with the medicine value
-                              const updatedMedications = [...medications];
-                              updatedMedications[index] = {
-                                ...updatedMedications[index],
-                                medicine: medicineValue,
-                                isEditing: false
-                              };
-                              
-                              // Set the medications state once with both the medicine value and isEditing=false
-                              setMedications(updatedMedications);
-                              
-                              // Clear suggestions and close dropdown after selection
-                              setSuggestedMedicines([]);
-                              setMedicineSearchQuery('');
-                              
-                               // Debug point 18: After medicine selection is complete
-                              console.log('Medications after selection:', JSON.stringify(updatedMedications));
+                              if (medicineValue) {
+                                console.log('Setting medicine value:', medicineValue);
+                                handleMedicationChange(index, 'medicine', medicineValue);
+                                
+                                // Clear suggestions and close dropdown after selection
+                                setSuggestedMedicines([]);
+                                setMedicineSearchQuery('');
+                              }
                             }}
                             renderOption={(props, option) => {
                               if (!option) return null;
