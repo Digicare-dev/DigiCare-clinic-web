@@ -47,6 +47,7 @@ import {
   Search,
   Add as AddIcon,
   CalendarToday,
+  Delete as DeleteIcon,
 } from "@mui/icons-material";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -56,7 +57,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import ListItemSecondaryAction from '@mui/material/ListItemSecondaryAction';
 import SaveIcon from '@mui/icons-material/Save';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
-import DeleteIcon from '@mui/icons-material/Delete';
 import { saveTemplate, getTemplates, deleteTemplate, resetToDefaultTemplates } from '../services/templateService';
 import { 
   saveTemplate as saveTemplateApi, 
@@ -257,12 +257,12 @@ export const PrescriptionForm = forwardRef(({
 
   const [newTest, setNewTest] = useState("");
   const [signature, setSignature] = useState(initialData.signature || "");
-  const canvasRef = useRef(null);
-  const [isDrawing, setIsDrawing] = useState(false);
+ 
+  console.log(initialData);
 
   // Initialize complaints with initialData or default
   const [complaints, setComplaints] = useState(
-     [
+      [
       { complaint: '', severity: '', frequency: '', duration: '', notes: '', isEditing: false }
     ]
   );
@@ -346,7 +346,7 @@ export const PrescriptionForm = forwardRef(({
 
   // Initialize medications with initialData or default
   const [medications, setMedications] = useState(
-    [
+     [
     { medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false }
     ]
   );
@@ -591,6 +591,8 @@ export const PrescriptionForm = forwardRef(({
     };
     
     console.log('Updated complaints after click away:', updatedComplaints);
+    // Update both states
+    setComplaints(updatedComplaints);
     setPrescription({
       ...prescription,
       complaints: updatedComplaints
@@ -599,32 +601,15 @@ export const PrescriptionForm = forwardRef(({
 
   // Also modify the handleComplaintChange function to include the auto-close behavior
   const handleComplaintChange = (index, field, value) => {
-    debugger; // Debug point 2: Start of complaint change
-    console.log('Complaint change initiated:', { index, field, value });
-    console.log('Current complaints state:', prescription.complaints);
-    
     const updatedComplaints = [...prescription.complaints];
-    // Preserve all existing data while updating the specific field
-    updatedComplaints[index] = {
-      ...updatedComplaints[index],
-      [field]: value
-    };
-
-    debugger; // Debug point 3: After updating complaint field
-    console.log('Complaints after field update:', updatedComplaints);
-
+    updatedComplaints[index][field] = value;
+    
     // Check if all main fields in the current row have values
     const currentRow = updatedComplaints[index];
-    const hasAllMainFields = currentRow.complaint && 
-                           currentRow.severity && 
-                           currentRow.frequency && 
-                           currentRow.duration;
+    const hasAllMainFields = currentRow.complaint && currentRow.severity && currentRow.duration;
 
     // If all main fields are filled and this is the last row, add a new row
     if (hasAllMainFields && index === prescription.complaints.length - 1) {
-      debugger; // Debug point 4: Before adding new row
-      console.log('All fields filled, adding new row');
-      
       // Add a small delay to ensure the current row's state is updated
       setTimeout(() => {
         const newComplaints = [
@@ -638,9 +623,6 @@ export const PrescriptionForm = forwardRef(({
             isEditing: false
           }
         ];
-        
-        debugger; // Debug point 5: Before setting state with new row
-        console.log('Complaints with new row:', newComplaints);
         
         setPrescription({
           ...prescription,
@@ -683,6 +665,8 @@ export const PrescriptionForm = forwardRef(({
       
       console.log('New complaints state to be set:', newComplaints);
       
+      // Update both states
+      setComplaints(newComplaints);
       setPrescription({
         ...prescription,
         complaints: newComplaints
@@ -832,12 +816,50 @@ export const PrescriptionForm = forwardRef(({
     setIsLoadingPrescriptions(true);
     try {
       // Import the fetchPastPrescriptions function from the fixed service
-      const { fetchPastPrescriptions } = await import('../services/dummyDataServiceFixed');
+      const { getPastPrescriptions  } = await import('../services/api');
       
       // Fetch past prescriptions for the patient
+      debugger;
       console.log("Calling fetchPastPrescriptions with ID:", patientInfo.id);
-      const prescriptions = await fetchPastPrescriptions(patientInfo.id);
-      console.log("Fetched prescriptions:", prescriptions);
+      const response = await getPastPrescriptions(patientInfo.id, cabinId);
+      console.log("Fetched prescriptions response:", response);
+      
+      // Handle the new response structure
+      let prescriptions = [];
+      
+      if (!response) {
+        console.warn("No response received from fetchPastPrescriptions");
+        showNotification("No past prescriptions data available", "warning");
+      } else if (response.prescription && Array.isArray(response.prescription)) {
+        // Map the new structure to match the expected format
+        prescriptions = response.prescription.map((item, index) => ({
+          id: index, // Generate an id if not present
+          date: new Date().toISOString(), // Use current date if not present
+          medications: item.medicines && item.medicines.length > 0 ? 
+            // Map medicines to the expected format
+            item.medicines.map(med => ({
+              medicine: med.name || '',
+              dose: med.dose || '',
+              timing: med.when || '',
+              frequency: med.frequency || '',
+              duration: med.duration || '',
+              notes: med.notes || ''
+            })) : []
+        }));
+        
+        // Filter out prescriptions with no medications
+        prescriptions = prescriptions.filter(p => p.medications && p.medications.length > 0);
+      } else if (response && Array.isArray(response)) {
+        // Handle the old response format
+        prescriptions = response;
+      } else {
+        // Handle unexpected response format
+        console.error("Unexpected response format:", response);
+        showNotification("Error loading past prescriptions: Unexpected data format", "error");
+        prescriptions = [];
+      }
+      
+      console.log("Processed prescriptions:", prescriptions);
       
       if (prescriptions && prescriptions.length > 0) {
         setPastPrescriptions(prescriptions);
@@ -860,22 +882,26 @@ export const PrescriptionForm = forwardRef(({
     
     // Filter out medications that already exist in the current list
     const existingMedicineNames = medications.map(med => med.medicine.toLowerCase());
-    const newMedications = pastMedications.filter(med => 
-      !existingMedicineNames.includes(med.medicine.toLowerCase())
-    );
+    
+    // Handle both old and new structure
+    const newMedications = pastMedications.filter(med => {
+      const medicineName = (med.medicine || med.name || '').toLowerCase();
+      return medicineName && !existingMedicineNames.includes(medicineName);
+    });
     
     console.log('New medications to add (duplicates filtered):', newMedications);
     
     // Skip if no new medications to add (silently ignore duplicates)
     if (newMedications.length === 0) {
+      showNotification("No new medications to add", "info");
       return;
     }
     
     // Add isEditing property to each medication and ensure all required fields are present
     const medicationsWithEditing = newMedications.map(med => ({
-      medicine: med.medicine || '',
+      medicine: med.medicine || med.name || '',
       dose: med.dose || '',
-      timing: med.timing || '',
+      timing: med.timing || med.when || '',
       frequency: med.frequency || '',
       duration: med.duration || '',
       notes: med.notes || '',
@@ -909,10 +935,7 @@ export const PrescriptionForm = forwardRef(({
     
     // Set the medications state
     setMedications(updatedMedications);
-    console.log('Updated medications state with new medications');
-    
-    // Don't close the modal - allow user to copy from multiple past prescriptions
-    // Don't update the parent component to avoid triggering form submission
+    showNotification(`Added ${medicationsWithEditing.length} medications from past prescription`, "success");
   };
 
   // Function to handle opening the save template dialog
@@ -1242,7 +1265,7 @@ export const PrescriptionForm = forwardRef(({
             };
           }
           
-          // Otherwise, transform from API format to expected format
+          // Transform from API format to expected format
           return {
             complaint: item.name || '',
             severity: item.severity || '',
@@ -1254,13 +1277,16 @@ export const PrescriptionForm = forwardRef(({
         });
         
         itemCount = complaintsData.length;
+        console.log('Transformed complaints data:', complaintsData);
         
-        const nonEmptyComplaints = complaints.filter(complaint => 
+        // Check if there are non-empty complaints in the current state
+        const nonEmptyComplaints = prescription.complaints.filter(complaint => 
           complaint.complaint && complaint.complaint.trim()
         );
         
         const hasEmptyComplaintsTable = nonEmptyComplaints.length === 0;
         
+        // If table is empty, replace it; otherwise append the template data
         let updatedComplaints = hasEmptyComplaintsTable
           ? complaintsData
           : [...nonEmptyComplaints, ...complaintsData];
@@ -1268,14 +1294,24 @@ export const PrescriptionForm = forwardRef(({
         // Add empty row at the end if needed
         if (updatedComplaints.length === 0 || updatedComplaints[updatedComplaints.length - 1].complaint) {
           updatedComplaints.push({
-            complaint: "",
-            severity: "",
-            duration: "",
+            complaint: '',
+            severity: '',
+            duration: '',
+            frequency: '',
+            notes: '',
             isEditing: false
           });
         }
         
+        console.log('Setting complaints to:', updatedComplaints);
+        
+        // Update both state variables
         setComplaints(updatedComplaints);
+        setPrescription(prev => ({
+          ...prev,
+          complaints: updatedComplaints
+        }));
+        
         break;
     }
     
@@ -1855,6 +1891,38 @@ export const PrescriptionForm = forwardRef(({
     handleSelectionStart();
   };
 
+  // Add useEffect to handle initialData changes
+  useEffect(() => {
+    if (initialData) {
+      console.log('Setting initial data:', initialData);
+      
+      // Update complaints
+      if (initialData.complaints && initialData.complaints.length > 0) {
+        setComplaints(initialData.complaints);
+      }
+      
+      // Update diagnoses
+      if (initialData.diagnoses && initialData.diagnoses.length > 0) {
+        setDiagnoses(initialData.diagnoses);
+      }
+      
+      // Update medications
+      if (initialData.medications && initialData.medications.length > 0) {
+        setMedications(initialData.medications);
+      }
+      
+      // Update prescription state
+      setPrescription(prev => ({
+        ...prev,
+        ...initialData,
+        vitals: {
+          ...prev.vitals,
+          ...initialData.vitals
+        }
+      }));
+    }
+  }, [initialData]);
+
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <Container className="prescription-container" sx={{ 
@@ -2126,33 +2194,13 @@ export const PrescriptionForm = forwardRef(({
                               }
                             }}
                             onChange={(_, value) => {
-                              debugger; // Debug point 10: When complaint value changes
-                              console.log('Complaint value changing:', { index, value });
-                              console.log('Current complaint row:', row);
-                              
-                              // First update the complaint value
                               handleComplaintChange(index, 'complaint', value);
-                              
-                              // Then ensure editing state is preserved
-                              const updatedComplaintsWithEditing = [...prescription.complaints];
-                              updatedComplaintsWithEditing[index] = {
-                                ...updatedComplaintsWithEditing[index],
-                                complaint: value,
-                                isEditing: true
-                              };
-                              
-                              debugger; // Debug point 11: Before setting state after complaint selection
-                              console.log('Setting complaints state after selection:', updatedComplaintsWithEditing);
-                              
-                              setPrescription(prev => {
-                                debugger; // Debug point 12: Inside setPrescription callback
-                                console.log('Previous prescription state:', prev);
-                                const newState = {
-                                  ...prev,
-                                  complaints: updatedComplaintsWithEditing
-                                };
-                                console.log('New prescription state:', newState);
-                                return newState;
+                              // Keep isEditing true after selection
+                              const updatedComplaints = [...prescription.complaints];
+                              updatedComplaints[index].isEditing = true;
+                              setPrescription({
+                                ...prescription,
+                                complaints: updatedComplaints
                               });
                             }}
                             renderInput={(params) => (
@@ -2322,7 +2370,7 @@ export const PrescriptionForm = forwardRef(({
                           />
                         </TableCell>
                         <TableCell>
-                          {prescription.complaints.length > 1 && index !== prescription.complaints.length - 1 && (
+                          {prescription.complaints.length >= 1  && (
                             <IconButton
                               size="small"
                               onClick={(e) => {
@@ -2514,7 +2562,7 @@ export const PrescriptionForm = forwardRef(({
                           />
                         </TableCell>
                         <TableCell>
-                          {diagnoses.length > 1 && index !== diagnoses.length - 1 && (
+                          {diagnoses.length >= 1 && (
                             <IconButton
                               size="small"
                               onClick={(e) => {
@@ -2715,24 +2763,17 @@ export const PrescriptionForm = forwardRef(({
                               console.log('Medications after selection:', JSON.stringify(updatedMedications));
                             }}
                             renderOption={(props, option) => {
-                              console.log('renderOption called with option:', option);
-                              
-                              // Create a unique key based on medicine properties
-                              const uniqueKey = option.data ? 
-                                `${option.value}-${option.data.dose || ''}-${option.data.when || ''}-${option.data.frequency || ''}-${option.data.duration || ''}` :
-                                `${option.value || option.name || ''}-${Date.now()}`;
+                              if (!option) return null;
                               
                               // If option is a string, just render it
                               if (typeof option === 'string') {
-                                return <li {...props} key={uniqueKey}>{option}</li>;
+                                return <li {...props}>{option}</li>;
                               }
                               
-                              // If option has a label that's a React element, use it
-                              if (option.label && React.isValidElement(option.label)) {
-                                return <li {...props} key={uniqueKey}>{option.label}</li>;
-                              }
+                              // Create a unique key safely
+                              const uniqueKey = `${option.value || option.name || ''}-${Date.now()}`;
                               
-                              // Otherwise, build a custom option display
+                              // Get the display data safely
                               const medicineName = option.value || option.name || '';
                               const genericName = option.data?.generic_name || '';
                               const dose = option.data?.dose || '';
@@ -2854,7 +2895,6 @@ export const PrescriptionForm = forwardRef(({
                             size="small"
                             options={medicineTimings}
                             value={row.timing || ''}
-                            // Regular dropdown behavior for other fields
                             open={Boolean(row.isEditing)}
                             onClose={(e, reason) => {
                               if (reason === 'selectOption' || selectionInProgress) {
@@ -2866,6 +2906,12 @@ export const PrescriptionForm = forwardRef(({
                               handleSelectionStart();
                               handleMedicationChange(index, 'timing', value || '');
                             }}
+                            getOptionLabel={(option) => {
+                              return typeof option === 'string' ? option : '';
+                            }}
+                            renderOption={(props, option) => (
+                              <li {...props}>{typeof option === 'string' ? option : ''}</li>
+                            )}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
@@ -2874,13 +2920,9 @@ export const PrescriptionForm = forwardRef(({
                                 onFocus={(e) => {
                                   if (readOnly) return;
                                   e.stopPropagation();
-                                  // Only set editing state if not clicking on notes
-                                  const isNotesField = e.target.closest('td')?.querySelector('#med-notes-' + index);
-                                  if (!isNotesField) {
-                                    const updatedMedications = [...medications];
-                                    updatedMedications[index].isEditing = true;
-                                    setMedications(updatedMedications);
-                                  }
+                                  const updatedMedications = [...medications];
+                                  updatedMedications[index].isEditing = true;
+                                  setMedications(updatedMedications);
                                 }}
                               />
                             )}
@@ -2893,7 +2935,6 @@ export const PrescriptionForm = forwardRef(({
                             size="small"
                             options={medicineFrequency}
                             value={row.frequency || ''}
-                            // Regular dropdown behavior for other fields
                             open={Boolean(row.isEditing)}
                             onClose={(e, reason) => {
                               if (reason === 'selectOption' || selectionInProgress) {
@@ -2905,6 +2946,12 @@ export const PrescriptionForm = forwardRef(({
                               handleSelectionStart();
                               handleMedicationChange(index, 'frequency', value || '');
                             }}
+                            getOptionLabel={(option) => {
+                              return typeof option === 'string' ? option : '';
+                            }}
+                            renderOption={(props, option) => (
+                              <li {...props}>{typeof option === 'string' ? option : ''}</li>
+                            )}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
@@ -2913,13 +2960,9 @@ export const PrescriptionForm = forwardRef(({
                                 onFocus={(e) => {
                                   if (readOnly) return;
                                   e.stopPropagation();
-                                  // Only set editing state if not clicking on notes
-                                  const isNotesField = e.target.closest('td')?.querySelector('#med-notes-' + index);
-                                  if (!isNotesField) {
-                                    const updatedMedications = [...medications];
-                                    updatedMedications[index].isEditing = true;
-                                    setMedications(updatedMedications);
-                                  }
+                                  const updatedMedications = [...medications];
+                                  updatedMedications[index].isEditing = true;
+                                  setMedications(updatedMedications);
                                 }}
                               />
                             )}
@@ -2932,7 +2975,6 @@ export const PrescriptionForm = forwardRef(({
                             size="small"
                             options={medicineDuration}
                             value={row.duration || ''}
-                            // Regular dropdown behavior for other fields
                             open={Boolean(row.isEditing)}
                             onClose={(e, reason) => {
                               if (reason === 'selectOption' || selectionInProgress) {
@@ -2944,6 +2986,12 @@ export const PrescriptionForm = forwardRef(({
                               handleSelectionStart();
                               handleMedicationChange(index, 'duration', value || '');
                             }}
+                            getOptionLabel={(option) => {
+                              return typeof option === 'string' ? option : '';
+                            }}
+                            renderOption={(props, option) => (
+                              <li {...props}>{typeof option === 'string' ? option : ''}</li>
+                            )}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
@@ -2952,13 +3000,9 @@ export const PrescriptionForm = forwardRef(({
                                 onFocus={(e) => {
                                   if (readOnly) return;
                                   e.stopPropagation();
-                                  // Only set editing state if not clicking on notes
-                                  const isNotesField = e.target.closest('td')?.querySelector('#med-notes-' + index);
-                                  if (!isNotesField) {
-                                    const updatedMedications = [...medications];
-                                    updatedMedications[index].isEditing = true;
-                                    setMedications(updatedMedications);
-                                  }
+                                  const updatedMedications = [...medications];
+                                  updatedMedications[index].isEditing = true;
+                                  setMedications(updatedMedications);
                                 }}
                               />
                             )}
@@ -2979,14 +3023,14 @@ export const PrescriptionForm = forwardRef(({
                           />
                         </TableCell>
                         <TableCell>
-                          {!readOnly && (
+                          {medications.length >= 1 && (
                             <IconButton
                               size="small"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setMedications(medications.filter((_, i) => i !== index));
                               }}
-                              style={{ visibility: (medications.length > 1 && index !== medications.length - 1) ? 'visible' : 'hidden' }}
+                              style={{ visibility: (medications.length >= 1 ) ? 'visible' : 'hidden' }}
                             >
                               <RemoveCircleOutline fontSize="small" color="error" />
                             </IconButton>
@@ -3109,8 +3153,6 @@ export const PrescriptionForm = forwardRef(({
               </Button>
               )}
             </Grid>
-            
-            <Grid item xs={12} sx={{ height: '120px' }}></Grid>
           </Box>
         </form>
       </Container>
@@ -3182,7 +3224,11 @@ export const PrescriptionForm = forwardRef(({
                       color="primary"
                       size="small"
                       startIcon={<ContentCopyIcon />}
-                      onClick={() => copyMedicationsFromPast(prescription.medications)}
+                      onClick={() => {
+                        copyMedicationsFromPast(prescription.medications);
+                        setPastPrescriptionsOpen(false); // Close the modal after copying
+                      }}
+                      disabled={!prescription.medications || prescription.medications.length === 0}
                     >
                       Copy Medications
                     </Button>
@@ -3203,16 +3249,22 @@ export const PrescriptionForm = forwardRef(({
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {prescription.medications.map((med, i) => (
-                            <TableRow key={i}>
-                              <TableCell>{med.medicine}</TableCell>
-                              <TableCell>{med.dose}</TableCell>
-                              <TableCell>{med.timing}</TableCell>
-                              <TableCell>{med.frequency}</TableCell>
-                              <TableCell>{med.duration}</TableCell>
-                              <TableCell>{med.notes}</TableCell>
+                          {prescription.medications && prescription.medications.length > 0 ? (
+                            prescription.medications.map((med, i) => (
+                              <TableRow key={i}>
+                                <TableCell>{med.medicine || med.name || ''}</TableCell>
+                                <TableCell>{med.dose || ''}</TableCell>
+                                <TableCell>{med.timing || med.when || ''}</TableCell>
+                                <TableCell>{med.frequency || ''}</TableCell>
+                                <TableCell>{med.duration || ''}</TableCell>
+                                <TableCell>{med.notes || ''}</TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={6} align="center">No medications in this prescription</TableCell>
                             </TableRow>
-                          ))}
+                          )}
                         </TableBody>
                       </Table>
                     </TableContainer>
@@ -3370,10 +3422,23 @@ export const PrescriptionForm = forwardRef(({
                           width: '100%',
                           pr: 2 
                         }}>
-                          <Typography variant="subtitle1" fontWeight="500">
+                          <Typography variant="subtitle1" fontWeight="700">
                             {template.name}
                           </Typography>
                           <Box>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color="primary"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleLoadTemplate(template);
+                              }}
+                              startIcon={<AddIcon />}
+                              sx={{ mr: 1 }}
+                            >
+                              Load
+                            </Button>
                             <IconButton 
                               size="small" 
                               onClick={(e) => handleEditTemplateOpen(e, template)}
@@ -3396,90 +3461,111 @@ export const PrescriptionForm = forwardRef(({
                       </AccordionSummary>
                       <AccordionDetails sx={{ pt: 0 }}>
                         <Box>
-                          {template.timestamp && (
-                            <Typography variant="body2" color="text.secondary">
-                              Created: {new Date(template.timestamp).toLocaleString()}
-                            </Typography>
-                          )}
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                            Items: {template.data.length}
-                          </Typography>
-                          
-                          <Box sx={{ mt: 2, mb: 1 }}>
+                          <Box sx={{ mt: 1, mb: 1 }}>
                             {currentTemplateType === 'medications' && (
-                              <List dense disablePadding>
-                                {template.data.map((med, idx) => {
-                                  // Handle both formats (API and local)
-                                  const medicineName = med.medicine || med.name || '';
-                                  const doseText = med.dose || '';
-                                  const timingText = med.timing || med.when || '';
-                                  const frequencyText = med.frequency || '';
-                                  const durationText = med.duration || '';
-                                  
-                                  return (
-                                    <ListItem key={idx} disablePadding sx={{ py: 0.5 }}>
-                                      <ListItemText
-                                        primary={medicineName}
-                                        secondary={`${doseText} ${timingText ? `- ${timingText}` : ''} ${frequencyText ? `- ${frequencyText}` : ''} ${durationText ? `- ${durationText}` : ''}`}
-                                      />
-                                    </ListItem>
-                                  );
-                                })}
-                              </List>
+                              <TableContainer component={Paper} sx={{ mb: 2 }}>
+                                <Table size="small">
+                                  <TableHead>
+                                    <TableRow sx={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
+                                      <TableCell>Medicine</TableCell>
+                                      <TableCell>Dose</TableCell>
+                                      <TableCell>Timing</TableCell>
+                                      <TableCell>Frequency</TableCell>
+                                      <TableCell>Duration</TableCell>
+                                    </TableRow>
+                                  </TableHead>
+                                  <TableBody>
+                                    {template.data.map((med, idx) => {
+                                      // Handle both formats (API and local)
+                                      const medicineName = med.medicine || med.name || '';
+                                      const doseText = med.dose || '';
+                                      const timingText = med.timing || med.when || '';
+                                      const frequencyText = med.frequency || '';
+                                      const durationText = med.duration || '';
+                                      
+                                      return (
+                                        <TableRow key={idx}>
+                                          <TableCell>{medicineName}</TableCell>
+                                          <TableCell>{doseText}</TableCell>
+                                          <TableCell>{timingText}</TableCell>
+                                          <TableCell>{frequencyText}</TableCell>
+                                          <TableCell>{durationText}</TableCell>
+                                        </TableRow>
+                                      );
+                                    })}
+                                  </TableBody>
+                                </Table>
+                              </TableContainer>
                             )}
                             
                             {currentTemplateType === 'diagnoses' && (
-                              <List dense disablePadding>
-                                {template.data.map((diag, idx) => {
-                                  // Handle both formats (API and local)
-                                  const diagnosisText = diag.diagnosis || diag.name || '';
-                                  const durationText = diag.duration || '';
-                                  const notesText = diag.notes || '';
-                                  
-                                  return (
-                                    <ListItem key={idx} disablePadding sx={{ py: 0.5 }}>
-                                      <ListItemText
-                                        primary={diagnosisText}
-                                        secondary={`${durationText || ''} ${notesText ? `- ${notesText}` : ''}`}
-                                      />
-                                    </ListItem>
-                                  );
-                                })}
-                              </List>
+                              <TableContainer component={Paper} sx={{ mb: 1 }}>
+                                <Table size="small">
+                                  <TableHead>
+                                    <TableRow sx={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
+                                      <TableCell>Diagnosis</TableCell>
+                                      <TableCell>Duration</TableCell>
+                                      <TableCell>Notes</TableCell>
+                                    </TableRow>
+                                  </TableHead>
+                                  <TableBody>
+                                    {template.data.map((diag, idx) => {
+                                      // Handle both formats (API and local)
+                                      const diagnosisText = diag.diagnosis || diag.name || '';
+                                      const durationText = diag.duration || '';
+                                      const notesText = diag.notes || '';
+                                      
+                                      return (
+                                        <TableRow key={idx}>
+                                          <TableCell>{diagnosisText}</TableCell>
+                                          <TableCell>{durationText}</TableCell>
+                                          <TableCell>{notesText}</TableCell>
+                                        </TableRow>
+                                      );
+                                    })}
+                                  </TableBody>
+                                </Table>
+                              </TableContainer>
                             )}
                             
                             {currentTemplateType === 'complaints' && (
-                              <List dense disablePadding>
-                                {template.data.map((comp, idx) => {
-                                  // Handle both formats (API and local)
-                                  const complaintText = comp.complaint || comp.name || '';
-                                  const severityText = comp.severity || '';
-                                  const frequencyText = comp.frequency || '';
-                                  const durationText = comp.duration || '';
-                                  
-                                  return (
-                                    <ListItem key={idx} disablePadding sx={{ py: 0.5 }}>
-                                      <ListItemText
-                                        primary={complaintText}
-                                        secondary={`${severityText} ${frequencyText ? `- ${frequencyText}` : ''} ${durationText ? `- ${durationText}` : ''}`}
-                                      />
-                                    </ListItem>
-                                  );
-                                })}
-                              </List>
+                              <TableContainer component={Paper} sx={{ mb: 1 }}>
+                                <Table size="small">
+                                  <TableHead>
+                                    <TableRow sx={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
+                                      <TableCell>Complaint</TableCell>
+                                      <TableCell>Severity</TableCell>
+                                      <TableCell>Frequency</TableCell>
+                                      <TableCell>Duration</TableCell>
+                                      <TableCell>Notes</TableCell>
+                                    </TableRow>
+                                  </TableHead>
+                                  <TableBody>
+                                    {template.data.map((comp, idx) => {
+                                      // Handle both formats (API and local)
+                                      const complaintText = comp.complaint || comp.name || '';
+                                      const severityText = comp.severity || '';
+                                      const frequencyText = comp.frequency || '';
+                                      const durationText = comp.duration || '';
+                                      const notesText = comp.notes || '';
+                                      
+                                      return (
+                                        <TableRow key={idx}>
+                                          <TableCell>{complaintText}</TableCell>
+                                          <TableCell>{severityText}</TableCell>
+                                          <TableCell>{frequencyText}</TableCell>
+                                          <TableCell>{durationText}</TableCell>
+                                          <TableCell>{notesText}</TableCell>
+                                        </TableRow>
+                                      );
+                                    })}
+                                  </TableBody>
+                                </Table>
+                              </TableContainer>
                             )}
                           </Box>
                           
-                          <Box sx={{ mt: 2, textAlign: 'right' }}>
-                            <Button 
-                              variant="contained" 
-                              color="primary"
-                              onClick={() => handleLoadTemplate(template)}
-                              startIcon={<AddIcon />}
-                            >
-                              Load Template
-                            </Button>
-                          </Box>
+                          {/* Removing the bottom load template button */}
                         </Box>
                       </AccordionDetails>
                     </Accordion>

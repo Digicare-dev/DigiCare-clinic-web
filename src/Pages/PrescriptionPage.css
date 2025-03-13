@@ -76,7 +76,7 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
   border-radius: 8px !important;
   overflow: hidden;
-  margin-bottom: 2rem !important;
+  margin-bottom: 0rem !important;
 }
 
 .MuiTable-root {
