@@ -391,10 +391,6 @@ const PatientInfoPage = () => {
     }
   }, [location.state]);
 
-  const currentAttachments = [
-    { id: 1, name: 'Blood Test Results.pdf', type: 'pdf', reportType: 'blood-test', date: '2024-03-10', size: '1.2 MB' },
-    { id: 2, name: 'ECG Report.pdf', type: 'pdf', reportType: 'ecg-test', date: '2024-03-10', size: '3.5 MB' },
-  ];
 
   const handleCreatePrescription = () => {
     // Safely extract values with optional chaining and default values
@@ -1361,7 +1357,7 @@ const PatientInfoPage = () => {
     try {
       setAttachmentsLoading(true);
       setAttachmentsError(null);
-      
+      debugger;
       // Create form data
       const formData = new FormData();
       formData.append('appointment_id', currentAppointment.appointment_id);
@@ -1847,12 +1843,12 @@ const PatientInfoPage = () => {
                         ) : attachmentsError ? (
                           <Alert 
                             severity="error" 
-                            onClick={() => {
-                              handleCloseReportsModal();
-                              handleOpenUploadModal();
-                            }}
                             action={
-                              <Button color="inherit" size="small" onClick={fetchPatientDetails}>
+                              <Button color="inherit" size="small" 
+                              onClick={() => {
+                                handleCloseReportsModal();
+                                handleOpenUploadModal();
+                              }}>
                                 Retry
                               </Button>
                             }
@@ -1877,13 +1873,10 @@ const PatientInfoPage = () => {
                                   onClick={() => handleOpenAttachment(attachment)}
                                 >
                                   <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0 }}>
-                                    <PictureAsPdf color="error" sx={{ mr: 1, fontSize: '1.5rem' }} />
-                                    <Box sx={{ minWidth: 0 }}>
+                                    {getAttachmentIcon(attachment.type)}
+                                    <Box sx={{ minWidth: 0, ml: 1 }}>
                                       <Typography variant="body2" sx={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                         {attachment.name}
-                                      </Typography>
-                                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                                        {attachment.date} • {attachment.size}
                                       </Typography>
                                     </Box>
                                   </Box>

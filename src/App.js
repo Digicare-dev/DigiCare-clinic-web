@@ -302,7 +302,7 @@ const App = () => {
                     }
                   />
 
-  <Route
+                  <Route
                     path="/patient-info"
                     element={
                       <PrivateRoute>

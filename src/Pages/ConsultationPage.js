@@ -164,6 +164,9 @@ const ConsultationPage = () => {
     weight: '',
   };
 
+  const user = JSON.parse(localStorage.getItem("user"));
+  const cabinId = user?.checkupcabindata?.[0]?.id;
+
   // Get complaints data from location state or use empty array
   const complaintsData = location.state?.complaintsData || [];
 
@@ -183,8 +186,6 @@ const ConsultationPage = () => {
     const fetchPastPrescriptions = async () => {
       try {
         setIsLoadingPrescriptions(true);
-        const user = JSON.parse(localStorage.getItem("user"));
-        const cabinId = user?.checkupcabindata?.[0]?.id;
 
         if (patientInfo.id && cabinId) {
           const response = await getPastPrescriptions(patientInfo.id, cabinId);
@@ -507,65 +508,6 @@ const ConsultationPage = () => {
 
   // Add this constant
   const hidePatientDetails = true; // Since we want to always hide patient details in consultation page
-
-  // Add sample previous prescriptions data
-  const [previousPrescriptions, setPreviousPrescriptions] = useState([
-    {
-      id: 'P001',
-      date: '2024-02-15',
-      doctor: 'Dr. Amit Mittal',
-      diagnosis: 'Hypertension',
-      vitals: {
-        bloodPressure: '140/90',
-        heartRate: '78',
-        temperature: '98.4',
-        respiratoryRate: '16',
-        spO2: '97',
-      },
-      diagnoses: [
-        { diagnosis: 'Hypertension', duration: '30 days', notes: 'Stage 1 hypertension, monitoring required' },
-        { diagnosis: 'Hyperlipidemia', duration: '30 days', notes: 'Borderline high cholesterol' }
-      ],
-      medications: [
-        { medicine: 'Amlodipine', dose: '5mg', timing: 'Morning', frequency: 'Once daily', duration: '30 days', notes: 'Take with food' },
-        { medicine: 'Hydrochlorothiazide', dose: '12.5mg', timing: 'Morning', frequency: 'Once daily', duration: '30 days', notes: 'Monitor potassium levels' }
-      ],
-      tests: ['Complete Blood Count', 'Lipid Profile'],
-      instructions: 'Reduce salt intake. Regular exercise recommended.',
-      followUp: '1 month',
-      attachments: [
-        { id: 1, name: 'Blood Test Results.pdf', type: 'pdf', reportType: 'blood-test', date: '2024-02-15', size: '1.2 MB' },
-        { id: 2, name: 'ECG Report.pdf', type: 'pdf', reportType: 'ecg-test', date: '2024-02-15', size: '3.5 MB' },
-      ]
-    },
-    {
-      id: 'P002',
-      date: '2024-01-20',
-      doctor: 'Dr. Amit Mittal',
-      diagnosis: 'Upper Respiratory Infection',
-      vitals: {
-        bloodPressure: '120/80',
-        heartRate: '82',
-        temperature: '99.2',
-        respiratoryRate: '18',
-        spO2: '96',
-      },
-      diagnoses: [
-        { diagnosis: 'Upper Respiratory Infection', duration: '7 days', notes: 'Viral etiology suspected' }
-      ],
-      medications: [
-        { medicine: 'Azithromycin', dose: '500mg', timing: 'After meals', frequency: 'Once daily', duration: '5 days', notes: 'Complete full course' },
-        { medicine: 'Paracetamol', dose: '500mg', timing: 'As needed', frequency: 'Every 6 hours', duration: '3 days', notes: 'For fever and pain relief' }
-      ],
-      tests: ['Throat Swab Culture'],
-      instructions: 'Plenty of fluids. Rest advised.',
-      followUp: '1 week if symptoms persist',
-      attachments: [
-        { id: 1, name: 'Throat Swab Results.pdf', type: 'pdf', reportType: 'lab-test', date: '2024-01-20', size: '0.8 MB' },
-        { id: 2, name: 'Chest X-Ray.jpg', type: 'image', reportType: 'image', date: '2024-01-20', size: '2.5 MB' },
-      ]
-    }
-  ]);
 
   // Add state for the file upload modal
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -1135,11 +1077,7 @@ const ConsultationPage = () => {
             </ul>
           </div>
         ` : ''}
-        
-        <div class="footer">
-          <p>This is a digital prescription issued by DigiCare Medical Center.</p>
-        </div>
-        
+      
         <button onclick="window.print(); window.close();" style="display: block; margin: 30px auto; padding: 10px 20px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer;">
           Print Prescription
         </button>
@@ -1386,8 +1324,7 @@ const ConsultationPage = () => {
       <body>
         <div class="header">
           <div class="clinic-name">DigiCare Medical Center</div>
-          <div class="doctor-info">${currentPrescriptionData.appointmentInfo?.doctor || 'Dr. Amit Mittal'}</div>
-          <div class="doctor-info">${currentPrescriptionData.appointmentInfo?.department || 'General Medicine'}</div>
+          <div class="doctor-info">Dr.${user.checkupcabindata[0].doctor}</div>
         </div>
         
         <div class="patient-info">
@@ -1522,14 +1459,7 @@ const ConsultationPage = () => {
         <div class="advice">
           ${currentPrescriptionData.followUp || 'Follow-up as advised.'}
         </div>
-        
-        <div class="footer">
-          <div></div>
-          <div class="signature">
-            <p>${currentPrescriptionData.appointmentInfo?.doctor || 'Dr. Amit Mittal'}</p>
-            <p>${currentPrescriptionData.appointmentInfo?.department || 'General Medicine'}</p>
-          </div>
-        </div>
+      
       </body>
       </html>
     `;

@@ -185,7 +185,7 @@ export const getAppointmentDetails = async (appointmentId) => {
 export const getPatientDetails = async (patientId) => {
   try {
     const response = await axiosInstance.get(
-      `/userinfo/patients/details/${patientId}`,
+      `/userinfo/patients/details/${patientId}/`,
       { withCredentials: true } 
     );
     return response.data;
@@ -198,7 +198,7 @@ export const getPatientDetails = async (patientId) => {
 export const getPrescriptions = async (appointmentId) => {
   try {
     const response = await axiosInstance.get(
-      `/prescriptions/${appointmentId}`,
+      `/prescriptions/${appointmentId}/`,
       { withCredentials: true }
     );
     return response.data;
@@ -211,7 +211,7 @@ export const getPrescriptions = async (appointmentId) => {
 export const getCurrentPrescription = async (appointment_id) => {
   try {
     const response = await axiosInstance.get(
-      `/prescriptions/${appointment_id}`,
+      `/prescriptions/${appointment_id}/`,
       { withCredentials: true }
     );
     return response.data;
@@ -326,7 +326,7 @@ export const editTemplate = async (template_type, template_name, cabin_id, paylo
 export const getVitals = async(appointment_id) => {
   try {
     const response = await axiosInstance.get(
-      `prescriptions/vitals/${appointment_id}`,
+      `prescriptions/vitals/${appointment_id}/`,
       {withCredentials:true}
     );
     return response.data;
@@ -353,7 +353,7 @@ export const manageVitals = async(payload) => {
 export const getAttachments = async(appointment_id) => {
   try {
     const response = await axiosInstance.get(
-      `prescriptions/attachments/${appointment_id}`,
+      `prescriptions/attachments/${appointment_id}/`,
       {withCredentials:true}
     );
     return response.data;
