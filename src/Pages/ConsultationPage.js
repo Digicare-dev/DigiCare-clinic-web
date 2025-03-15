@@ -411,9 +411,9 @@ useEffect(() => {
         });
       });
     }
-    
+    debugger;
     const payload = {
-      appointment_id: appointmentInfo.appointment_id || "",
+      appointment_id: appointmentInfo.id || "",
       complaints: Array.isArray(formData.complaints) 
         ? formData.complaints.filter(complaint => complaint.complaint || complaint.duration || complaint.severity).map(complaint => ({
             name: complaint.complaint || "",
