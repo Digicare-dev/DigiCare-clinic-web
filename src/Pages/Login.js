@@ -1,7 +1,8 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { login as loginService } from "../services/authService";
+import { getAutoLogoutMessage } from "../utils/authUtils";
 import {
   TextField,
   Button,
@@ -41,6 +42,18 @@ const Login = () => {
   });
   const [error, setError] = useState("");
 
+  // Check for auto logout message on component mount
+  useEffect(() => {
+    const autoLogoutInfo = getAutoLogoutMessage();
+    if (autoLogoutInfo) {
+      setSnackbar({
+        open: true,
+        message: autoLogoutInfo.message,
+        severity: autoLogoutInfo.severity,
+      });
+    }
+  }, []);
+
   if (user) {
     return <Navigate to="/" replace />;
   }
@@ -76,10 +89,20 @@ const Login = () => {
         navigate("/");
       } else {
         setError(response.message || "Login failed. Please try again.");
+        setSnackbar({
+          open: true,
+          message: response.message || "Login failed. Please try again.",
+          severity: "error",
+        });
       }
     } catch (error) {
       console.error("Login error:", error);
       setError("An error occurred during login. Please try again.");
+      setSnackbar({
+        open: true,
+        message: "An error occurred during login. Please try again.",
+        severity: "error",
+      });
     } finally {
       setLoading(false);
     }
