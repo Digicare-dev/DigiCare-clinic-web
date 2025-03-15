@@ -613,9 +613,9 @@ export default function AppointmentTable() {
       guardian: params.row.guardian || "",
       location: params.row.location || "",
       disease: params.row.disease || "",
-      appointment_type: params.row.appointment_type || "New",
-      mode: params.row.mode || "cash",
-      fees_paid: params.row.fees_paid || 0
+      appointment_type: params.row.appointment_type ,
+      mode: params.row.mode ,
+      fees_paid: params.row.fees_paid 
     };
     
     setSelectedAppointment(appointmentData);
@@ -1198,7 +1198,7 @@ export default function AppointmentTable() {
             <FormControl fullWidth>
               <InputLabel>Appointment Type</InputLabel>
               <Select
-                value={selectedAppointment.appointment_type || "New"}
+                value={selectedAppointment.appointment_type}
                 onChange={(e) =>
                   setSelectedAppointment((prev) => ({
                     ...prev,
@@ -1211,6 +1211,7 @@ export default function AppointmentTable() {
                 <MenuItem value="Follow-up">Follow-up</MenuItem>
                 <MenuItem value="Emergency">Emergency</MenuItem>
                 <MenuItem value="Routine">Routine</MenuItem>
+                <MenuItem value="Cancelled">Cancelled</MenuItem>
               </Select>
             </FormControl>
             <TextField
