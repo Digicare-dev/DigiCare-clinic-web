@@ -805,19 +805,20 @@ const PatientInfoPage = () => {
   const handleOpenAppointmentDetails = (appointment) => {
     // Instead of navigating, set the appointment data and open the modal
     setSelectedAppointment({
-      id: appointment.id || appointment.appointment_id,
-      status: appointment.status || 'completed',
-      checkin: true,
-      paid: true,
-      token: appointment.token || '',
-      appointment_type: appointment.type || appointment.appointment_type || 'Follow-up',
-      disease: appointment.diagnosis || appointment.disease || '',
-      fees_paid: appointment.fees || 500,
-      mode: appointment.paymentMode || 'cash',
+      patient: {...appointment.patient},
+      id: appointment.appointment_id,
+      status: appointment.status,
+      checkin: appointment.checkin,
+      paid: appointment.paid,
+      token: appointment.token ,
+      appointment_type: appointment.appointment_type ,
+      disease: appointment.disease,
+      fees_paid: appointment.fees_paid,
+      mode: appointment.mode,
       date: appointment.date || new Date(appointment.slot).toLocaleDateString(),
       time: appointment.time || new Date(appointment.slot).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       doctor: appointment.doctor || user.checkupcabindata?.[0]?.doctor || '',
-      department: appointment.department || 'General Medicine'
+      department: appointment.department || "",
     });
     setAppointmentDetailsOpen(true);
   };
@@ -1677,7 +1678,7 @@ const PatientInfoPage = () => {
                   </TableHead>
                   <TableBody>
                     {pastAppointments.map((appointment) => (
-                      <TableRow key={appointment.id}>
+                      <TableRow key={appointment.appointment_id}>
                         <TableCell>{formatDate(appointment.slot)}</TableCell>
                         <TableCell>{appointment.appointment_type}</TableCell>
                         <TableCell>
@@ -2324,35 +2325,43 @@ const PatientInfoPage = () => {
                 <Avatar 
                   sx={{ width: 56, height: 56, bgcolor: 'primary.main', mr: 2 }}
                 >
-                  {patient.name ? patient.name.charAt(0) : 'P'}
+                  {selectedAppointment.patient.name ? selectedAppointment.patient.name.charAt(0) : 'P'}
                 </Avatar>
                 <Box>
-                  <Typography variant="h6">{patient.name || 'Unknown Patient'}</Typography>
+                  <Typography variant="h6">{selectedAppointment.patient.name || 'Unknown Patient'}</Typography>
+                  <Box sx={{display: 'flex', flexDirection: 'row', gap: 1}}>
                   <Typography variant="body2" color="text.secondary">
-                    ID: {patient.id || 'Unknown'} | {patient.age} years | {patient.gender}
+                    ID: {selectedAppointment.patient.patient_id || 'Unknown'} 
                   </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                     {selectedAppointment.patient.age  }
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                     {selectedAppointment.patient.gender}
+                  </Typography>
+                  </Box>
                 </Box>
               </Box>
 
               <Grid container spacing={2} sx={{ mb: 3 }}>
-                <Grid item xs={12} sm={6} md={4}>
+                {selectedAppointment.patient.phone_number && <Grid item xs={12} sm={6} md={4}>
                   <TextField
                     fullWidth
                     label="Phone Number"
-                    value={patient.phone}
+                    value={selectedAppointment.patient.phone_number}
                     InputProps={{ readOnly: true }}
                     variant="outlined"
                     size="small"
                     margin="normal"
                   />
-                </Grid>
+                </Grid>}
                 
-                {patient.location && (
+                {selectedAppointment.patient.location && (
                   <Grid item xs={12} sm={6} md={4}>
                     <TextField
                       fullWidth
                       label="Location"
-                      value={patient.location}
+                      value={selectedAppointment.patient.location}
                       InputProps={{ readOnly: true }}
                       variant="outlined"
                       size="small"
@@ -2361,12 +2370,12 @@ const PatientInfoPage = () => {
                   </Grid>
                 )}
                 
-                {patient.guardian && (
+                {selectedAppointment.patient.guardian && (
                   <Grid item xs={12} sm={6} md={4}>
                     <TextField
                       fullWidth
                       label="Guardian Name"
-                      value={patient.guardian}
+                      value={selectedAppointment.patient.guardian}
                       InputProps={{ readOnly: true }}
                       variant="outlined"
                       size="small"
@@ -2391,15 +2400,6 @@ const PatientInfoPage = () => {
                     </Typography>
                     <Typography variant="body1">
                       {selectedAppointment.date || 'Not scheduled'}
-                    </Typography>
-                  </Box>
-                  
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Time
-                    </Typography>
-                    <Typography variant="body1">
-                      {selectedAppointment.time || 'Time not set'}
                     </Typography>
                   </Box>
                   

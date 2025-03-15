@@ -60,6 +60,12 @@ const App = () => {
   const [currentCabinSlot, setCurrentCabinSlot] = useState("2024-03-10T09:00:00.000Z");
   const { pdfViewerState, openPdfViewer, closePdfViewer } = usePDFViewer();
   
+  // Get user from AuthContext instead of localStorage to ensure re-renders
+  const { user: authUser } = useContext(AuthContext);
+  
+  // Use authUser for conditional rendering
+  const currentUser = authUser || user;
+
   // Declare eventSource at component level
   let eventSource;
 
@@ -83,7 +89,7 @@ const App = () => {
     if (cabinId && selectedSlot) {
       fetchInitialData();
     }
-  }, [cabinId]);
+  }, [cabinId, selectedSlot, currentUser]);
 
   useEffect(() => {
     if (patients.length > 0 && currentPosition !== null) {
@@ -106,83 +112,76 @@ const App = () => {
     const encodedDate = encodeURIComponent(formattedDate);
     const sseUrl = `${API_BASE_URL}/doctorinfo/queue_updates/${cabinId}/${encodedDate}`;
 
-    eventSource = new EventSource(sseUrl, { withCredentials: true });
-
-    eventSource.onmessage = (event) => {
-      try {
-        const parsedData = JSON.parse(event.data);
-
-        // console.log("SSE Data:", parsedData);
-        if (parsedData.queue) {
-          // Update the patients array with the new patient data
-          setPatients((prevPatients) => {
-            const updatedPatient = {
-              position: parsedData.queue.position,
-              late: parsedData.queue.late || false,
-              status: parsedData.queue.status || "pending",
-              paid: parsedData.queue.paid || false,
-              checkin: parsedData.queue.checkin || false,
-              appointment: parsedData.queue.appointment
-            };
-
-            // Find if the patient already exists
-            const existingIndex = prevPatients.findIndex(
-              (p) => p.appointment.appointment_id === parsedData.queue.appointment.appointment_id
-            );
-
-            const newPatients = [...prevPatients];
-            if (existingIndex !== -1) {
-              newPatients[existingIndex] = updatedPatient;
-            } else {
-              newPatients.push(updatedPatient);
-            }
-            return newPatients.sort((a, b) => a.position - b.position);
-          });
-        } else if (parsedData.cabinslot) {
-          setCurrentPosition(parsedData.cabinslot.current_number);
-        }
-      } catch (error) {
-        // console.error("Error parsing SSE data:", error);
+    let reconnectAttempt = 0;
+    let reconnectTimer = null;
+    
+    const connectEventSource = () => {
+      // Close existing connection if any
+      if (eventSource) {
+        eventSource.close();
       }
-    };
+      
+      eventSource = new EventSource(sseUrl, { withCredentials: true });
 
-    eventSource.onerror = (error) => {
-      // console.error("EventSource failed:", error);
-      eventSource.close();
+      eventSource.onmessage = (event) => {
+        try {
+          const parsedData = JSON.parse(event.data);
+
+          // console.log("SSE Data:", parsedData);
+          if (parsedData.queue) {
+            // Update the patients array with the new patient data
+            setPatients((prevPatients) => {
+              const updatedPatient = {
+                position: parsedData.queue.position,
+                late: parsedData.queue.late || false,
+                status: parsedData.queue.status || "pending",
+                paid: parsedData.queue.paid || false,
+                checkin: parsedData.queue.checkin || false,
+                appointment: parsedData.queue.appointment
+              };
+
+              // Find if the patient already exists
+              const existingIndex = prevPatients.findIndex(
+                (p) => p.appointment.appointment_id === parsedData.queue.appointment.appointment_id
+              );
+
+              const newPatients = [...prevPatients];
+              if (existingIndex !== -1) {
+                newPatients[existingIndex] = updatedPatient;
+              } else {
+                newPatients.push(updatedPatient);
+              }
+              return newPatients.sort((a, b) => a.position - b.position);
+            });
+          } else if (parsedData.cabinslot) {
+            setCurrentPosition(parsedData.cabinslot.current_number);
+          }
+        } catch (error) {
+          // console.error("Error parsing SSE data:", error);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        // console.error("EventSource failed:", error);
+        eventSource.close();
+      };
     };
+    
+    // Initial connection
+    connectEventSource();
 
     return () => {
       if (eventSource) {
         eventSource.close();
-        // console.log("SSE connection cleaned up");
+        console.log("SSE connection cleaned up");
+      }
+      
+      // Clear any pending reconnect timer on unmount
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
       }
     };
-  }, [cabinId]);
-
-  const fetchPatientsData = useCallback(async () => {
-    setLoading(true);
-    try {      
-      const patients = await fetchPatients(cabinId, selectedSlot);
-      setPatients(patients);
-    } catch (error) {
-      console.error("Error fetching dummy patients:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const fetchCurrentPositionData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { current_number } = await fetchCurrentPosition(cabinId, selectedSlot);
-      setCurrentPosition(current_number);
-      return current_number;
-    } catch (error) {
-      console.error("Error fetching dummy current position:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  }, [cabinId, selectedSlot, currentUser]);
 
   const handleNextPatient = async (id) => {    
       const result = await markPatientAsDone(id);
@@ -231,7 +230,7 @@ const App = () => {
         <Router>
           <AppointmentForm />
           <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-            {user !== null && (
+            {currentUser !== null && (
               <Header 
                 patients={patients || []} 
                 closeEventSource={() => {}} 
@@ -244,7 +243,7 @@ const App = () => {
                 overflow: "hidden",
               }}
             >
-              {!isMobile && user !== null && <Sidebar />}
+              {!isMobile && currentUser !== null && <Sidebar />}
               <Box
                 component="main"
                 sx={{
@@ -259,7 +258,7 @@ const App = () => {
                 <Routes>
                   <Route
                     path="/login"
-                    element={user ? <Navigate to="/" replace /> : <Login />}
+                    element={currentUser ? <Navigate to="/" replace /> : <Login />}
                   />
                   <Route
                     path="/"
@@ -273,7 +272,6 @@ const App = () => {
                           handleNextPatient={handleNextPatient}
                           handleLatePatient={handleLatePatient}
                           shufflePosition={shufflePosition}
-                          fetchPatientsData={fetchPatientsData}
                         />
                       </PrivateRoute>
                     }
@@ -283,7 +281,6 @@ const App = () => {
                     element={
                       <PrivateRoute>
                         <AppointmentTable 
-                          fetchPatientsData={fetchPatientsData}
                           currentCabinSlot={currentCabinSlot}
                         />
                       </PrivateRoute>
@@ -361,7 +358,6 @@ const App = () => {
                           handleLatePatient={(id, pos) => handleLatePatient(id, pos)}
                           shufflePosition={(payload) => shufflePosition(payload)}
                           loading={loading}
-                          fetchPatientsData={fetchPatientsData}
                         />
                       </PrivateRoute>
                     }
@@ -379,7 +375,7 @@ const App = () => {
                 </Routes>
               </Box>
             </Box>
-            {user !== null && isMobile && <BottomNavigator />}
+            {currentUser !== null && isMobile && <BottomNavigator />}
             
             {/* Global appointment form - available from anywhere */}
             <AppointmentForm />
