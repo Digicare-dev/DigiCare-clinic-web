@@ -36,7 +36,7 @@ const modalStyle = {
 };
 
 const AppointmentForm = () => {
-  const { isOpen, closeAppointmentForm, initialData } = useAppointmentForm();
+  const { isOpen, closeAppointmentForm, initialData, updateMaxToken, getMaxToken } = useAppointmentForm();
   const [suggestedToken, setSuggestedToken] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
@@ -116,32 +116,54 @@ const AppointmentForm = () => {
         }));
       }
       
-      // Get the maximum token number from the API
+      // Get the maximum token number from the API or context
       const fetchMaxToken = async () => {
         try {
-          // Get the actual maximum token from appointments
-          const maxToken = await getMaxTokenNumber(cabinId, selectedSlot);
-          console.log("Current maximum token:", maxToken);
+          // First check if we already have a cached maxToken for this cabin and slot
+          const cachedMaxToken = getMaxToken(cabinId, selectedSlot);
           
-          // Set the token to max + 1 (or 1 if no tokens exist)
-          const nextToken = maxToken + 1;
-          
-          // Set the token in the form
-          setNewAppointment(prev => ({
-            ...prev,
-            token: nextToken.toString()
-          }));
+          if (cachedMaxToken !== undefined) {
+            console.log("Using cached maximum token:", cachedMaxToken);
+            
+            // Set the token to max + 1
+            const nextToken = cachedMaxToken + 1;
+            
+            // Set the token in the form
+            setNewAppointment(prev => ({
+              ...prev,
+              token: nextToken.toString()
+            }));
+            
+            setIsInitializing(false);
+          } else {
+            // Get the actual maximum token from appointments API
+            const maxToken = await getMaxTokenNumber(cabinId, selectedSlot);
+            console.log("Fetched maximum token from API:", maxToken);
+            
+            // Store the token in context for future use
+            updateMaxToken(cabinId, selectedSlot, maxToken);
+            
+            // Set the token to max + 1 (or 1 if no tokens exist)
+            const nextToken = maxToken + 1;
+            
+            // Set the token in the form
+            setNewAppointment(prev => ({
+              ...prev,
+              token: nextToken.toString()
+            }));
+            
+            setIsInitializing(false);
+          }
         } catch (error) {
           console.error("Error getting max token:", error);
           setError("Failed to initialize form. Please try again.");
-        } finally {
           setIsInitializing(false);
         }
       };
       
       fetchMaxToken();
     }
-  }, [isOpen, cabinId, selectedSlot, initialData]);
+  }, [isOpen, cabinId, selectedSlot, initialData, getMaxToken, updateMaxToken]);
 
   const resetForm = () => {
     setNewAppointment({
@@ -283,6 +305,11 @@ const AppointmentForm = () => {
       window.dispatchEvent(new CustomEvent('appointmentAdded', { 
         detail: { appointment: result?.queue?.appointment } 
       }));
+      
+      // Update stored maxToken after successful appointment creation
+      // Parse the token to a number and update the stored value
+      const newTokenValue = parseInt(newAppointment.token, 10);
+      updateMaxToken(cabinId, selectedSlot, newTokenValue);
       
       handleClose();
     } catch (error) {

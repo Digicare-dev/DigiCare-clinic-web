@@ -7,6 +7,8 @@ const AppointmentFormContext = createContext();
 export function AppointmentFormProvider({ children }) {
   const [isOpen, setIsOpen] = useState(false);
   const [initialData, setInitialData] = useState(null);
+  // Store maxToken values in an object where keys are formatted as "cabinId-selectedSlot"
+  const [maxTokens, setMaxTokens] = useState({});
 
   // Function to open the appointment form
   const openAppointmentForm = (data = null) => {
@@ -20,13 +22,31 @@ export function AppointmentFormProvider({ children }) {
     setInitialData(null);
   };
 
+  // Function to store or update a maxToken value
+  const updateMaxToken = (cabinId, selectedSlot, tokenValue) => {
+    const key = `${cabinId}-${selectedSlot}`;
+    setMaxTokens(prev => ({
+      ...prev,
+      [key]: tokenValue
+    }));
+  };
+
+  // Function to get a stored maxToken value
+  const getMaxToken = (cabinId, selectedSlot) => {
+    const key = `${cabinId}-${selectedSlot}`;
+    return maxTokens[key];
+  };
+
   return (
     <AppointmentFormContext.Provider
       value={{
         isOpen,
         initialData,
         openAppointmentForm,
-        closeAppointmentForm
+        closeAppointmentForm,
+        updateMaxToken,
+        getMaxToken,
+        maxTokens
       }}
     >
       {children}
