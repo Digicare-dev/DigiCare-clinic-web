@@ -38,6 +38,7 @@ import {
   Alert,
   Collapse,
   Avatar,
+  Backdrop,
 } from '@mui/material';
 
 // Import Timeline components from the correct package
@@ -113,9 +114,17 @@ const ConsultationPage = () => {
   const location = useLocation();
   console.log(location.state)
   
+  // Add global loading state
+  const [isPageLoading, setIsPageLoading] = useState(true);
+  
   // Add new state for tracking save status
   const [isSavingPrescription, setIsSavingPrescription] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  
+  // Reset isPageLoading to true when the component mounts
+  useEffect(() => {
+    setIsPageLoading(true);
+  }, []);
   
   // Get patient data from location state
   const patientInfo = location.state?.patientInfo || {
@@ -167,6 +176,7 @@ const ConsultationPage = () => {
   const [pastPrescriptions, setPastPrescriptions] = useState([]);
   const [isLoadingPrescriptions, setIsLoadingPrescriptions] = useState(false);
   const [pastPrescriptionsOpen, setPastPrescriptionsOpen] = useState(false);
+  const [isLoadingPrescription, setIsLoadingPrescription] = useState(false);
 
   // Add useEffect to fetch past prescriptions when component mounts
   useEffect(() => {
@@ -196,9 +206,9 @@ const ConsultationPage = () => {
     fetchPastPrescriptions();
   }, [patientInfo.id]);
 
-useEffect(() => {
-  console.log("Past Prescriptions:", pastPrescriptions);
-}, [pastPrescriptions]);
+  useEffect(() => {
+    console.log("Past Prescriptions:", pastPrescriptions);
+  }, [pastPrescriptions]);
 
   // We're not going to use the complaints data for prefilling
   // Instead, we'll just initialize with an empty complaint
@@ -572,7 +582,6 @@ useEffect(() => {
   // Add new state variables
   const [expandedAppointment, setExpandedAppointment] = useState(null);
   const [prescriptionDetails, setPrescriptionDetails] = useState(null);
-  const [isLoadingPrescription, setIsLoadingPrescription] = useState(false);
   const [error, setError] = useState(null);
   const [pastAppointments, setPastAppointments] = useState([]);
 
@@ -1811,8 +1820,45 @@ useEffect(() => {
   // Add state for shouldInitialize
   const [shouldInitialize, setShouldInitialize] = useState(true);
 
+  // Add useEffect to track all loading states and update isPageLoading
+  useEffect(() => {
+    const isLoading = isLoadingPrescriptions || 
+                     isLoadingCurrentPrescription || 
+                     attachmentsLoading ||
+                     isLoadingPrescription || 
+                     isSavingPrescription ||
+                     isCompletingConsultation;
+    
+    // Use a short delay before turning off loading to avoid flicker
+    if (!isLoading && isPageLoading) {
+      const timer = setTimeout(() => {
+        setIsPageLoading(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoadingPrescriptions, isLoadingCurrentPrescription, attachmentsLoading, 
+      isPageLoading, isLoadingPrescription, isSavingPrescription, isCompletingConsultation]);
+
   return (
     <Container maxWidth="lg" sx={{ mt: 2, mb: 4, px: { xs: 1, sm: 2 } }}>
+      {/* Global Loading Backdrop */}
+      <Backdrop
+        sx={{ 
+          color: '#fff', 
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+          flexDirection: 'column',
+          backdropFilter: 'blur(3px)',
+          background: 'rgba(0, 0, 0, 0.7)'
+        }}
+        open={isPageLoading}
+      >
+        <CircularProgress color="primary" size={60} thickness={4} 
+          sx={{ mb: 2, color: '#fff' }} />
+        <Typography variant="h6" sx={{ mb: 1, fontWeight: 'medium' }}>
+          Loading Patient Data
+        </Typography>
+      </Backdrop>
+
       {/* More compact PageHeader */}
       <PageHeader 
         title="Patient Consultation"
