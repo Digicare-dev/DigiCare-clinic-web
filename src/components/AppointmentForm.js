@@ -475,16 +475,22 @@ const AppointmentForm = () => {
                       }}
                     />
                   )}
-                  renderOption={(props, option) => (
-                    <li {...props}>
-                      <div>
-                        <Typography variant="body1">{option.name}</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {option.phone_number}
-                        </Typography>
-                      </div>
-                    </li>
-                  )}
+                  renderOption={(props, option, index) => {
+                    console.log(option);
+                    const { key, ...otherProps } = props;
+                    // Create a unique key using phone number and index or any unique identifier from the option
+                    const uniqueKey = option.patient_id;
+                    return (
+                      <li key={uniqueKey} {...otherProps}>
+                        <div>
+                          <Typography variant="body1">{option.name}</Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {option.phone_number}
+                          </Typography>
+                        </div>
+                      </li>
+                    );
+                  }}
                 />
               )}
               <TextField
