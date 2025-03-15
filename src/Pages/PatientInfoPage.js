@@ -473,7 +473,7 @@ const PatientInfoPage = () => {
       }
 
       // Get appointment ID from either currentAppointment or location state
-      const appointmentId = currentAppointment?.appointment_id || location.state?.appointmentId;
+      const appointmentId = currentAppointment?.appointment_id;
       
       if (!appointmentId) {
         setVitalsError("No active appointment found. Please select an appointment first.");
@@ -803,20 +803,245 @@ const PatientInfoPage = () => {
 
   // Add functions to handle navigation to AppointmentDetails
   const handleOpenAppointmentDetails = (appointment) => {
-    navigate('/appointment-details', {
-      state: {
-        appointmentInfo: {
-          ...appointment,
-          reason: appointment.diagnosis,
-          fees: 500,
-          paymentMode: 'cash',
-          paid: true,
-          checkin: true
-        },
-        patientInfo: patientInfo,
-        fromPastAppointments: true
-      }
+    // Instead of navigating, set the appointment data and open the modal
+    setSelectedAppointment({
+      id: appointment.id || appointment.appointment_id,
+      status: appointment.status || 'completed',
+      checkin: true,
+      paid: true,
+      token: appointment.token || '',
+      appointment_type: appointment.type || appointment.appointment_type || 'Follow-up',
+      disease: appointment.diagnosis || appointment.disease || '',
+      fees_paid: appointment.fees || 500,
+      mode: appointment.paymentMode || 'cash',
+      date: appointment.date || new Date(appointment.slot).toLocaleDateString(),
+      time: appointment.time || new Date(appointment.slot).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      doctor: appointment.doctor || user.checkupcabindata?.[0]?.doctor || '',
+      department: appointment.department || 'General Medicine'
     });
+    setAppointmentDetailsOpen(true);
+  };
+
+  // Add function to handle closing the appointment details modal
+  const handleCloseAppointmentDetails = () => {
+    setAppointmentDetailsOpen(false);
+    setSelectedAppointment(null);
+  };
+
+  // Add function to handle printing the payment receipt from modal
+  const handlePrintPaymentReceipt = () => {
+    if (!selectedAppointment) return;
+    
+    // Create a new window with the receipt content
+    const printWindow = window.open('', '_blank');
+    
+    // Format the date for the receipt
+    const receiptDate = new Date().toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+    
+    // Generate a receipt number based on the appointment ID
+    const appointmentIdNumber = selectedAppointment.id.replace(/\D/g, '');
+    const receiptNumber = `RCP-${appointmentIdNumber}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+    
+    // Generate the receipt HTML content
+    const receiptContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Payment Receipt - ${patient.name}</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #333;
+          }
+          .receipt {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #2196f3;
+          }
+          .clinic-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2196f3;
+            margin-bottom: 5px;
+          }
+          .clinic-address {
+            font-size: 14px;
+            margin-bottom: 5px;
+          }
+          .receipt-title {
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+            text-transform: uppercase;
+          }
+          .receipt-details {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+          }
+          .patient-details, .payment-details {
+            flex: 1;
+          }
+          .detail-row {
+            margin-bottom: 8px;
+          }
+          .label {
+            font-weight: bold;
+            display: inline-block;
+            width: 150px;
+          }
+          .service-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+          }
+          .service-table th, .service-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+          }
+          .service-table th {
+            background-color: #f5f5f5;
+          }
+          .amount-row {
+            text-align: right;
+            margin-top: 20px;
+            font-weight: bold;
+          }
+          .footer {
+            margin-top: 40px;
+            display: flex;
+            justify-content: space-between;
+          }
+          .signature {
+            margin-top: 60px;
+            border-top: 1px solid #ddd;
+            padding-top: 5px;
+            width: 200px;
+            text-align: center;
+          }
+          .paid-stamp {
+            position: relative;
+            text-align: center;
+            margin: 30px auto;
+          }
+          .paid-stamp span {
+            display: inline-block;
+            border: 3px solid #4CAF50;
+            color: #4CAF50;
+            padding: 10px 20px;
+            font-size: 24px;
+            font-weight: bold;
+            transform: rotate(-15deg);
+            border-radius: 5px;
+          }
+          @media print {
+            body {
+              margin: 0;
+              padding: 15px;
+            }
+            .receipt {
+              border: none;
+            }
+            button {
+              display: none;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="receipt">
+          <div class="header">
+            <div class="clinic-name">DigiCare Medical Center</div>
+            <div class="clinic-address">123 Healthcare Avenue, Medical District</div>
+            <div class="clinic-address">Phone: +91 1234567890 | Email: info@digicare.com</div>
+          </div>
+          
+          <div class="receipt-title">Payment Receipt</div>
+          
+          <div class="receipt-details">
+            <div class="patient-details">
+              <div class="detail-row"><span class="label">Receipt No:</span> ${receiptNumber}</div>
+              <div class="detail-row"><span class="label">Date:</span> ${receiptDate}</div>
+              <div class="detail-row"><span class="label">Patient Name:</span> ${patient.name}</div>
+              <div class="detail-row"><span class="label">Patient ID:</span> ${patient.id}</div>
+            </div>
+            <div class="payment-details">
+              <div class="detail-row"><span class="label">Appointment ID:</span> ${selectedAppointment.id}</div>
+              <div class="detail-row"><span class="label">Appointment Date:</span> ${selectedAppointment.date}</div>
+              <div class="detail-row"><span class="label">Payment Method:</span> ${selectedAppointment.mode || 'Cash'}</div>
+              <div class="detail-row"><span class="label">Payment Status:</span> Paid</div>
+            </div>
+          </div>
+          
+          <table class="service-table">
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th>Doctor</th>
+                <th>Department</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>${selectedAppointment.appointment_type || 'Consultation'} - ${selectedAppointment.disease || 'General Checkup'}</td>
+                <td>${selectedAppointment.doctor || user.checkupcabindata?.[0]?.doctor || 'Dr. John Doe'}</td>
+                <td>${selectedAppointment.department || 'General Medicine'}</td>
+                <td>₹${selectedAppointment.fees_paid}</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <div class="amount-row">
+            <div class="detail-row"><span class="label">Subtotal:</span> ₹${selectedAppointment.fees_paid}</div>
+            <div class="detail-row"><span class="label">Tax (0%):</span> ₹0</div>
+            <div class="detail-row"><span class="label">Total Amount:</span> ₹${selectedAppointment.fees_paid}</div>
+          </div>
+          
+          <div class="paid-stamp">
+            <span>PAID</span>
+          </div>
+          
+          <div class="footer">
+            <div class="signature">
+              Received By
+            </div>
+            <div class="signature">
+              Authorized Signature
+            </div>
+          </div>
+          
+          <div style="text-align: center; margin-top: 30px; font-size: 12px; color: #777;">
+            This is a computer-generated receipt and does not require a physical signature.
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    // Write the content to the new window
+    printWindow.document.open();
+    printWindow.document.write(receiptContent);
+    printWindow.document.close();
+    
+    // Wait for the content to load and then print
+    printWindow.onload = function() {
+      printWindow.print();
+    };
   };
 
   // Add functions to handle opening and closing the reports modal
@@ -2071,6 +2296,272 @@ const PatientInfoPage = () => {
               'Delete'
             )}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Appointment Details Modal */}
+      <Dialog
+        open={appointmentDetailsOpen}
+        onClose={handleCloseAppointmentDetails}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2 }}>
+          <Typography variant="h6">Appointment Details</Typography>
+          <IconButton onClick={handleCloseAppointmentDetails} size="small">
+            <Close fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          {selectedAppointment && (
+            <Box sx={{ p: 2 }}>
+              {/* Patient Information Section */}
+              <Typography variant="h6" color="primary.main" sx={{ mb: 2 }}>
+                Patient Information
+              </Typography>
+              
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <Avatar 
+                  sx={{ width: 56, height: 56, bgcolor: 'primary.main', mr: 2 }}
+                >
+                  {patient.name ? patient.name.charAt(0) : 'P'}
+                </Avatar>
+                <Box>
+                  <Typography variant="h6">{patient.name || 'Unknown Patient'}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    ID: {patient.id || 'Unknown'} | {patient.age} years | {patient.gender}
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6} md={4}>
+                  <TextField
+                    fullWidth
+                    label="Phone Number"
+                    value={patient.phone}
+                    InputProps={{ readOnly: true }}
+                    variant="outlined"
+                    size="small"
+                    margin="normal"
+                  />
+                </Grid>
+                
+                {patient.location && (
+                  <Grid item xs={12} sm={6} md={4}>
+                    <TextField
+                      fullWidth
+                      label="Location"
+                      value={patient.location}
+                      InputProps={{ readOnly: true }}
+                      variant="outlined"
+                      size="small"
+                      margin="normal"
+                    />
+                  </Grid>
+                )}
+                
+                {patient.guardian && (
+                  <Grid item xs={12} sm={6} md={4}>
+                    <TextField
+                      fullWidth
+                      label="Guardian Name"
+                      value={patient.guardian}
+                      InputProps={{ readOnly: true }}
+                      variant="outlined"
+                      size="small"
+                      margin="normal"
+                    />
+                  </Grid>
+                )}
+              </Grid>
+              
+              <Divider sx={{ my: 3 }} />
+              
+              {/* Appointment Details */}
+              <Typography variant="h6" color="primary.main" sx={{ mb: 2 }}>
+                Appointment Details
+              </Typography>
+              
+              <Grid container spacing={3} sx={{ mb: 4 }}>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Appointment Date
+                    </Typography>
+                    <Typography variant="body1">
+                      {selectedAppointment.date || 'Not scheduled'}
+                    </Typography>
+                  </Box>
+                  
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Time
+                    </Typography>
+                    <Typography variant="body1">
+                      {selectedAppointment.time || 'Time not set'}
+                    </Typography>
+                  </Box>
+                  
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Appointment Type
+                    </Typography>
+                    <Typography variant="body1">
+                      {selectedAppointment.appointment_type || 'General Checkup'}
+                    </Typography>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={4}>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Reason for Visit
+                    </Typography>
+                    <Typography variant="body1">
+                      {selectedAppointment.disease || 'Not specified'}
+                    </Typography>
+                  </Box>
+                  
+                  {selectedAppointment.doctor && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="subtitle2" color="text.secondary">
+                        Doctor
+                      </Typography>
+                      <Typography variant="body1">
+                        {selectedAppointment.doctor}
+                      </Typography>
+                    </Box>
+                  )}
+                  
+                  {selectedAppointment.department && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="subtitle2" color="text.secondary">
+                        Department
+                      </Typography>
+                      <Typography variant="body1">
+                        {selectedAppointment.department}
+                      </Typography>
+                    </Box>
+                  )}
+                </Grid>
+                
+                <Grid item xs={12} sm={6} md={4}>
+                  {selectedAppointment.fees_paid > 0 && (
+                    <>
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="subtitle2" color="text.secondary">
+                          Amount
+                        </Typography>
+                        <Typography variant="body1">
+                          ₹{selectedAppointment.fees_paid}
+                        </Typography>
+                      </Box>
+                      
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="subtitle2" color="text.secondary">
+                          Payment Method
+                        </Typography>
+                        <Typography variant="body1">
+                          {selectedAppointment.mode || 'Not specified'}
+                        </Typography>
+                      </Box>
+                    </>
+                  )}
+                </Grid>
+              </Grid>
+              
+              <Divider sx={{ my: 3 }} />
+              
+              {/* Appointment Status Information */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" color="primary.main" sx={{ mb: 2 }}>
+                  Appointment Status
+                </Typography>
+                
+                <Grid container spacing={3}>
+                  <Grid item xs={12} sm={6} md={4}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Appointment ID
+                    </Typography>
+                    <Typography variant="body1" fontWeight="medium">
+                      #{selectedAppointment.id}
+                    </Typography>
+                  </Grid>
+                  
+                  <Grid item xs={12} sm={6} md={4}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Status
+                    </Typography>
+                    <Typography 
+                      variant="body1" 
+                      fontWeight="medium"
+                      sx={{ 
+                        color: selectedAppointment.status?.toLowerCase() === 'completed' ? 'success.main' : 
+                               selectedAppointment.status?.toLowerCase() === 'cancelled' ? 'error.main' : 
+                               selectedAppointment.status?.toLowerCase() === 'pending' ? 'warning.main' : 'text.primary'
+                      }}
+                    >
+                      {selectedAppointment.status || 'Pending'}
+                    </Typography>
+                  </Grid>
+                  
+                  <Grid item xs={12} sm={6} md={4}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      Payment Status
+                    </Typography>
+                    <Typography 
+                      variant="body1" 
+                      fontWeight="medium"
+                      sx={{ color: selectedAppointment.paid ? 'success.main' : 'error.main' }}
+                    >
+                      {selectedAppointment.paid ? 'Paid' : 'Unpaid'}
+                    </Typography>
+                  </Grid>
+                  
+                  {selectedAppointment.token && (
+                    <Grid item xs={12} sm={6} md={4}>
+                      <Typography variant="subtitle2" color="text.secondary">
+                        Token Number
+                      </Typography>
+                      <Typography variant="body1" fontWeight="medium">
+                        #{selectedAppointment.token}
+                      </Typography>
+                    </Grid>
+                  )}
+                </Grid>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseAppointmentDetails}>Close</Button>
+          {selectedAppointment && selectedAppointment.paid && (
+            <Button 
+              variant="contained" 
+              color="primary" 
+              onClick={handlePrintPaymentReceipt}
+              startIcon={<Print />}
+            >
+              Print Receipt
+            </Button>
+          )}
+          {selectedAppointment && selectedAppointment.status === 'completed' && (
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<Assignment />}
+              onClick={() => handleOpenPrescription({
+                id: selectedAppointment.id,
+                date: selectedAppointment.date,
+                doctor: selectedAppointment.doctor,
+                department: selectedAppointment.department,
+                diagnosis: selectedAppointment.disease
+              })}
+            >
+              View Prescription
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
     </Container>

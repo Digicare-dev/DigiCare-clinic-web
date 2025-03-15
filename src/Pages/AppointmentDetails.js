@@ -174,27 +174,48 @@ const AppointmentDetails = () => {
   };
 
   useEffect(() => {
-    
-    // Get data from location 
-    // state or fetch from API if available
+    // Get data from location state or fetch from API if available
     if (location.state) {
       const { patientInfo: receivedPatientInfo, appointmentInfo: receivedAppointmentInfo, from, fromPastAppointments } = location.state;
+      
+      // Set the "from past appointments" flag
+      setIsFromPastAppointments(fromPastAppointments || false);
 
-      // If coming from appointment table, use the passed data directly
+      // If coming from appointment table, fetch from API using the appointment ID
       if (from === 'appointment-table' && receivedAppointmentInfo && receivedAppointmentInfo.id) {
-        // Fetch from API using the appointment ID
         fetchAppointmentDetails(receivedAppointmentInfo.id);
-        setIsFromPastAppointments(fromPastAppointments || false);
-      } else if (receivedPatientInfo && receivedAppointmentInfo) {
-        // Fix any field name differences
+      } 
+      // If complete data is provided (from PatientInfoPage), use it directly
+      else if (receivedPatientInfo && receivedAppointmentInfo && receivedAppointmentInfo.id) {
+        // Fix any field name differences in patient info
         const fixedPatientInfo = {
           ...receivedPatientInfo,
           // Handle guardian field which might be named differently
           guardian: receivedPatientInfo.guardian || receivedPatientInfo.guardianName || ''
         };
+        
+        // Ensure appointmentInfo has all required fields with correct names
+        const fixedAppointmentInfo = {
+          ...receivedAppointmentInfo,
+          // Make sure ID is properly set
+          id: receivedAppointmentInfo.id || receivedAppointmentInfo.appointment_id,
+          // Make sure all required fields are present
+          status: receivedAppointmentInfo.status || 'completed',
+          checkin: receivedAppointmentInfo.checkin || false,
+          paid: receivedAppointmentInfo.paid || false,
+          token: receivedAppointmentInfo.token || '',
+          appointment_type: receivedAppointmentInfo.appointment_type || 'New',
+          disease: receivedAppointmentInfo.disease || '',
+          fees_paid: receivedAppointmentInfo.fees_paid || 0,
+          mode: receivedAppointmentInfo.mode || 'cash',
+        };
+        
         setPatientInfo(fixedPatientInfo);
-        setAppointmentInfo(receivedAppointmentInfo);
-        setIsFromPastAppointments(fromPastAppointments || false);
+        setAppointmentInfo(fixedAppointmentInfo);
+      } 
+      // If we have just the appointment ID, fetch complete data from API
+      else if (receivedAppointmentInfo && receivedAppointmentInfo.id) {
+        fetchAppointmentDetails(receivedAppointmentInfo.id);
       }
     } else {
       // If no location state, try to get ID from URL params
@@ -754,7 +775,7 @@ const AppointmentDetails = () => {
       await updateAppointmentDetails(updateData);
       
       // Refresh appointment details
-      fetchAppointmentDetails(appointmentInfo.id);
+      fetchAppointmentDetails(appointmentInfo.id || appointmentInfo.appointment_id);
       
       // Close modal
       handleCloseEditModal();
@@ -1126,15 +1147,7 @@ const AppointmentDetails = () => {
               )}
             </Grid>
           </Box>
-          
-          {appointmentInfo.checkin && (
-            <Box sx={{ mt: 2, p: 2, backgroundColor: '#f9f9f9', borderRadius: 1 }}>
-              <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                Check-in Time
-              </Typography>
-              <Typography variant="body1">{appointmentInfo.checkin}</Typography>
-            </Box>
-          )}
+        
         </Box>
       </Paper>
       

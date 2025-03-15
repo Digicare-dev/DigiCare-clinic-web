@@ -908,7 +908,7 @@ export default function AppointmentTable() {
       patientId: appointment.patientId || undefined
     };
     
-    // Navigate to the appointment details page with minimal info
+    // Always include 'from' field to ensure AppointmentDetails knows where the navigation is coming from
     navigate('/appointment-details', { 
       state: { 
         appointmentInfo,
