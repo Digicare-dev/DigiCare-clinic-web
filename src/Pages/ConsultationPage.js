@@ -243,7 +243,6 @@ const ConsultationPage = () => {
 
   // Add useEffect to fetch current prescription
   useEffect(() => {
-    debugger;
     if (appointmentInfo?.id) {
       fetchCurrentPrescription();
     }
@@ -421,7 +420,6 @@ const ConsultationPage = () => {
         });
       });
     }
-    debugger;
     const payload = {
       appointment_id: appointmentInfo.id || "",
       complaints: Array.isArray(formData.complaints) 
@@ -2335,7 +2333,7 @@ const ConsultationPage = () => {
                       <Typography variant="body2">{prescription.diagnosis[0].name}</Typography>
                     </>
                   )}
-                  <Box sx={{ ml: 'auto' }}>
+                  {/* <Box sx={{ ml: 'auto' }}>
                     <Button
                       size="small"
                       variant="outlined"
@@ -2345,7 +2343,7 @@ const ConsultationPage = () => {
                     >
                       Print
                     </Button>
-                  </Box>
+                  </Box> */}
                 </Box>
 
                 {/* Prescription Content - More compact grid */}

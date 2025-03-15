@@ -56,7 +56,6 @@ function Header({ closeEventSource }) {
   };
 
   const handlePatientSelect = async (patient) => {
-    debugger;
     try {
       setLoading(true);
       // Get complete patient details using getPatientDetails API
