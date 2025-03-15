@@ -324,7 +324,7 @@ export default function PastAppointments() {
     };
     
     setSelectedAppointment(appointmentData);
-    setEditModalOpen(true);
+    // setEditModalOpen(true);
     
     // Clear any previous search results
     setEditMobileSearchResults([]);
