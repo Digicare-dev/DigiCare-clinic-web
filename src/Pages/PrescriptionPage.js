@@ -262,7 +262,9 @@ export const PrescriptionForm = forwardRef(({
 
   // Initialize complaints with initialData or default
   const [complaints, setComplaints] = useState(
-      [
+    initialData.complaints && initialData.complaints.length > 0 ?
+    initialData.complaints :
+    [
       { complaint: '', severity: '', frequency: '', duration: '', notes: '', isEditing: false }
     ]
   );
@@ -337,17 +339,23 @@ export const PrescriptionForm = forwardRef(({
     "Lifelong"
   ];
 
+console.log('initialData', initialData);
+
   // Initialize diagnoses with initialData or default
   const [diagnoses, setDiagnoses] = useState(
-     [
-    { diagnosis: '', duration: '', notes: '', isEditing: false }
+    initialData.diagnoses && initialData.diagnoses.length > 0 ?
+    initialData.diagnoses :
+    [
+      { diagnosis: '', duration: '', notes: '', isEditing: false }
     ]
   );
 
   // Initialize medications with initialData or default
   const [medications, setMedications] = useState(
-     [
-    { medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false }
+    initialData.medications && initialData.medications.length > 0 ?
+    initialData.medications :
+    [
+      { medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false }
     ]
   );
 
@@ -580,29 +588,38 @@ export const PrescriptionForm = forwardRef(({
 
   // Add this function near your other handlers
   const handleClickAway = (index) => {
-     // Debug point 1: When clicking away from a complaint field
+    // Debug point 1: When clicking away from a complaint field
     console.log('Clicking away from complaint row:', index);
-    console.log('Current complaints state:', prescription.complaints);
     
-    const updatedComplaints = [...prescription.complaints];
-    // Only update isEditing, preserve all other data
-    updatedComplaints[index] = {
-      ...updatedComplaints[index],
-      isEditing: false
-    };
+    const updatedComplaints = [...complaints];
     
-    console.log('Updated complaints after click away:', updatedComplaints);
-    // Update both states
-    setComplaints(updatedComplaints);
-    setPrescription({
-      ...prescription,
-      complaints: updatedComplaints
-    });
+    // Add safety check to ensure the element at index exists
+    if (updatedComplaints[index]) {
+      // Only update isEditing, preserve all other data
+      updatedComplaints[index] = {
+        ...updatedComplaints[index],
+        isEditing: false
+      };
+      
+      console.log('Updated complaints after click away:', updatedComplaints);
+      // Update both states
+      setComplaints(updatedComplaints);
+      setPrescription(prev => ({
+        ...prev,
+        complaints: updatedComplaints
+      }));
+    }
   };
 
   // Also modify the handleComplaintChange function to include the auto-close behavior
   const handleComplaintChange = (index, field, value) => {
-    const updatedComplaints = [...prescription.complaints];
+    const updatedComplaints = [...complaints];
+    
+    // Add safety check to ensure the element at index exists
+    if (!updatedComplaints[index]) {
+      updatedComplaints[index] = { complaint: '', severity: '', frequency: '', duration: '', notes: '', isEditing: false };
+    }
+    
     updatedComplaints[index][field] = value;
     
     // Check if all main fields in the current row have values
@@ -610,7 +627,7 @@ export const PrescriptionForm = forwardRef(({
     const hasAllMainFields = currentRow.complaint && currentRow.severity && currentRow.duration;
 
     // If all main fields are filled and this is the last row, add a new row
-    if (hasAllMainFields && index === prescription.complaints.length - 1) {
+    if (hasAllMainFields && index === complaints.length - 1) {
       // Add a small delay to ensure the current row's state is updated
       setTimeout(() => {
         const newComplaints = [
@@ -625,17 +642,19 @@ export const PrescriptionForm = forwardRef(({
           }
         ];
         
-        setPrescription({
-          ...prescription,
+        setComplaints(newComplaints);
+        setPrescription(prev => ({
+          ...prev,
           complaints: newComplaints
-        });
+        }));
       }, 10);
     } else {
       // Update the current row without adding a new one
-      setPrescription({
-        ...prescription,
+      setComplaints(updatedComplaints);
+      setPrescription(prev => ({
+        ...prev,
         complaints: updatedComplaints
-      });
+      }));
     }
   };
 
@@ -643,15 +662,19 @@ export const PrescriptionForm = forwardRef(({
   const addNewComplaintRow = () => {
     if (readOnly) return;
     
-     // Debug point 6: Start of adding new complaint row
+    // Debug point 6: Start of adding new complaint row
     console.log('Adding new complaint row');
-    console.log('Current complaints:', prescription.complaints);
     
-    const updatedComplaints = [...prescription.complaints];
-    updatedComplaints[updatedComplaints.length - 1].isEditing = false;
+    // Use the standalone complaints state 
+    const updatedComplaints = [...complaints];
+    
+    // Add safety check to ensure the last element exists
+    if (updatedComplaints.length > 0) {
+      updatedComplaints[updatedComplaints.length - 1].isEditing = false;
+    }
     
     setTimeout(() => {
-       // Debug point 7: Before setting state with new empty row
+      // Debug point 7: Before setting state with new empty row
       const newComplaints = [
         ...updatedComplaints,
         { 
@@ -668,12 +691,12 @@ export const PrescriptionForm = forwardRef(({
       
       // Update both states
       setComplaints(newComplaints);
-      setPrescription({
-        ...prescription,
+      setPrescription(prev => ({
+        ...prev,
         complaints: newComplaints
-      });
+      }));
       
-      const newIndex = prescription.complaints.length;
+      const newIndex = complaints.length;
       const element = document.querySelector(`#complaint-${newIndex}`);
       if (element && element.querySelector('input')) {
         element.querySelector('input').focus();
@@ -689,7 +712,10 @@ export const PrescriptionForm = forwardRef(({
 
   // Add these handler functions
   const handleDiagnosisChange = (index, field, value) => {
-    const updatedDiagnoses = [...prescription.diagnoses];
+    const updatedDiagnoses = [...diagnoses];
+    if (!updatedDiagnoses[index]) {
+      updatedDiagnoses[index] = { diagnosis: '', duration: '', notes: '', isEditing: false };
+    }
     updatedDiagnoses[index][field] = value;
     
     // Check if all main fields in the current row have values
@@ -697,7 +723,7 @@ export const PrescriptionForm = forwardRef(({
     const hasAllMainFields = currentRow.diagnosis && currentRow.duration;
 
     // If all main fields are filled and this is the last row, add a new row
-    if (hasAllMainFields && index === prescription.diagnoses.length - 1) {
+    if (hasAllMainFields && index === diagnoses.length - 1) {
       // Add a small delay to ensure the current row's state is updated
       setTimeout(() => {
         const newDiagnoses = [...updatedDiagnoses, {
@@ -707,17 +733,11 @@ export const PrescriptionForm = forwardRef(({
           isEditing: false
         }];
         
-        setPrescription({
-          ...prescription,
-          diagnoses: newDiagnoses
-        });
+        setDiagnoses(newDiagnoses);
       }, 10);
     } else {
       // Update the current row without adding a new one
-      setPrescription({
-        ...prescription,
-        diagnoses: updatedDiagnoses
-      });
+      setDiagnoses(updatedDiagnoses);
     }
   };
 
@@ -778,8 +798,12 @@ export const PrescriptionForm = forwardRef(({
   const addNewDiagnosisRow = () => {
     if (readOnly) return;
     
-    const updatedDiagnoses = [...prescription.diagnoses];
-    updatedDiagnoses[updatedDiagnoses.length - 1].isEditing = false; // Close the current row
+    // Use the standalone diagnoses state instead of prescription.diagnoses
+    const updatedDiagnoses = [...diagnoses];
+    // Add safety check to ensure the last element exists
+    if (updatedDiagnoses.length > 0) {
+      updatedDiagnoses[updatedDiagnoses.length - 1].isEditing = false; // Close the current row
+    }
     setDiagnoses(updatedDiagnoses); // Update state to close dropdown
 
     setTimeout(() => {
@@ -805,9 +829,11 @@ export const PrescriptionForm = forwardRef(({
   // Add these click-away handlers
   const handleDiagnosisClickAway = (index) => {
     // Close the dropdown for the specific row, regardless of field completion
-    const updatedDiagnoses = [...prescription.diagnoses];
-    updatedDiagnoses[index].isEditing = false;
-    setDiagnoses(updatedDiagnoses);
+    const updatedDiagnoses = [...diagnoses];
+    if (updatedDiagnoses[index]) {
+      updatedDiagnoses[index].isEditing = false;
+      setDiagnoses(updatedDiagnoses);
+    }
   };
 
   // Function to load past prescriptions

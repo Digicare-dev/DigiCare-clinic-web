@@ -974,6 +974,7 @@ export default function AppointmentTable() {
               fullWidth
               label="Token Number"
               type="number"
+              disabled = {true}
               value={selectedAppointment.token}
               InputProps={{ readOnly: true }}
             />

@@ -220,13 +220,13 @@ const ConsultationPage = () => {
 
   // Function to fetch current prescription
   const fetchCurrentPrescription = async () => {
-    if (!appointmentInfo?.appointment_id) return;
+    if (!appointmentInfo?.id) return;
 
     try {
       setIsLoadingCurrentPrescription(true);
       setCurrentPrescriptionError(null);
 
-      const prescriptionData = await getCurrentPrescription(appointmentInfo.appointment_id);
+      const prescriptionData = await getCurrentPrescription(appointmentInfo.id);
       console.log("Current prescription data:", prescriptionData);
       // The API returns the prescription data directly, not in an array
       if (prescriptionData) {
@@ -243,10 +243,11 @@ const ConsultationPage = () => {
 
   // Add useEffect to fetch current prescription
   useEffect(() => {
-    if (appointmentInfo?.appointment_id) {
+    debugger;
+    if (appointmentInfo?.id) {
       fetchCurrentPrescription();
     }
-  }, [appointmentInfo?.appointment_id]);
+  }, [appointmentInfo?.id]);
 
   // Update the prefilledPrescriptionData to use current prescription if available
   const prefilledPrescriptionData = {
@@ -381,8 +382,7 @@ const ConsultationPage = () => {
       setIsCompletingConsultation(true);
       setConfirmDoneDialog(false);
       // Call the markPatientAsDone API
-      await markPatientAsDone(appointmentInfo.appointment_id,
-);
+      await markPatientAsDone(appointmentInfo.id);
       console.log("Patient marked as done successfully");
       // Navigate to the queue page
       navigate('/queue');
@@ -669,8 +669,7 @@ const ConsultationPage = () => {
       if (response && response.other_appointments && Array.isArray(response.other_appointments)) {
         // Map the other_appointments to our pastAppointments state with proper structure
         const formattedAppointments = response.other_appointments
-          .filter(app => app.appointment_id !== appointmentInfo.appointment_id,
-) // Filter out current appointment
+          .filter(app => app.appointment_id !== appointmentInfo.id) // Filter out current appointment
           .map(app => {
             // Extract date from appointment_id if possible
             let appointmentDate;
@@ -916,7 +915,7 @@ const ConsultationPage = () => {
         date: new Date().toLocaleDateString(),
         doctor: appointmentInfo?.doctor || 'Doctor',
         diagnosis: prescription.diagnosis?.[0]?.name || '',
-        id: appointmentInfo?.appointment_id || ''
+        id: appointmentInfo?.appointment_id || appointmentInfo?.id
       },
       initialData: {
         vitals: {
@@ -1064,7 +1063,7 @@ const ConsultationPage = () => {
       <body>
         <div class="header">
           <div class="clinic-name">DigiCare Medical Center</div>
-          <div class="doctor-info">Healthcare Professional: ${selectedPrescription.appointmentInfo.doctor || 'Doctor'}</div>
+          // <div class="doctor-info">Healthcare Professional: ${selectedPrescription.appointmentInfo.doctor || 'Doctor'}</div>
         </div>
         
         <div class="patient-info">
@@ -1165,8 +1164,8 @@ const ConsultationPage = () => {
     <Box>
       <PrescriptionForm 
         initialData={prefilledPrescriptionData}
-        appointmentId={appointmentInfo.appointment_id}
-        initialize={true}
+        appointmentId={appointmentInfo.id}
+        initialize={false} // Changed to false since we're already providing initialData
         onSubmit={handlePrescriptionSubmit}
         showPrintButton={false}
         showSubmitButton={false} // Hide the built-in submit button
@@ -1204,29 +1203,61 @@ const ConsultationPage = () => {
 
   // Add a new function to handle printing the current prescription
   const handlePrintCurrentPrescription = () => {
+    // Get current prescription data from the form
+    const formData = prescriptionFormRef.current?.getFormData();
+    console.log("Form data retrieved for printing:", formData);
+    
     // Create a new window with the prescription content
     const printWindow = window.open('', '_blank');
     
-    // Get current prescription data from the form
-    const formData = prescriptionFormRef.current?.getFormData() || {};
-    const currentPrescriptionData = {
-      patientInfo: patientInfo,
-      appointmentInfo: appointmentInfo,
-      vitals: {
-        bloodPressure: editedVitals.bloodPressure || 'N/A',
-        heartRate: editedVitals.heartRate || 'N/A',
-        temperature: editedVitals.temperature || 'N/A',
-        respiratoryRate: editedVitals.respiratoryRate || 'N/A',
-        spO2: editedVitals.spO2 || 'N/A',
-        height: editedVitals.height || 'N/A',
-        weight: editedVitals.weight || 'N/A'
-      },
-      medications: formData.medications || [],
-      diagnoses: formData.diagnoses || [],
-      tests: formData.tests || [],
-      instructions: formData.instructions || '',
-      followUp: formData.followUp || ''
-    };
+    // If form data couldn't be retrieved, use the prefilledPrescriptionData
+    const currentPrescriptionData = (!formData || Object.keys(formData).length === 0) 
+      ? {
+          patientInfo: patientInfo,
+          appointmentInfo: {
+            ...appointmentInfo,
+            date: new Date().toLocaleDateString(),
+          },
+          vitals: prefilledPrescriptionData.vitals || {
+            bloodPressure: editedVitals.bloodPressure || 'N/A',
+            heartRate: editedVitals.heartRate || 'N/A',
+            temperature: editedVitals.temperature || 'N/A',
+            respiratoryRate: editedVitals.respiratoryRate || 'N/A',
+            spO2: editedVitals.spO2 || 'N/A',
+            height: editedVitals.height || 'N/A',
+            weight: editedVitals.weight || 'N/A'
+          },
+          complaints: prefilledPrescriptionData.complaints || [],
+          medications: prefilledPrescriptionData.medications || [],
+          diagnoses: prefilledPrescriptionData.diagnoses || [],
+          tests: prefilledPrescriptionData.tests || [],
+          instructions: prefilledPrescriptionData.instructions || '',
+          followUp: prefilledPrescriptionData.followUp || ''
+        }
+      : {
+          patientInfo: patientInfo,
+          appointmentInfo: {
+            ...appointmentInfo,
+            date: new Date().toLocaleDateString(),
+          },
+          vitals: {
+            bloodPressure: editedVitals.bloodPressure || 'N/A',
+            heartRate: editedVitals.heartRate || 'N/A',
+            temperature: editedVitals.temperature || 'N/A',
+            respiratoryRate: editedVitals.respiratoryRate || 'N/A',
+            spO2: editedVitals.spO2 || 'N/A',
+            height: editedVitals.height || 'N/A',
+            weight: editedVitals.weight || 'N/A'
+          },
+          complaints: formData.complaints?.filter(complaint => complaint.complaint || complaint.duration || complaint.severity) || [],
+          medications: formData.medications?.filter(med => med.medicine || med.dose || med.frequency || med.duration) || [],
+          diagnoses: formData.diagnoses?.filter(diag => diag.diagnosis || diag.duration) || [],
+          tests: formData.tests || [],
+          instructions: formData.instructions || '',
+          followUp: formData.followUp || ''
+        };
+    
+    console.log("Prescription data for printing:", currentPrescriptionData);
     
     // Generate the prescription HTML content
     const prescriptionContent = `
@@ -1368,7 +1399,7 @@ const ConsultationPage = () => {
           </div>
           <div class="appointment-details">
             <p><strong>Date:</strong> ${currentPrescriptionData.appointmentInfo?.date}</p>
-            <p><strong>Appointment ID:</strong> ${currentPrescriptionData.appointmentInfo?.appointment_id}</p>
+            <p><strong>Appointment ID:</strong> ${currentPrescriptionData.appointmentInfo?.id}</p>
           </div>
         </div>
 
@@ -1400,10 +1431,53 @@ const ConsultationPage = () => {
           </div>
         </div>
         
+        <div class="section-title">Complaints</div>
+        <table class="medication-table">
+          <thead>
+            <tr>
+              <th>Complaint</th>
+              <th>Duration</th>
+              <th>Severity</th>
+              <th>Frequency</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${currentPrescriptionData.complaints && currentPrescriptionData.complaints.length > 0 ? 
+              currentPrescriptionData.complaints.map(c => `
+              <tr>
+                <td>${c.complaint || ''}</td>
+                <td>${c.duration || ''}</td>
+                <td>${c.severity || ''}</td>
+                <td>${c.frequency || ''}</td>
+                <td>${c.notes || ''}</td>
+              </tr>
+            `).join('') 
+            : '<tr><td colspan="5">No complaints recorded</td></tr>'}
+          </tbody>
+        </table>
+        
         <div class="section-title">Diagnosis</div>
-        <div class="tests-list">
-          ${currentPrescriptionData.diagnoses?.map(d => `<p>• ${d.diagnosis} (${d.duration})</p>`).join('') || 'No diagnosis provided'}
-        </div>
+        <table class="medication-table">
+          <thead>
+            <tr>
+              <th>Diagnosis</th>
+              <th>Duration</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${currentPrescriptionData.diagnoses && currentPrescriptionData.diagnoses.length > 0 ? 
+              currentPrescriptionData.diagnoses.map(d => `
+              <tr>
+                <td>${d.diagnosis || ''}</td>
+                <td>${d.duration || ''}</td>
+                <td>${d.notes || ''}</td>
+              </tr>
+            `).join('') 
+            : '<tr><td colspan="3">No diagnosis provided</td></tr>'}
+          </tbody>
+        </table>
         
         <div class="section-title">Medications</div>
         <table class="medication-table">
@@ -1414,24 +1488,30 @@ const ConsultationPage = () => {
               <th>Timing</th>
               <th>Frequency</th>
               <th>Duration</th>
+              <th>Notes</th>
             </tr>
           </thead>
           <tbody>
-            ${currentPrescriptionData.medications?.map(med => `
+            ${currentPrescriptionData.medications && currentPrescriptionData.medications.length > 0 ? 
+              currentPrescriptionData.medications.map(med => `
               <tr>
-                <td>${med.medicine}</td>
-                <td>${med.dose}</td>
-                <td>${med.timing}</td>
-                <td>${med.frequency}</td>
-                <td>${med.duration}</td>
+                <td>${med.medicine || ''}</td>
+                <td>${med.dose || ''}</td>
+                <td>${med.timing || ''}</td>
+                <td>${med.frequency || ''}</td>
+                <td>${med.duration || ''}</td>
+                <td>${med.notes || ''}</td>
               </tr>
-            `).join('') || ''}
+            `).join('') 
+            : '<tr><td colspan="6">No medications prescribed</td></tr>'}
           </tbody>
         </table>
         
         <div class="section-title">Tests Recommended</div>
         <div class="tests-list">
-          ${currentPrescriptionData.tests?.map(test => `<p>• ${test}</p>`).join('') || 'No tests recommended'}
+          ${currentPrescriptionData.tests && currentPrescriptionData.tests.length > 0 ? 
+            currentPrescriptionData.tests.map(test => `<p>• ${test}</p>`).join('') 
+            : 'No tests recommended'}
         </div>
         
         <div class="section-title">Instructions</div>
@@ -1702,15 +1782,17 @@ const ConsultationPage = () => {
                           </Typography>
                         </Grid>
                         
-                        {/* Attachments */}
+                        {/* Attachments Section */}
                         {prescriptionDetails.attachments && prescriptionDetails.attachments.length > 0 && (
                           <Grid item xs={12}>
-                            <Typography variant="subtitle2" gutterBottom>Attachments</Typography>
+                            <Typography variant="subtitle2" sx={{ mb: 0.5, color: 'primary.main', fontSize: '0.875rem' }}>
+                              Attachments
+                            </Typography>
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                              {prescriptionDetails.attachments.map((attachment, index) => (
+                              {prescriptionDetails.attachments.map((attachment, idx) => (
                                 <Chip
-                                  key={index}
-                                  label={attachment.name || `Attachment ${index + 1}`}
+                                  key={idx}
+                                  label={attachment.name || `Attachment ${idx + 1}`}
                                   onClick={() => handleOpenAttachment(attachment)}
                                   icon={getAttachmentIcon(attachment.type)}
                                   variant="outlined"
@@ -1744,14 +1826,13 @@ const ConsultationPage = () => {
 
   // Add function to fetch vitals
   const fetchVitals = async () => {
-    if (!appointmentInfo?.appointment_id) return;
+    if (!appointmentInfo?.id) return;
     
     try {
       setVitalsLoading(true);
       setVitalsError(null);
       
-      const response = await getVitals(appointmentInfo.appointment_id,
-);
+      const response = await getVitals(appointmentInfo.id);
       console.log("Vitals response:", response);
       
       if (response) {
@@ -1775,11 +1856,10 @@ const ConsultationPage = () => {
 
   // Add useEffect to fetch vitals on component mount
   useEffect(() => {
-    if (appointmentInfo?.appointment_id) {
+    if (appointmentInfo?.id) {
       fetchVitals();
     }
-  }, [appointmentInfo?.appointment_id,
-]);
+  }, [appointmentInfo?.id]);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [attachmentToDelete, setAttachmentToDelete] = useState(null);
@@ -1789,7 +1869,7 @@ const ConsultationPage = () => {
       setIsSavingVitals(true);
       // Prepare the payload for the API
       const vitalsPayload = {
-        appointment_id: appointmentInfo.appointment_id,
+        appointment_id: appointmentInfo.id,
         vitals: {
           blood_pressure: editedVitals.bloodPressure,
           pulse_rate: editedVitals.heartRate,

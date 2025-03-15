@@ -30,6 +30,9 @@ import {
   MeetingRoom,
   DoneAll,
   Schedule,
+  MoneyOff,
+  PersonOff,
+  PersonPin,
 } from "@mui/icons-material";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 
@@ -59,10 +62,11 @@ const PatientItem = ({
 
   // Determine if this is the current patient based on position
   const isCurrent = position === currentPosition;
-  const isLate = late || status === "late";
+  const isLate = late;
   const isDone = status === "done_checkup" || status === "done";
   const isCancelled = status === "cancelled";
-  
+  const isPending = status === "pending";
+  console.log("late", late);
   const user = JSON.parse(localStorage.getItem('user'));
 
   // Log the data structure for debugging
@@ -171,7 +175,7 @@ const PatientItem = ({
         }}
         className={`patient-item ${isCurrent ? "current" : ""} ${isLate ? "late" : ""} ${
           isDone ? "done" : ""
-        } ${isCancelled ? "cancelled" : ""}`}
+        } ${isCancelled ? "cancelled" : ""} ${isPending ? "pending" : ""}`}
         onClick={handlePatientClick} // Add the click handler
     >
       <div className="patient-content">
@@ -186,15 +190,44 @@ const PatientItem = ({
               </Typography>
               
               <div className="status-tags">
-                {status === "pending" && (
+                {/* Add check-in status */}
+                {checkin ? (
                   <Chip
-                    icon={<PendingActions fontSize="small" />}
-                    label="Pending"
+                    icon={<PersonPin fontSize="small" />}
+                    label="Present"
                     size="small"
-                    color="primary"
+                    color="info"
+                    variant="outlined"
+                  />
+                ) : (
+                  <Chip
+                    icon={<PersonOff fontSize="small" />}
+                    label="Not Present"
+                    size="small"
+                    color="default"
                     variant="outlined"
                   />
                 )}
+                
+                {/* Add payment status */}
+                {paid ? (
+                  <Chip
+                    icon={<Paid fontSize="small" />}
+                    label="Paid"
+                    size="small"
+                    color="success"
+                    variant="outlined"
+                  />
+                ) : (
+                  <Chip
+                    icon={<MoneyOff fontSize="small" />}
+                    label="Not Paid"
+                    size="small"
+                    color="warning"
+                    variant="outlined"
+                  />
+                )}
+                
                 {isLate && (
                   <Chip
                     icon={<AccessTime fontSize="small" />}
@@ -202,6 +235,7 @@ const PatientItem = ({
                     size="small"
                     color="error"
                     variant="outlined"
+                    sx={{ fontWeight: 'bold' }}
                   />
                 )}
                 {isDone && (
@@ -219,15 +253,6 @@ const PatientItem = ({
                     label="Cancelled"
                     size="small"
                     color="error"
-                    variant="outlined"
-                  />
-                )}
-                {isCurrent && (
-                  <Chip
-                    icon={<MedicalServices fontSize="small" />}
-                    label="Current"
-                    size="small"
-                    color="secondary"
                     variant="outlined"
                   />
                 )}

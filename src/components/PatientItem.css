@@ -179,6 +179,12 @@
   background: #ebf8ff;
 }
 
+/* Add pending style with darker background */
+.patient-item.pending {
+  background-color: #f0f0f0;
+  border-left: 4px solid #9e9e9e;
+}
+
 .token-details {
   display: flex;
   flex-direction: column;

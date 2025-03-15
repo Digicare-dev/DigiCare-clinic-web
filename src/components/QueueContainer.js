@@ -42,7 +42,7 @@ const QueueContainer = ({
 
   useEffect(() => {
     const sortedPatients = [...patients]
-      .filter((p) => p.status === "pending" || p.status === "late")
+      .filter((p) => p.status === "pending")
       .sort((a, b) => a.position - b.position);
 
     setMergedGroup(sortedPatients);
@@ -144,7 +144,7 @@ const QueueContainer = ({
                 key={patient.appointment.appointment_id}
                 position={patient.position}
                 appointment={patient.appointment}
-                late={patient.status === "late"}
+                late={patient.late}
                 currentPosition={currentPosition}
                 handleNextPatient={handleNextPatient}
                 handleLatePatient={handleLatePatient}

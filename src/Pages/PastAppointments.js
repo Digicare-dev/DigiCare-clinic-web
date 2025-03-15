@@ -594,6 +594,7 @@ export default function PastAppointments() {
               fullWidth
               label="Token Number"
               type="number"
+              disabled = {true}
               value={selectedAppointment.token}
               InputProps={{ readOnly: true }}
             />

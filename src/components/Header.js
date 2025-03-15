@@ -56,9 +56,9 @@ function Header({ closeEventSource }) {
   };
 
   const handlePatientSelect = async (patient) => {
+    debugger;
     try {
       setLoading(true);
-      
       // Get complete patient details using getPatientDetails API
       const detailsResponse = await getPatientDetails(patient.patient_id);
       console.log('Patient details response:', detailsResponse);

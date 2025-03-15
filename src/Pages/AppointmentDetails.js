@@ -1355,6 +1355,7 @@ const AppointmentDetails = () => {
             >
               <TextField
                 fullWidth
+                disabled={true}
                 label="Token Number"
                 type="number"
                 name="token"
