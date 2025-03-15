@@ -142,7 +142,6 @@ const AppointmentDetails = () => {
             guardian: ''
           });
         }
-        debugger
         // Extract appointment info from the response
         const extractedAppointmentInfo = {
           id: response.appointment_id,
@@ -193,7 +192,6 @@ const AppointmentDetails = () => {
           // Handle guardian field which might be named differently
           guardian: receivedPatientInfo.guardian || receivedPatientInfo.guardianName || ''
         };
-        debugger;
         setPatientInfo(fixedPatientInfo);
         setAppointmentInfo(receivedAppointmentInfo);
         setIsFromPastAppointments(fromPastAppointments || false);

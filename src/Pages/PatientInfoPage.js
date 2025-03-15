@@ -196,7 +196,6 @@ const PatientInfoPage = () => {
     try {
       setLoading(true);
       setError(null);
-      debugger;
       // Get patient ID and appointment ID from state
       const patientId = patient?.id;
       const appointmentId = currentAppointment?.id || location.state?.appointmentInfo?.id;
