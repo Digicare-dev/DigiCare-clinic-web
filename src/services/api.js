@@ -405,8 +405,6 @@ export const getPatientProfile = async(phone_number) => {
     );
     return response.data;
   } catch(error) {
-    console.error("Error searching patient profile:", error);
-    throw error;
   }
 }
 

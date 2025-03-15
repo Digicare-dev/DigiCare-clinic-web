@@ -8,6 +8,12 @@ const CustomSnackbar = ({ open, message, severity, onClose }) => {
       autoHideDuration={2000}
       onClose={onClose}
       anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      components={{
+        Root: (props) => {
+          const { ownerState, ...other } = props;
+          return <div {...other} />;
+        }
+      }}
     >
       <Alert
         onClose={onClose}
