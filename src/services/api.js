@@ -408,7 +408,6 @@ export const getPatientProfile = async(phone_number) => {
   }
 }
 
-
 export const suggestMedicine = async(query) => {
   try {
      // Debug point 22: Before fetching medicine suggestions
@@ -421,6 +420,27 @@ export const suggestMedicine = async(query) => {
     
      // Debug point 23: After receiving medicine suggestions
     console.log("Medicine suggestions response:", JSON.stringify(response.data, null, 2));
+    
+    return response.data;
+  } catch(error) {
+     // Debug point 24: Error fetching medicine suggestions
+    console.error("Error suggesting medications:", error);
+    throw error;
+  }
+}
+
+export const suggestDiagnosis = async(query) => {
+  try {
+     // Debug point 22: Before fetching medicine suggestions
+    console.log("Fetching diagnosis suggestions for query:", query);
+    
+    const response = await axiosInstance.get(
+      `prescriptions/diagnosis/suggest/${query}`,
+      {withCredentials:true}
+    );
+    
+     // Debug point 23: After receiving medicine suggestions
+    console.log("Diagnosis suggestions response:", JSON.stringify(response.data, null, 2));
     
     return response.data;
   } catch(error) {

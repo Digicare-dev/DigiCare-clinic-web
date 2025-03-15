@@ -63,9 +63,9 @@ import {
   getTemplates as getTemplatesFromAPI,
   deleteTemplate as deleteTemplateApi,
   editTemplate as editTemplateApi,
-  suggest as suggestMedicines,
   getCurrentPrescription,
-  suggestMedicine
+  suggestMedicine,
+  suggestDiagnosis
 } from "../services/api";
 import { getCabinInfoFromUser } from "../utils/dateUtils";
 
@@ -270,19 +270,6 @@ export const PrescriptionForm = forwardRef(({
   );
 
   // Add these dummy data arrays near your other dummy data
-  const commonDiagnosisList = [
-    "Hypertension",
-    "Diabetes Mellitus Type 2",
-    "Upper Respiratory Tract Infection",
-    "Gastroenteritis",
-    "Migraine",
-    "Bronchial Asthma",
-    "Anxiety Disorder",
-    "Osteoarthritis",
-    "Urinary Tract Infection",
-    "Dyslipidemia"
-  ];
-
   const diagnosisDurationSuggestions = [
     "Acute",
     "Chronic",
@@ -414,6 +401,13 @@ console.log('initialData', initialData);
   const [suggestedMedicines, setSuggestedMedicines] = useState([]);
   const [medicineSearchQuery, setMedicineSearchQuery] = useState('');
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [loadingMedicineRows, setLoadingMedicineRows] = useState([]);
+
+  // Add state for suggested diagnoses
+  const [suggestedDiagnoses, setSuggestedDiagnoses] = useState([]);
+  const [diagnosisSearchQuery, setDiagnosisSearchQuery] = useState('');
+  const [isLoadingDiagnosisSuggestions, setIsLoadingDiagnosisSuggestions] = useState(false);  
+  const [diagnosisSuggestions, setDiagnosisSuggestions] = useState([]);
   
   // Add state to track if a selection is in progress
   const [selectionInProgress, setSelectionInProgress] = useState(false);
@@ -743,7 +737,6 @@ console.log('initialData', initialData);
 
   const handleMedicationChange = (index, field, value) => {
     console.log('Medication change:', { index, field, value });
-    
     // Set selection in progress first
     handleSelectionStart();
     
@@ -761,6 +754,7 @@ console.log('initialData', initialData);
     if (field === 'medicine') {
       updatedMedications[index].isEditing = false;
     }
+    console.log(medications);
     
     console.log('After update - updatedMedications:', JSON.stringify(updatedMedications));
     
@@ -1704,6 +1698,51 @@ console.log('initialData', initialData);
     }
   };
 
+  // Function to fetch diagnosis suggestions
+  const fetchDiagnosisSuggestions = async (query) => {
+    // Ensure query is trimmed and not empty
+    if (!query || query.trim().length === 0) {
+      setDiagnosisSuggestions([]);
+      setIsLoadingDiagnosisSuggestions(false);
+      return [];
+    }
+    
+    try {
+      setIsLoadingDiagnosisSuggestions(true);
+      console.log('Fetching diagnosis suggestions for query:', query);
+      const suggestions = await suggestDiagnosis(query);
+      console.log('API response for diagnosis suggestions:', JSON.stringify(suggestions, null, 2));
+      
+      const mappedSuggestions = suggestions.map(diagnosis => {
+        console.log('Processing diagnosis suggestion:', JSON.stringify(diagnosis, null, 2));
+        return {
+          value: diagnosis.name, // This is what gets displayed in the input after selection
+          label: (
+            <div>
+              <div style={{ fontWeight: 'bold' }}>{diagnosis.name}</div>
+              {diagnosis.description && (
+                <div style={{ fontSize: '0.8em', color: '#666' }}>
+                  {diagnosis.description}
+                </div>
+              )}
+            </div>
+          ),
+          data: diagnosis // Store the full diagnosis object for use later
+        };
+      });
+      
+      console.log('Final mapped suggestions:', JSON.stringify(mappedSuggestions, null, 2));
+      setDiagnosisSuggestions(mappedSuggestions);
+      setIsLoadingDiagnosisSuggestions(false);
+      return mappedSuggestions;
+    } catch (error) {
+      console.error('Error fetching diagnosis suggestions:', error);
+      setIsLoadingDiagnosisSuggestions(false);
+      setDiagnosisSuggestions([]);
+      return [];
+    }
+  };
+
   // Debounce the medicine search to avoid too many API calls
   useEffect(() => {
     const debounceTimer = setTimeout(() => {
@@ -1714,6 +1753,20 @@ console.log('initialData', initialData);
     
     return () => clearTimeout(debounceTimer);
   }, [medicineSearchQuery]);
+
+  // Debounce the diagnosis search to avoid too many API calls
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      if (diagnosisSearchQuery && diagnosisSearchQuery.length > 0) {
+        setIsLoadingDiagnosisSuggestions(true);
+        fetchDiagnosisSuggestions(diagnosisSearchQuery);
+      } else {
+        setDiagnosisSuggestions([]);
+      }
+    }, 300); // 300ms debounce time
+    
+    return () => clearTimeout(debounceTimer);
+  }, [diagnosisSearchQuery]);
 
   // Effect to handle template changes
   useEffect(() => {
@@ -1810,7 +1863,16 @@ console.log('initialData', initialData);
       
       // Only search if there are at least 2 characters after trimming
       if (trimmedQuery.length >= 2) {
-        setIsLoadingSuggestions(true);
+        // Get the active row index from the window object
+        const activeRowIndex = window.activeSearchRowIndex !== undefined 
+          ? window.activeSearchRowIndex 
+          : medications.findIndex(med => med.isEditing);
+        
+        if (activeRowIndex !== -1) {
+          // Set loading state for the specific row
+          setLoadingMedicineRows(prev => [...prev, activeRowIndex]);
+        }
+        
         try {
            // Debug point 30: Before calling fetchMedicineSuggestions in searchMedicines
           const suggestions = await fetchMedicineSuggestions(trimmedQuery);
@@ -1821,7 +1883,12 @@ console.log('initialData', initialData);
           console.error('Error fetching medicine suggestions:', error);
           setSuggestedMedicines([]);
         } finally {
-          setIsLoadingSuggestions(false);
+          // Clear loading state for the active row
+          if (activeRowIndex !== -1) {
+            setLoadingMedicineRows(prev => prev.filter(idx => idx !== activeRowIndex));
+          }
+          // Clear the active row index
+          window.activeSearchRowIndex = undefined;
         }
       } else {
         setSuggestedMedicines([]);
@@ -1833,7 +1900,7 @@ console.log('initialData', initialData);
   }, [medicineSearchQuery]);
 
   // Add a function to explicitly trigger a medicine search
-  const triggerMedicineSearch = async (query) => {
+  const triggerMedicineSearch = async (query, rowIndex) => {
      // Debug point 32: Start of triggerMedicineSearch
     // Trim the query and check if it's empty
     const trimmedQuery = query ? query.trim() : "";
@@ -1846,6 +1913,11 @@ console.log('initialData', initialData);
     
     console.log("Manually triggering medicine search for:", trimmedQuery);
     setMedicineSearchQuery(trimmedQuery);
+    
+    // Set loading state for the specific row
+    if (rowIndex !== undefined) {
+      setLoadingMedicineRows(prev => [...prev, rowIndex]);
+    }
     
     try {
        // Debug point 33: Before calling fetchMedicineSuggestions in triggerMedicineSearch
@@ -1860,6 +1932,11 @@ console.log('initialData', initialData);
     } catch (error) {
        // Debug point 36: Error in triggerMedicineSearch
       console.error("Error fetching medicine suggestions:", error);
+    } finally {
+      // Clear loading state for the specific row
+      if (rowIndex !== undefined) {
+        setLoadingMedicineRows(prev => prev.filter(idx => idx !== rowIndex));
+      }
     }
   };
 
@@ -2500,7 +2577,9 @@ console.log('initialData', initialData);
                             id={`diagnosis-${index}`}
                             freeSolo
                             size="small"
-                            options={commonDiagnosisList}
+                            options={diagnosisSearchQuery && diagnosisSearchQuery.length > 0 
+                              ? diagnosisSuggestions 
+                              : []}
                             value={row.diagnosis}
                             open={row.isEditing}
                             onClose={(e, reason) => {
@@ -2510,11 +2589,52 @@ console.log('initialData', initialData);
                               }
                             }}
                             onChange={(_, value) => {
-                              handleDiagnosisChange(index, 'diagnosis', value);
+                              // Handle both string values and suggestion objects
+                              if (typeof value === 'object' && value !== null) {
+                                // It's a suggestion object
+                                handleDiagnosisChange(index, 'diagnosis', value.value);
+                                
+                                // If the suggestion has additional data, use it
+                                if (value.data) {
+                                  // Update other fields if needed
+                                  if (value.data.duration) {
+                                    handleDiagnosisChange(index, 'duration', value.data.duration);
+                                  }
+                                  if (value.data.notes) {
+                                    handleDiagnosisChange(index, 'notes', value.data.notes);
+                                  }
+                                }
+                              } else {
+                                // It's a string value
+                                handleDiagnosisChange(index, 'diagnosis', value);
+                              }
+                              
+                              // Clear the search query after selection
+                              setDiagnosisSearchQuery('');
+                              
                               // Keep isEditing true after selection
                               const updatedDiagnoses = [...diagnoses];
                               updatedDiagnoses[index].isEditing = true;
                               setDiagnoses(updatedDiagnoses);
+                            }}
+                            onInputChange={(_, newInputValue) => {
+                              setDiagnosisSearchQuery(newInputValue);
+                            }}
+                            loading={isLoadingDiagnosisSuggestions}
+                            getOptionLabel={(option) => {
+                              // Handle both string options and object options
+                              if (typeof option === 'object' && option !== null && option.value) {
+                                return option.value;
+                              }
+                              return option;
+                            }}
+                            renderOption={(props, option) => {
+                              // If option is an object with a label, render the label
+                              if (typeof option === 'object' && option !== null && option.label) {
+                                return <li {...props}>{option.label}</li>;
+                              }
+                              // Otherwise, render the option as is
+                              return <li {...props}>{option}</li>;
                             }}
                             renderInput={(params) => (
                               <TextField
@@ -2725,7 +2845,7 @@ console.log('initialData', initialData);
                             value={row.medicine || ''}
                             // Modified to ensure dropdown opens when typing and suggestions are available
                             open={row.isEditing && suggestedMedicines.length > 0}
-                            loading={isLoadingSuggestions}
+                            loading={loadingMedicineRows.includes(index)}
                             noOptionsText="Start typing to search medicines"
                             filterOptions={(x) => x}
                             ListboxProps={{
@@ -2747,7 +2867,10 @@ console.log('initialData', initialData);
                                 
                                 // Trigger search with a slight delay to avoid too many API calls
                                 if (newInputValue && newInputValue.trim().length > 0) {
+                                  // Store the active row index in a data attribute for the searchMedicines function
                                   setMedicineSearchQuery(newInputValue);
+                                  // Set the active row for the search
+                                  window.activeSearchRowIndex = index;
                                   // This will trigger the useEffect that calls searchMedicines
                                 }
                               }
@@ -2757,7 +2880,6 @@ console.log('initialData', initialData);
                               console.log('Medicine selected:', value);
                               
                               let medicineValue;
-                              
                               if (typeof value === 'string') {
                                 medicineValue = value;
                                 console.log('String value selected:', medicineValue);
@@ -2768,11 +2890,28 @@ console.log('initialData', initialData);
                                   medicineValue = medicine.name;
                                   console.log('Medicine with data selected:', medicine);
                                   
-                                  // Auto-fill other fields if available
-                                  if (medicine.dose) handleMedicationChange(index, 'dose', medicine.dose);
-                                  if (medicine.when) handleMedicationChange(index, 'timing', medicine.when);
-                                  if (medicine.frequency) handleMedicationChange(index, 'frequency', medicine.frequency);
-                                  if (medicine.duration) handleMedicationChange(index, 'duration', medicine.duration);
+                                  // Create a new medication object with all fields updated at once
+                                  const updatedMedication = {
+                                    ...medications[index],
+                                    medicine: medicine.name,
+                                    dose: medicine.dose || medications[index].dose,
+                                    timing: medicine.when || medications[index].timing,
+                                    frequency: medicine.frequency || medications[index].frequency,
+                                    duration: medicine.duration || medications[index].duration,
+                                    isEditing: false
+                                  };
+                                  
+                                  // Update all fields at once
+                                  const updatedMedications = [...medications];
+                                  updatedMedications[index] = updatedMedication;
+                                  setMedications(updatedMedications);
+                                  
+                                  // Clear suggestions and close dropdown after selection
+                                  setSuggestedMedicines([]);
+                                  setMedicineSearchQuery('');
+                                  
+                                  // Return early since we've already updated everything
+                                  return;
                                 } else {
                                   medicineValue = value.value || value.name || '';
                                   console.log('Object value selected:', medicineValue);
@@ -2782,10 +2921,21 @@ console.log('initialData', initialData);
                                 console.log('Empty value selected');
                               }
                               
-                              // Update the medication with the medicine value
+                              // For simple string values or objects without data property
+                              // Update the medication with just the medicine value
                               if (medicineValue) {
                                 console.log('Setting medicine value:', medicineValue);
-                                handleMedicationChange(index, 'medicine', medicineValue);
+                                
+                                // Update only the medicine field
+                                const updatedMedication = {
+                                  ...medications[index],
+                                  medicine: medicineValue,
+                                  isEditing: false
+                                };
+                                
+                                const updatedMedications = [...medications];
+                                updatedMedications[index] = updatedMedication;
+                                setMedications(updatedMedications);
                                 
                                 // Clear suggestions and close dropdown after selection
                                 setSuggestedMedicines([]);
@@ -2837,10 +2987,16 @@ console.log('initialData', initialData);
                                 InputProps={{
                                   ...params.InputProps,
                                   endAdornment: (
-                                    <>
-                                      {isLoadingSuggestions ? <CircularProgress color="inherit" size={20} /> : null}
+                                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                                      {loadingMedicineRows.includes(index) && (
+                                        <CircularProgress 
+                                          color="inherit" 
+                                          size={16} 
+                                          style={{ marginRight: 8 }} 
+                                        />
+                                      )}
                                       {params.InputProps.endAdornment}
-                                    </>
+                                    </div>
                                   ),
                                 }}
                                 onFocus={(e) => {
@@ -2859,7 +3015,7 @@ console.log('initialData', initialData);
                                   // Only trigger search if there's actual content in the field
                                   if (row.medicine && row.medicine.trim().length > 0) {
                                     console.log("Triggering search with existing value:", row.medicine);
-                                    triggerMedicineSearch(row.medicine);
+                                    triggerMedicineSearch(row.medicine, index);
                                   } else {
                                     console.log("Skipping search for empty medicine field");
                                     // Ensure isEditing is set without triggering a search

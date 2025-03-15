@@ -1357,7 +1357,6 @@ const PatientInfoPage = () => {
     try {
       setAttachmentsLoading(true);
       setAttachmentsError(null);
-      debugger;
       // Create form data
       const formData = new FormData();
       formData.append('appointment_id', currentAppointment.appointment_id);
