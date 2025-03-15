@@ -78,7 +78,7 @@ import ReportLink from '../components/ReportLink';
 import dayjs from 'dayjs';
 import { PrescriptionForm } from './PrescriptionPage';
 import { PageHeader } from '../components/common/PageHeader';
-import { getPatientDetails, getPrescriptions, getPastPrescriptions, getAppointmentDetails, manageVitals, getAttachments, uploadAttachment, deleteAttachment, getVitals } from '../services/api';
+import { getPatientDetails, getPrescriptions, getPastPrescriptions, getAppointmentDetails, manageVitals, getAttachments, uploadAttachment, deleteAttachment, getVitals, getCurrentPrescription } from '../services/api';
 import { useAppointmentForm } from '../context/AppointmentFormContext';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
@@ -596,62 +596,279 @@ const PatientInfoPage = () => {
         return;
       }
 
-      // Fetch prescription data using the appointment ID
-      const prescriptionData = await getPrescriptions(appointmentId);
-      console.log("Fetched prescription data:", prescriptionData);
+      // Call getCurrentPrescription API and log the result
+      const prescriptionData = await getCurrentPrescription(appointmentId);
+      console.log("Prescription Data:", prescriptionData);
       
       if (prescriptionData) {
-        setSelectedPrescription({
-          patientInfo: patientInfo,
-          appointmentInfo: {
-            ...appointment,
-            status: 'Completed',
-            paid: true,
-            checkin: true
+        // Create prescription data object using only prescriptionData and appointment
+        const prescriptionObj = {
+          patient: {
+            id: appointment.patient.patient_id,
+            name: appointment.name,
+            age: appointment.patient.age,
+            gender: appointment.patient.gender,
+            location: appointment.patient.location,
+            guardian: appointment.patient.guardian
           },
-          initialData: {
-            patientName: patientInfo.name,
-            patientId: patientInfo.id,
-            patientAge: patientInfo.age,
-            patientGender: patientInfo.gender,
-            appointmentId: appointmentId,
-            appointmentDate: appointment.date,
-            doctor: appointment.doctor,
-            department: appointment.department,
-            complaints: prescriptionData.complaints || [{ 
-              name: appointment.diagnosis || 'General Checkup',
-              duration: "2 weeks", 
-              severity: "Moderate",
-              notes: ""
-            }],
-            diagnosis: prescriptionData.diagnosis || [{ 
-              name: appointment.diagnosis || 'General Checkup',
-              notes: "Patient responded well to treatment" 
-            }],
-            medications: prescriptionData.medications || [
-              { 
-                name: "Amlodipine", 
-                dose: "5mg", 
-                frequency: "Once daily", 
-                duration: "30 days",
-                timing: "After breakfast",
-                notes: "Take regularly"
+          appointment: {
+            id: appointment.appointment_id,
+            date: new Date(appointment.slot).toLocaleDateString(),
+            slot: appointment.slot,
+            status: appointment.status,
+            type: appointment.appointment_type,
+            token: appointment.token,
+            disease: appointment.disease,
+            fees: appointment.fees_paid,
+            paymentMode: appointment.mode
+          },
+          diagnoses: prescriptionData.diagnosis?.map(diag => ({
+            diagnosis: diag.name || 'General Checkup',
+            duration: diag.duration || '',
+            notes: diag.notes || ''
+          })) || [],
+          medications: prescriptionData.medicines?.map(med => ({
+            medicine: med.name || '',
+            dose: med.dose || '',
+            frequency: med.frequency || '',
+            duration: med.duration || '',
+            timing: med.when || '',
+            notes: med.notes || ''
+          })) || [],
+          complaints: prescriptionData.complaints?.map(comp => ({
+            name: comp.name || '',
+            frequency: comp.frequency || '',
+            duration: comp.duration || '',
+            severity: comp.severity || '',
+            notes: comp.notes || ''
+          })) || [],
+          tests: prescriptionData.tests?.flatMap(test => test.testlist || []) || [],
+          instructions: prescriptionData.advice?.map(adv => adv.advice).join('. ') || '',
+          vitals: {
+            bloodPressure: prescriptionData.vitals?.blood_pressure || 'N/A',
+            heartRate: prescriptionData.vitals?.pulse_rate || 'N/A',
+            temperature: prescriptionData.vitals?.temperature || 'N/A',
+            spO2: prescriptionData.vitals?.spo2 || 'N/A',
+            weight: prescriptionData.vitals?.weight || 'N/A',
+            height: prescriptionData.vitals?.height || 'N/A',
+            bloodSugar: prescriptionData.vitals?.blood_sugar || 'N/A'
+          },
+          attachments: prescriptionData.attachments || []
+        };
+        
+        // Create a new window for printing
+        const printWindow = window.open('', '_blank');
+        
+        // Generate prescription HTML content using only prescriptionObj
+        const prescriptionContent = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Prescription - ${prescriptionObj.appointment.date}</title>
+            <style>
+              body {
+                font-family: Arial, sans-serif;
+                margin: 20px;
+                color: #333;
               }
-            ],
-            tests: prescriptionData.tests || ["Complete Blood Count", "Lipid Profile"],
-            advice: prescriptionData.advice || "Maintain a healthy diet and exercise regularly",
-            followUpDate: prescriptionData.followUpDate || dayjs(appointment.date).add(2, 'week').format('YYYY-MM-DD'),
-            vitals: prescriptionData.vitals || {
-              bloodPressure: "120/80",
-              heartRate: "72",
-              temperature: "98.6",
-              respiratoryRate: "16",
-              spO2: "98",
-            }
-          },
-          readOnly: true
-        });
-        setPrescriptionModalOpen(true);
+              .header {
+                text-align: center;
+                margin-bottom: 20px;
+                border-bottom: 2px solid #2196f3;
+                padding-bottom: 10px;
+              }
+              .clinic-name {
+                font-size: 24px;
+                font-weight: bold;
+                color: #2196f3;
+              }
+              .doctor-info {
+                font-size: 16px;
+                margin: 5px 0;
+              }
+              .patient-info {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 20px;
+                padding: 10px;
+                background-color: #f5f5f5;
+                border-radius: 5px;
+              }
+              .patient-details, .appointment-details {
+                flex: 1;
+              }
+              .section-title {
+                font-size: 18px;
+                font-weight: bold;
+                margin: 15px 0 10px 0;
+                color: #2196f3;
+                border-bottom: 1px solid #ddd;
+                padding-bottom: 5px;
+              }
+              .medication-table, .complaints-table, .diagnosis-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 10px;
+              }
+              .medication-table th, .medication-table td, 
+              .complaints-table th, .complaints-table td,
+              .diagnosis-table th, .diagnosis-table td {
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: left;
+              }
+              .medication-table th, .complaints-table th, .diagnosis-table th {
+                background-color: #f2f2f2;
+              }
+              .tests, .instructions, .complaints {
+                margin-top: 15px;
+              }
+              .footer {
+                margin-top: 30px;
+                text-align: right;
+                font-style: italic;
+                color: #666;
+              }
+              .attachments {
+                margin-top: 15px;
+              }
+              .attachments ul {
+                list-style-type: none;
+                padding-left: 0;
+              }
+              .attachments li {
+                padding: 5px 0;
+                border-bottom: 1px dashed #ddd;
+              }
+              @media print {
+                button { display: none; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div class="clinic-name">DigiCare Medical Center</div>
+            </div>
+            
+            <div class="patient-info">
+              <div class="patient-details">
+                <p><strong>Patient Name:</strong> ${prescriptionObj.patient.name}</p>
+                <p><strong>Patient ID:</strong> ${prescriptionObj.patient.id}</p>
+                <p><strong>Age/Gender:</strong> ${prescriptionObj.patient.age} years, ${prescriptionObj.patient.gender}</p>
+                ${prescriptionObj.vitals.weight !== 'N/A' ? `<p><strong>Weight:</strong> ${prescriptionObj.vitals.weight} kg</p>` : ''}
+              </div>
+              <div class="appointment-details">
+                <p><strong>Date:</strong> ${prescriptionObj.appointment.date}</p>
+                <p><strong>Appointment ID:</strong> ${prescriptionObj.appointment.id}</p>
+                <p><strong>Token:</strong> ${prescriptionObj.appointment.token}</p>
+              </div>
+            </div>
+            
+            ${prescriptionObj.complaints && prescriptionObj.complaints.length > 0 ? `
+              <div class="section-title">Complaints</div>
+              <table class="complaints-table">
+                <thead>
+                  <tr>
+                    <th>Complaint</th>
+                    <th>Frequency</th>
+                    <th>Duration</th>
+                    <th>Severity</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${prescriptionObj.complaints.map(complaint => `
+                    <tr>
+                      <td>${complaint.name}</td>
+                      <td>${complaint.frequency || '-'}</td>
+                      <td>${complaint.duration || '-'}</td>
+                      <td>${complaint.severity || '-'}</td>
+                      <td>${complaint.notes || '-'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            ` : ''}
+            
+            ${prescriptionObj.diagnoses && prescriptionObj.diagnoses.length > 0 ? `
+              <div class="section-title">Diagnosis</div>
+              <table class="diagnosis-table">
+                <thead>
+                  <tr>
+                    <th>Diagnosis</th>
+                    <th>Duration</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${prescriptionObj.diagnoses.map(diag => `
+                    <tr>
+                      <td>${diag.diagnosis}</td>
+                      <td>${diag.duration || '-'}</td>
+                      <td>${diag.notes || '-'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            ` : ''}
+            
+            ${prescriptionObj.medications && prescriptionObj.medications.length > 0 ? `
+              <div class="section-title">Medications</div>
+              <table class="medication-table">
+                <thead>
+                  <tr>
+                    <th>Medication</th>
+                    <th>Dosage</th>
+                    <th>Frequency</th>
+                    <th>Duration</th>
+                    <th>Instructions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${prescriptionObj.medications.map(med => `
+                    <tr>
+                      <td>${med.medicine}</td>
+                      <td>${med.dose}</td>
+                      <td>${med.frequency}</td>
+                      <td>${med.duration}</td>
+                      <td>${med.timing ? med.timing + (med.notes ? '; ' + med.notes : '') : (med.notes || '')}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            ` : ''}
+            
+            ${prescriptionObj.tests && prescriptionObj.tests.length > 0 ? `
+              <div class="section-title">Tests Advised</div>
+              <div class="tests">
+                ${prescriptionObj.tests.map(test => `<p>• ${test}</p>`).join('')}
+              </div>
+            ` : ''}
+            
+            ${prescriptionObj.instructions ? `
+              <div class="section-title">Instructions</div>
+              <div class="instructions">
+                <p>${prescriptionObj.instructions}</p>
+              </div>
+            ` : ''}
+            
+            
+            <button onclick="window.print(); window.close();" style="display: block; margin: 30px auto; padding: 10px 20px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer;">
+              Print Prescription
+            </button>
+          </body>
+          </html>
+        `;
+        
+        // Write the content to the new window
+        printWindow.document.open();
+        printWindow.document.write(prescriptionContent);
+        printWindow.document.close();
+        
+        // Automatically trigger print when content is loaded
+        printWindow.onload = function() {
+          printWindow.focus();
+        };
       } else {
         // Handle case where no prescription data is found
         console.error("No prescription data found for appointment ID:", appointmentId);

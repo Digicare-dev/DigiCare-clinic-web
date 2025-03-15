@@ -59,7 +59,13 @@ axiosInstance.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Handle 429 Unauthorized
+    // Handle 429 Too Many Requests
+    if (error.response?.status === 429) {
+      handleAutoLogout("Too many requests. Please try again later.");
+      return Promise.reject(error);
+    }
+
+    // Handle 401 Unauthorized
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
@@ -118,6 +124,7 @@ export const cancelAllRequests = () => {
 // Auto logout handler
 const handleAutoLogout = (message) => {
   if (!window.location.pathname.includes("/login")) {
+    console.log(`Auto logout triggered: ${message}`);
     localStorage.removeItem("user");
     cancelAllRequests();
     window.location.replace("/login");

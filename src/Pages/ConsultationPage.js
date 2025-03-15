@@ -379,7 +379,6 @@ const ConsultationPage = () => {
   const confirmDoneConsultation = async () => {
     try {
       setIsCompletingConsultation(true);
-      setConfirmDoneDialog(false);
       // Call the markPatientAsDone API
       await markPatientAsDone(appointmentInfo.id);
       console.log("Patient marked as done successfully");
@@ -390,6 +389,8 @@ const ConsultationPage = () => {
       alert("Failed to mark consultation as done. Please try again.");
     } finally {
       setIsCompletingConsultation(false);
+      setConfirmDoneDialog(false);
+
     }
   };
 
@@ -1182,7 +1183,7 @@ const ConsultationPage = () => {
         >
           Print
         </Button>
-        {/* <Button
+        <Button
           variant="contained"
           color={saveSuccess ? "success" : "primary"}
           startIcon={isSavingPrescription ? <CircularProgress size={20} /> : <Save />}
@@ -1194,19 +1195,7 @@ const ConsultationPage = () => {
           disabled={isSavingPrescription}
         >
           {isSavingPrescription ? "Saving..." : saveSuccess ? "Saved!" : "Save Prescription"}
-        </Button> */}
-        {/* <Grid item xs={12} md={5} sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' }, gap: 1 }}> */}
-              <Button 
-                variant="contained" 
-                color="success" 
-                onClick={handleDoneConsultation}
-                startIcon={<Save />}
-                size="small"
-                sx={{ py: 1, px: 2 }}
-              >
-                Complete Consultation
-              </Button>
-            {/* </Grid> */}
+        </Button>
       </Box>
     </Box>
   );
@@ -2036,7 +2025,7 @@ const ConsultationPage = () => {
                 </Box>
               </Box>
             </Grid>
-            {/* <Grid item xs={12} md={5} sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' }, gap: 1 }}>
+            <Grid item xs={12} md={5} sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' }, gap: 1 }}>
               <Button 
                 variant="contained" 
                 color="success" 
@@ -2047,7 +2036,7 @@ const ConsultationPage = () => {
               >
                 Complete Consultation
               </Button>
-            </Grid> */}
+            </Grid>
           </Grid>
         </Box>
 
