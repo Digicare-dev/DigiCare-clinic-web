@@ -108,6 +108,12 @@ const PatientItem = ({
     // Get appointment ID
     const appointmentId = appointment.appointment_id;
     
+    // Check if patient ID exists
+    if (!patientId) {
+      console.log('This patient does not have a profile');
+      return;
+    }
+    
     // Navigate to the patient info page with minimal information needed for API calls
     navigate('/patient-info', { 
       state: { 
