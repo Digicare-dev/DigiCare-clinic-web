@@ -858,18 +858,26 @@ useEffect(() => {
   const handleFileUpload = async () => {
     if (!uploadFile || !uploadFileName) return;
     
+    // Use appointment_id or id for synthetic patients (without mobile numbers)
+    const appointmentId = appointmentInfo?.appointment_id || appointmentInfo?.id;
+    
+    // Return early if no appointment ID is available
+    if (!appointmentId) {
+      setAttachmentsError("Cannot upload file: No appointment ID available");
+      return;
+    }
+    
     try {
       setAttachmentsLoading(true);
       setAttachmentsError(null);
       
       // Create form data
       const formData = new FormData();
-      formData.append('appointment_id', appointmentInfo.appointment_id,
-);
+      formData.append('appointment_id', appointmentId);
       formData.append('file', uploadFile);
       formData.append('file_name', uploadFileName);
       formData.append('file_type', uploadFile.type);
-      formData.append('description', `Medical record uploaded for appointment ${appointmentInfo.appointment_id}`);
+      formData.append('description', `Medical record uploaded for appointment ${appointmentId}`);
       
       // Upload the file
       const response = await uploadAttachment(formData);
@@ -1451,14 +1459,20 @@ useEffect(() => {
 
   // Add function to fetch attachments
   const fetchAttachments = async () => {
-    if (!appointmentInfo?.appointment_id) return;
+    // Use appointment_id or id for synthetic patients (without mobile numbers)
+    const appointmentId = appointmentInfo?.appointment_id || appointmentInfo?.id;
+    
+    // Return early if no appointment ID is available
+    if (!appointmentId) {
+      console.error("No appointment ID available to fetch attachments");
+      return;
+    }
     
     try {
       setAttachmentsLoading(true);
       setAttachmentsError(null);
       
-      const response = await getAttachments(appointmentInfo.appointment_id,
-);
+      const response = await getAttachments(appointmentId);
       console.log("Attachments response:", response);
       
       if (response) {
@@ -1483,9 +1497,9 @@ useEffect(() => {
   };
 
   useEffect(() => {
-    // Fetch attachments when component mounts
+    // Fetch attachments when component mounts or appointment info changes
     fetchAttachments();
-  }, []);
+  }, [appointmentInfo?.id, appointmentInfo?.appointment_id]);
 
   // Add function to handle attachment deletion
   const handleDeleteAttachment = async (attachmentId, event) => {

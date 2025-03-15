@@ -192,6 +192,28 @@ const PatientInfoPage = () => {
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   }
 
+  const fetchAllAttachments = async (appointmentId) => {
+    try {
+      const attachmentsResponse = await getAttachments(appointmentId);
+      if (attachmentsResponse && attachmentsResponse.length > 0) {
+        setAttachments(attachmentsResponse.map(att => ({
+          id: att.id,
+          name: att.file_name,
+          type: att.file_type.includes('pdf') ? 'pdf' : 
+                att.file_type.includes('image') ? 'image' : 'document',
+          reportType: 'custom',
+          date: new Date(att.uploaded_at).toLocaleDateString(),
+          size: '1 MB',
+          url: getFullAttachmentUrl(att.file),
+          description: att.description
+        })));
+      }
+    } catch (attachmentsError) {
+      console.error("Error fetching attachments:", attachmentsError);
+      // Don't set error state as attachments are optional
+    }
+  }
+
   const fetchPatientDetails = async () => {
     try {
       setLoading(true);
@@ -298,25 +320,7 @@ const PatientInfoPage = () => {
             }
             
             // Fetch attachments for the appointment
-            try {
-              const attachmentsResponse = await getAttachments(appointmentId);
-              if (attachmentsResponse && attachmentsResponse.length > 0) {
-                setAttachments(attachmentsResponse.map(att => ({
-                  id: att.id,
-                  name: att.file_name,
-                  type: att.file_type.includes('pdf') ? 'pdf' : 
-                        att.file_type.includes('image') ? 'image' : 'document',
-                  reportType: 'custom',
-                  date: new Date(att.uploaded_at).toLocaleDateString(),
-                  size: '1 MB',
-                  url: getFullAttachmentUrl(att.file),
-                  description: att.description
-                })));
-              }
-            } catch (attachmentsError) {
-              console.error("Error fetching attachments:", attachmentsError);
-              // Don't set error state as attachments are optional
-            }
+            await fetchAllAttachments(appointmentId);
           }
         } catch (appointmentError) {
           console.error("Error fetching appointment details:", appointmentError);
@@ -1103,11 +1107,11 @@ const PatientInfoPage = () => {
       
       // Create form data
       const formData = new FormData();
-      formData.append('appointment_id', currentAppointment.id);
+      formData.append('appointment_id', currentAppointment.appointment_id);
       formData.append('file', selectedFile);
       formData.append('file_name', uploadFileName);
       formData.append('file_type', selectedFile.type);
-      formData.append('description', `Medical record uploaded for appointment ${currentAppointment.id}`);
+      formData.append('description', `Medical record uploaded for appointment ${currentAppointment.appointment_id}`);
       
       // Upload the file
       const response = await uploadAttachment(formData);
@@ -1553,6 +1557,10 @@ const PatientInfoPage = () => {
                         ) : attachmentsError ? (
                           <Alert 
                             severity="error" 
+                            onClick={() => {
+                              handleCloseReportsModal();
+                              handleOpenUploadModal();
+                            }}
                             action={
                               <Button color="inherit" size="small" onClick={fetchPatientDetails}>
                                 Retry

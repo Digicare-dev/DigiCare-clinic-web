@@ -108,24 +108,29 @@ const PatientItem = ({
     // Get appointment ID
     const appointmentId = appointment.appointment_id;
     
-    // Check if patient ID exists
-    if (!patientId) {
-      console.log('This patient does not have a profile');
-      return;
-    }
+    // Note: We're no longer checking if patient ID exists
+    // We'll let the PatientInfoPage handle cases with missing patient info
     
-    // Navigate to the patient info page with minimal information needed for API calls
+    // Navigate to the patient info page with information available
     navigate('/patient-info', { 
       state: { 
         patientInfo: {
-          id: patientId
+          id: patientId  // This may be null for some patients
         },
         appointmentInfo: {
-          id: appointmentId
+          id: appointmentId,
+          // Include more details from the appointment to help with synthetic patient creation
+          position: position,
+          token: appointment.token,
+          name: appointment.name,
+          disease: appointment.disease,
+          appointment_type: appointment.appointment_type,
+          guardian: appointment.guardian || (appointment.patient ? appointment.patient.guardian : null)
         },
         position: position,
         late: late,
         status: status,
+        appointment: appointment
       } 
     });
   };
