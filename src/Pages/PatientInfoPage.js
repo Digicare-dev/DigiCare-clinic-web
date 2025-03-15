@@ -72,6 +72,7 @@ import {
   Upload,
   CloudUpload,
   History,
+  Info as InfoIcon,
 } from '@mui/icons-material';
 import ReportLink from '../components/ReportLink';
 import dayjs from 'dayjs';
@@ -295,9 +296,38 @@ const PatientInfoPage = () => {
             setCurrentAppointment(appointmentResponse);
             setHasCurrentAppointment(true);
             
-            // If we don't have patient data yet but the appointment has patient info, set it
-            if (!patient?.name && appointmentResponse.patient) {
-              setPatient(appointmentResponse.patient);
+            // If we don't have patient data yet, create a synthetic patient object from appointment data
+            if (!patient?.name) {
+              // Try to use patient data from the appointment if it exists
+              if (appointmentResponse.patient) {
+                setPatient(appointmentResponse.patient);
+              } else {
+                // Create a synthetic patient object from appointment data
+                // Extract first and last name from the full name
+                const nameParts = appointmentResponse.name ? appointmentResponse.name.split(' ') : ['Unknown', ''];
+                const firstName = nameParts[0];
+                const lastName = nameParts.slice(1).join(' ');
+                
+                // Create synthetic patient object
+                const syntheticPatient = {
+                  id: null, // No database ID for synthetic patients
+                  name: appointmentResponse.name || 'Unknown Patient',
+                  first_name: firstName,
+                  last_name: lastName,
+                  phone_number: null, // No phone number available
+                  age: null, // Age not available
+                  gender: null, // Gender not available
+                  address: null, // Address not available
+                  guardian: null, // Guardian not available
+                  email: null, // Email not available
+                  isSynthetic: true, // Flag to indicate this is not a real patient record
+                };
+                
+                // Set the synthetic patient object
+                setPatient(syntheticPatient);
+                
+                console.log("Created synthetic patient:", syntheticPatient);
+              }
             }
             
             // Fetch vitals for the appointment
@@ -367,20 +397,27 @@ const PatientInfoPage = () => {
   ];
 
   const handleCreatePrescription = () => {
+    // Safely extract values with optional chaining and default values
+    const patientWeight = vitals.weight ? vitals.weight.split(' ')[0] : '';
+    
     navigate('/prescription', { 
       state: { 
         patientInfo: {
-          patientName: patient.name,
-          age: patient.age,
-          gender: patient.gender,
-          weight: vitals.weight.split(' ')[0],
-          bloodPressure: vitals.bloodPressure,
-          heartRate: vitals.heartRate,
-          temperature: vitals.temperature,
-          respiratoryRate: vitals.respiratoryRate,
-          spO2: vitals.spO2,
-          allergies: patient.allergies,
-          chronicConditions: patient.chronicConditions,
+          patientName: patient?.name || currentAppointment?.name || 'Unknown Patient',
+          age: patient?.age || '',
+          gender: patient?.gender || '',
+          weight: patientWeight,
+          bloodPressure: vitals?.bloodPressure || '',
+          heartRate: vitals?.heartRate || '',
+          temperature: vitals?.temperature || '',
+          respiratoryRate: vitals?.respiratoryRate || '',
+          spO2: vitals?.spO2 || '',
+          allergies: patient?.allergies || '',
+          chronicConditions: patient?.chronicConditions || '',
+        },
+        // Include appointment info to ensure we have an appointment ID
+        appointmentInfo: {
+          id: currentAppointment?.appointment_id || currentAppointment?.id
         }
       } 
     });
@@ -394,27 +431,29 @@ const PatientInfoPage = () => {
     
     console.log("Opening consultation with:", { currentAppointment, patientInfo });
     
+    // For synthetic patients, we need to use the appointment data instead of patient data
+    const isSyntheticPatient = patient?.isSynthetic;
+    
     // Create a minimal state object with the necessary data
     const consultationState = {
       patientInfo: patient ? {
-        id: patient.patient_id,
-        name: patient.name,
-        age: patient.age,
-        gender: patient.gender,
-        phone: patient.phone_number,
-        location: patient.location,
-        guardian: patient.guardian
-      } : patientInfo,
-      appointmentInfo: {
+        id: patient.id || patient.patient_id,
+        name: patient.name || (currentAppointment?.name || 'Unknown Patient'),
+        age: patient.age || '',
+        gender: patient.gender || '',
+        allergies: patient.allergies || '',
+        isSynthetic: isSyntheticPatient
+      } : null,
+      
+      appointmentInfo: currentAppointment ? {
         id: currentAppointment.appointment_id || currentAppointment.id,
         token: currentAppointment.token,
-        status: currentAppointment.status,
-        disease: currentAppointment.disease
-      },
-      vitalsInfo: vitals,
-      complaintsData: complaints || [],
-      position: currentAppointment.position || 0,
-      late: currentAppointment.status === 'Late' || currentAppointment.status === 'late',
+        disease: currentAppointment.disease,
+        appointment_type: currentAppointment.appointment_type,
+        status: currentAppointment.status
+      } : null,
+      
+      vitalsInfo: vitals
     };
     
     navigate('/consultation', { state: consultationState });
@@ -477,7 +516,8 @@ const PatientInfoPage = () => {
       }
 
       // Get appointment ID from either currentAppointment or location state
-      const appointmentId = currentAppointment?.appointment_id;
+      // For synthetic patients we need to use the appointment_id directly
+      const appointmentId = currentAppointment?.appointment_id || currentAppointment?.id;
       
       if (!appointmentId) {
         setVitalsError("No active appointment found. Please select an appointment first.");
@@ -1118,8 +1158,7 @@ const PatientInfoPage = () => {
       console.log('File uploaded successfully:', response);
       
       // Refresh patient details to get updated attachments
-      await fetchPatientDetails();
-      
+     await fetchAllAttachments(currentAppointment.appointment_id)      
       // Close the modal
       handleCloseUploadModal();
       
@@ -1325,9 +1364,43 @@ const PatientInfoPage = () => {
                         Location: {patient.location}
                       </Typography>
                     )}
+                    
+                    {/* Display appointment info for synthetic patient */}
+                    {patient?.isSynthetic && (
+                      <>
+                        {currentAppointment?.disease && (
+                          <Typography variant="caption" color="text.secondary">
+                            Complaint: {currentAppointment.disease}
+                          </Typography>
+                        )}
+                        {currentAppointment?.guardian && (
+                          <Typography variant="caption" color="text.secondary">
+                            Guardian: {currentAppointment.guardian}
+                          </Typography>
+                        )}
+                      </>
+                    )}
                   </Box>
                 </Box>
               </Box>
+              
+              {/* Notice for synthetic patient data */}
+              {patient?.isSynthetic && (
+                <Box sx={{ 
+                  mt: 1, 
+                  p: 1, 
+                  bgcolor: 'info.light', 
+                  color: 'info.contrastText',
+                  borderRadius: 1,
+                  display: 'flex',
+                  alignItems: 'center'
+                }}>
+                  <InfoIcon sx={{ mr: 1, fontSize: '1rem' }} />
+                  <Typography variant="body2">
+                    Limited patient information is available. To create a complete patient profile, update the appointment with a phone number.
+                  </Typography>
+                </Box>
+              )}
             </Box>
           </Paper>
 

@@ -4009,7 +4009,19 @@ const PrescriptionPage = () => {
     // or perform other actions specific to the page context
   };
 
-  return <PrescriptionForm onSubmit={handleFormSubmit} />;
+  // Provide an empty initialData object with required properties
+  const initialData = {
+    signature: "",
+    // Add other properties that might be expected by PrescriptionForm
+    vitals: {},
+    medications: [],
+    diagnoses: [],
+    tests: [],
+    instructions: "",
+    followUp: ""
+  };
+
+  return <PrescriptionForm initialData={initialData} onSubmit={handleFormSubmit} />;
 };
 
 export default PrescriptionPage;
