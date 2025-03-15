@@ -296,7 +296,7 @@ const PatientItem = ({
             )}
             
             {/* Mark Late button - show for all patients that aren't already late or done */}
-            {!isLate && !isDone && (
+            {!isDone && (
               <Tooltip title="Mark as Late">
                 <MuiButton
                   variant="outlined"
@@ -307,7 +307,6 @@ const PatientItem = ({
                     e.stopPropagation();
                     setConfirmAction("late");
                   }}
-                  disabled={loadingType === "late" || isLate || isDone}
                 >
                   {loadingType === "late" ? (
                     <CircularProgress size={20} color="inherit" />
