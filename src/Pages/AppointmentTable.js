@@ -757,9 +757,9 @@ export default function AppointmentTable() {
     }
     if (
       newAppointment.phone_number &&
-      !/^\d{10}$/.test(newAppointment.phone_number)
+      (!/^\d+$/.test(newAppointment.phone_number) || newAppointment.phone_number.length > 10)
     ) {
-      setError("Invalid mobile number (10 digits required)");
+      setError("Invalid mobile number (maximum 10 digits, numbers only)");
       return;
     }
 
@@ -894,55 +894,26 @@ export default function AppointmentTable() {
 
   // Function to handle click on an appointment
   const handleAppointmentClick = (appointment) => {
-    // Extract date and time from appointment_id
+    // Extract date and time from appointment_id for backward compatibility
     const { date, time } = formatAppointmentDateTime(appointment.appointment_id);
     
     // Log the appointment data for debugging
     console.log("Appointment clicked:", appointment);
     
-    // Create patient information from the flattened appointment data
-    const patientInfo = {
-      id: appointment.patientId || '',
-      name: `${appointment.firstName} ${appointment.lastName}`.trim(),
-      age: appointment.age || '',
-      gender: appointment.sex === 'M' ? 'Male' : 
-              appointment.sex === 'F' ? 'Female' : appointment.sex === 'O' ? 'Other' : '',
-      phone: appointment.phone_number || '',
-      location: appointment.location || 'Not specified',
-      guardianName: appointment.guardian !== 'NULL' ? appointment.guardian : '',
-      // Add default values for potentially missing fields
-      email: appointment?.email || '',  // Not in the API data
-      bloodGroup: appointment?.blood_group || '',  // Not in the API data
-    };
-    
-    // Log the patient info for debugging
-    console.log("Patient info being passed to AppointmentDetails:", patientInfo);
-    
-    // Format appointment information
+    // Pass only the minimal information needed - primarily IDs
+    // The rest will be fetched from the API in the AppointmentDetails component
     const appointmentInfo = {
       id: appointment.appointment_id,
       status: mapStatusToReadable(appointment.status),
-      appointment_type: appointment.appointment_type || '',
-      disease: appointment.disease || '',
-      doctor: `Dr. ${user.checkupcabindata[0].doctor}` || '',
-      department: 'General Medicine',
-      date: date,
-      time: time,
-      fees_paid: appointment.fees_paid || 0,
-      paid: appointment.paid || false,
-      mode: appointment.mode || '',
-      token: appointment.token || '',
-      checkin: appointment.checkin || false
+      patientId: appointment.patientId || undefined
     };
-
     
-    
-    // Navigate to the appointment details page with the patient and appointment info
+    // Navigate to the appointment details page with minimal info
     navigate('/appointment-details', { 
       state: { 
-        patientInfo, 
         appointmentInfo,
-        from: 'appointment-table'
+        from: 'appointment-table',
+        fromPastAppointments: appointment.status === 'done_checkup' || appointment.status === 'completed'
       } 
     });
   };
@@ -1009,15 +980,27 @@ export default function AppointmentTable() {
             <Autocomplete
               fullWidth
               options={editMobileSearchResults}
-              getOptionLabel={(option) => option.phone_number || ""}
+              getOptionLabel={(option) => {
+                // Handle both objects from dropdown and direct string input
+                return typeof option === 'object' ? option?.phone_number || "" : option || "";
+              }}
               loading={isEditSearching}
-              value={null}
-              onChange={(_, newValue) => handleEditPatientSelect(newValue)}
+              value={selectedAppointment.phone_number || ""}
+              onChange={(_, newValue) => {
+                if (typeof newValue === 'object') {
+                  handleEditPatientSelect(newValue);
+                } else {
+                  setSelectedAppointment(prev => ({
+                    ...prev,
+                    phone_number: newValue || ""
+                  }));
+                }
+              }}
+              freeSolo={true}
               renderInput={(params) => (
                 <TextField
                   {...params}
                   label="Mobile"
-                  value={selectedAppointment.phone_number || ""}
                   onChange={(e) => {
                     const value = e.target.value;
                     setSelectedAppointment(prev => ({
@@ -1576,16 +1559,28 @@ export default function AppointmentTable() {
             <Autocomplete
               fullWidth
               options={mobileSearchResults}
-              getOptionLabel={(option) => option.phone_number || ""}
+              getOptionLabel={(option) => {
+                // Handle both objects from dropdown and direct string input
+                return typeof option === 'object' ? option?.phone_number || "" : option || "";
+              }}
               loading={isSearching}
-              value={null}
-              onChange={(_, newValue) => handlePatientSelect(newValue)}
+              value={newAppointment.phone_number || ""}
+              onChange={(_, newValue) => {
+                if (typeof newValue === 'object') {
+                  handlePatientSelect(newValue);
+                } else {
+                  setNewAppointment(prev => ({
+                    ...prev,
+                    phone_number: newValue || ""
+                  }));
+                }
+              }}
+              freeSolo={true}
               renderInput={(params) => (
                 <TextField
                   {...params}
                   label="Mobile"
                   name="phone_number"
-                  value={newAppointment.phone_number}
                   onChange={(e) => {
                     const value = e.target.value;
                     if (value.length <= 10) {

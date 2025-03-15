@@ -81,29 +81,11 @@ function Header({ closeEventSource }) {
         navigate('/patient-info', { 
           state: { 
             patientInfo: {
-              id: patient.patient_id,
-              name: patient.name,
-              age: patient.age,
-              gender: patient.gender === 'M' ? 'Male' : patient.gender === 'F' ? 'Female' : patient.gender,
-              phone: patient.phone_number,
-              email: detailsResponse.patient.email,
-              address: patient.location,
-              bloodGroup: detailsResponse.patient.blood_group,
-              allergies: detailsResponse.patient.allergies,
-              chronicConditions: detailsResponse.patient.chronic_conditions,
-              guardian: patient.guardian
+              id: patient.patient_id
             },
-            appointmentInfo: currentAppointment,
-            vitalsInfo: detailsResponse.vitals || {
-              bloodPressure: '',
-              heartRate: '',
-              temperature: '',
-              respiratoryRate: '',
-              spO2: '',
-              height: '',
-              weight: '',
-            },
-            otherAppointments: detailsResponse.other_appointments || [] // Include past appointments
+            appointmentInfo: currentAppointment ? {
+              id: currentAppointment.id
+            } : undefined
           } 
         });
       }

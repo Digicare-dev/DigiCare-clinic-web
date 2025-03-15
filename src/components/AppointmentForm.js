@@ -312,9 +312,9 @@ const AppointmentForm = () => {
     }
     if (
       newAppointment.phone_number &&
-      !/^\d{10}$/.test(newAppointment.phone_number)
+      (!/^\d+$/.test(newAppointment.phone_number) || newAppointment.phone_number.length > 10)
     ) {
-      setError("Invalid mobile number (10 digits required)");
+      setError("Invalid mobile number (maximum 10 digits, numbers only)");
       return;
     }
     
@@ -400,16 +400,28 @@ const AppointmentForm = () => {
                 <Autocomplete
                   fullWidth
                   options={mobileSearchResults}
-                  getOptionLabel={(option) => option.phone_number || ""}
+                  getOptionLabel={(option) => {
+                    // Handle both objects from dropdown and direct string input
+                    return typeof option === 'object' ? option?.phone_number || "" : option || "";
+                  }}
                   loading={isSearching}
-                  value={null}
-                  onChange={(_, newValue) => handlePatientSelect(newValue)}
+                  value={newAppointment.phone_number || ""}
+                  onChange={(_, newValue) => {
+                    if (typeof newValue === 'object') {
+                      handlePatientSelect(newValue);
+                    } else {
+                      setNewAppointment(prev => ({
+                        ...prev,
+                        phone_number: newValue || ""
+                      }));
+                    }
+                  }}
+                  freeSolo={true}
                   renderInput={(params) => (
                     <TextField
                       {...params}
                       label="Mobile"
                       name="phone_number"
-                      value={newAppointment.phone_number}
                       onChange={(e) => {
                         const value = e.target.value;
                         if (value.length <= 10) {
@@ -423,6 +435,7 @@ const AppointmentForm = () => {
                       inputProps={{
                         ...params.inputProps,
                         maxLength: 10,
+                        value: newAppointment.phone_number || ""
                       }}
                       InputProps={{
                         ...params.InputProps,

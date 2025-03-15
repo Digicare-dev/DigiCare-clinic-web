@@ -63,9 +63,10 @@ import { Layout } from '../components/Layout';
 import { PageHeader } from '../components/common/PageHeader';
 import ReportLink from '../components/ReportLink';
 import dayjs from 'dayjs';
-import { getAppointmentDetails, updateAppointmentDetails, removeAppointment } from '../services/api';
+import { getAppointmentDetails, updateAppointmentDetails, removeAppointment, getPatientDetails } from '../services/api';
 
 const AppointmentDetails = () => {
+  const user = JSON.parse(localStorage.getItem('user'));
   const location = useLocation();
   const navigate = useNavigate();
   const [appointmentInfo, setAppointmentInfo] = useState(null);
@@ -95,34 +96,81 @@ const AppointmentDetails = () => {
       
       if (response) {
         // Extract patient info from the nested patient object
-        const extractedPatientInfo = {
+        const extractedPatientInfo = response.patient ? {
           id: response.patient.patient_id,
           name: response.patient.name,
           phone: response.patient.phone_number,
           age: response.patient.age,
           gender: response.patient.gender,
           location: response.patient.location,
-          guardian: response.patient.guardian
-        };
+          guardian: response.patient.guardian,
+          allergies: response.patient.allergies,
+        } : null;
         
+        // If patient info is null or missing key fields, try to fetch it directly using patient_id
+        if (!extractedPatientInfo && response.patient?.patient_id) {
+          try {
+            const patientResponse = await getPatientDetails(response.patient.patient_id);
+            if (patientResponse && patientResponse.patient) {
+              const fetchedPatientInfo = {
+                id: patientResponse.patient.patient_id,
+                name: patientResponse.patient.name,
+                phone: patientResponse.patient.phone_number,
+                age: patientResponse.patient.age,
+                gender: patientResponse.patient.gender,
+                location: patientResponse.patient.location,
+                guardian: patientResponse.patient.guardian,
+                allergies: patientResponse.patient.allergies,
+              };
+              setPatientInfo(fetchedPatientInfo);
+            }
+          } catch (patientError) {
+            console.error('Error fetching patient details:', patientError);
+          }
+        } else if (extractedPatientInfo) {
+          setPatientInfo(extractedPatientInfo);
+        } else {
+          // Handle case where patient info is missing
+          console.warn('Patient information is missing in the appointment details response');
+          setPatientInfo({
+            id: '',
+            name: response.name || 'Unknown Patient',
+            phone: '',
+            age: '',
+            gender: '',
+            location: '',
+            guardian: ''
+          });
+        }
+        debugger
         // Extract appointment info from the response
         const extractedAppointmentInfo = {
           id: response.appointment_id,
           status: response.status,
-          checkin: response.checkin,
-          paid: response.paid,
+          checkin: response.checkin || false,
+          paid: response.paid || false,
           token: response.token,
-          appointment_type: response.appointment_type,
-          disease: response.disease,
-          fees_paid: response.fees_paid,
-          mode: response.mode
+          appointment_type: response.appointment_type || 'New',
+          disease: response.disease || '',
+          fees_paid: response.fees_paid || 0,
+          mode: response.mode || 'cash',
+          // Format date and time from the slot field if available
+          date: response.slot ? new Date(response.slot).toLocaleDateString() : 'Not scheduled',
+          time: response.slot ? new Date(response.slot).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Not scheduled',
+          // Add any other fields that might be needed
+          doctor: user.checkupcabindata[0].doctor, // This may need to be updated based on your actual data
+          department: 'General Medicine' // This may need to be updated based on your actual data
         };
         
-        setPatientInfo(extractedPatientInfo);
         setAppointmentInfo(extractedAppointmentInfo);
+      } else {
+        console.error('Empty response when fetching appointment details');
+        // Set default values or show an error message
+        handleOpenSnackbar('Failed to fetch appointment details', 'error');
       }
     } catch (error) {
       console.error('Error fetching appointment details:', error);
+      handleOpenSnackbar('Failed to fetch appointment details: ' + error.message, 'error');
     }
   };
 
@@ -132,27 +180,23 @@ const AppointmentDetails = () => {
     // state or fetch from API if available
     if (location.state) {
       const { patientInfo: receivedPatientInfo, appointmentInfo: receivedAppointmentInfo, from, fromPastAppointments } = location.state;
-      
+
       // If coming from appointment table, use the passed data directly
-      if (from === 'appointment-table' && receivedPatientInfo && receivedAppointmentInfo) {
+      if (from === 'appointment-table' && receivedAppointmentInfo && receivedAppointmentInfo.id) {
+        // Fetch from API using the appointment ID
+        fetchAppointmentDetails(receivedAppointmentInfo.id);
+        setIsFromPastAppointments(fromPastAppointments || false);
+      } else if (receivedPatientInfo && receivedAppointmentInfo) {
         // Fix any field name differences
         const fixedPatientInfo = {
           ...receivedPatientInfo,
           // Handle guardian field which might be named differently
           guardian: receivedPatientInfo.guardian || receivedPatientInfo.guardianName || ''
         };
-        
+        debugger;
         setPatientInfo(fixedPatientInfo);
         setAppointmentInfo(receivedAppointmentInfo);
         setIsFromPastAppointments(fromPastAppointments || false);
-      }
-      // Otherwise, fetch from API using the ID
-      else if (receivedAppointmentInfo && receivedAppointmentInfo.id) {
-        // Fetch from API using the ID from location state
-        fetchAppointmentDetails(receivedAppointmentInfo.id);
-        setIsFromPastAppointments(fromPastAppointments || false);
-      } else {
-        console.error('No appointment ID provided');
       }
     } else {
       // If no location state, try to get ID from URL params
@@ -348,7 +392,7 @@ const AppointmentDetails = () => {
       <body>
         <div class="header">
           <div class="clinic-name">DigiCare Medical Center</div>
-          <div class="doctor-info">${selectedPrescription?.appointmentInfo?.doctor || 'Dr. Smith'}</div>
+          <div class="doctor-info">${user.checkupcabindata[0].doctor}</div>
           <div class="doctor-info">${selectedPrescription?.appointmentInfo?.department || 'General Medicine'}</div>
         </div>
         
@@ -408,7 +452,7 @@ const AppointmentDetails = () => {
         <div class="footer">
           <div></div>
           <div class="signature">
-            <p>${selectedPrescription?.appointmentInfo?.doctor || 'Dr. Smith'}</p>
+            <p>${user.checkupcabindata[0].doctor}</p>
             <p>${selectedPrescription?.appointmentInfo?.department || 'General Medicine'}</p>
           </div>
         </div>
@@ -595,7 +639,7 @@ const AppointmentDetails = () => {
             <tbody>
               <tr>
                 <td>${appointmentInfo.appointment_type || 'Consultation'} - ${appointmentInfo.disease || 'General Checkup'}</td>
-                <td>${appointmentInfo.doctor || 'Dr. Smith'}</td>
+                <td>${user.checkupcabindata[0].doctor}</td>
                 <td>${appointmentInfo.department || 'General Medicine'}</td>
                 <td>₹${appointmentInfo.fees_paid}</td>
               </tr>
@@ -845,7 +889,10 @@ const AppointmentDetails = () => {
                   startIcon={<Person />} 
                   sx={{ ml: 'auto' }}
                   onClick={() => navigate('/patient-info', { 
-                    state: { patientInfo, appointmentInfo } 
+                    state: { 
+                      patientInfo: { id: patientInfo.id },
+                      appointmentInfo: { id: appointmentInfo.id } 
+                    } 
                   })}
                 >
                   View Complete Profile

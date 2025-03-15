@@ -102,58 +102,21 @@ const PatientItem = ({
     // Log the appointment data to see what's available
     console.log('Appointment data for patient click:', appointment);
     
-    // Get patient data from appointment.patient if available
-    const patient = appointment.patient || {};
+    // Get patient ID either from patient object or appointment
+    const patientId = appointment.patient?.patient_id || appointment.patient_id;
     
-    // Extract patient name parts (assuming format is "FIRST LAST")
-    const nameParts = (appointment.name || patient.name || "").split(" ");
-    const firstName = nameParts[0] || "";
-    const lastName = nameParts.slice(1).join(" ") || "";
+    // Get appointment ID
+    const appointmentId = appointment.appointment_id;
     
-    // Extract all available patient data to pass to the PatientInfoPage
-    const patientData = {
-      name: appointment.name || patient.name ,
-      firstName: firstName,
-      lastName: lastName,
-      // Try to extract age from all possible fields
-      age: patient.age || appointment.age || "",
-      gender: patient.gender || appointment.gender || "",
-      // Try to extract phone from all possible fields
-      phone: patient.phone_number || appointment.phone_number || "",
-      email: appointment.email || patient.email ,
-      id: patient.patient_id || appointment.patient_id ,
-      bloodGroup: patient.blood_group || appointment.blood_group ,
-      allergies: patient.allergies || appointment.allergies || ["None"],
-      chronicConditions: patient.chronic_conditions || appointment.chronic_conditions || [],
-      guardianName: patient.guardian || appointment.guardian || "",
-    };
-    
-    // Extract all available appointment data
-    const appointmentData = {
-      date: appointment.date || new Date().toISOString().split('T')[0],
-      time: appointment.time ,
-      doctor: user.checkupcabindata[0].doctor , // Default if not available
-      type: appointment.appointment_type || "General Checkup", // Default if not available
-      status: status || "pending",
-      id: appointment.appointment_id,
-      reason: appointment.reason || appointment.disease || "General Checkup",
-      department: appointment.department || "General",
-      token: appointment.token || position,
-      disease: appointment.disease || "",
-      fees: appointment.fees_paid || 0,
-      paymentMode: appointment.mode || "cash",
-      paid: paid,
-      checkin: checkin,
-    };
-    
-
-    // Navigate to the patient info page with the patient data
+    // Navigate to the patient info page with minimal information needed for API calls
     navigate('/patient-info', { 
       state: { 
-        patientId: patientData.id,
-        appointmentId: appointmentData.id,
-        patientInfo: patientData,
-        appointmentInfo: appointmentData,
+        patientInfo: {
+          id: patientId
+        },
+        appointmentInfo: {
+          id: appointmentId
+        },
         position: position,
         late: late,
         status: status,

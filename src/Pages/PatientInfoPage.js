@@ -114,6 +114,10 @@ const PatientInfoPage = () => {
   const [error, setError] = useState(null);
   const [patient, setPatient] = useState(location.state?.patientInfo || {});
   const [currentAppointment, setCurrentAppointment] = useState(location.state?.appointmentInfo || null);
+  console.log(location.state)
+  useEffect(() => {
+    console.log(currentAppointment)
+  }, [currentAppointment])
   const [vitals, setVitals] = useState(location.state?.vitalsInfo || {
     bloodPressure: '',
     heartRate: '',
@@ -183,19 +187,30 @@ const PatientInfoPage = () => {
   const late = location.state?.late || false;
   const status = location.state?.status || 'pending';
 
+  const formatDate = (slot) => {
+    const date = new Date(slot);
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  }
+
   const fetchPatientDetails = async () => {
     try {
       setLoading(true);
       setError(null);
+      debugger;
+      // Get patient ID and appointment ID from state
+      const patientId = patient?.id;
+      const appointmentId = currentAppointment?.id || location.state?.appointmentInfo?.id;
+      
+      console.log("Fetching details with:", { patientId, appointmentId });
       
       // If we have a patient ID, fetch patient details
-      if (patient?.id) {
-        const response = await getPatientDetails(patient.id);
-      if (response) {
+      if (patientId) {
+        const response = await getPatientDetails(patientId);
+        if (response) {
           // Set patient details
           setPatient(response.patient);
           
-          // Set current appointment if available
+          // Set current appointment if available in response
           if (response.current_appointment) {
             setCurrentAppointment(response.current_appointment);
             setHasCurrentAppointment(true);
@@ -217,68 +232,96 @@ const PatientInfoPage = () => {
           setPrescriptions(prescriptionsList);
           
           // Set vitals if available
-        if (response.vitals) {
-          setVitals({
-            bloodPressure: response.vitals.blood_pressure || '',
-            heartRate: response.vitals.pulse_rate || '',
-            temperature: response.vitals.temperature || '',
-              respiratoryRate: response.vitals.respiratory_rate || '',
-            spO2: response.vitals.spo2 || '',
-            height: response.vitals.height || '',
-            weight: response.vitals.weight || '',
-          });
-        }
-        
-          // Set attachments if available
-          if (response.attachments) {
-          setAttachments(response.attachments.map(att => ({
-            id: att.id,
-            name: att.file_name,
-            type: att.file_type.includes('pdf') ? 'pdf' : 
-                  att.file_type.includes('image') ? 'image' : 'document',
-            reportType: 'custom',
-              date: new Date(att.uploaded_at).toLocaleDateString(),
-              size: '1 MB',
-            url: getFullAttachmentUrl(att.file),
-            description: att.description
-          })));
-        }
-      }
-      } else if (currentAppointment?.appointment_id) {
-        // If no patient but we have an appointment ID, fetch vitals and attachments for the appointment
-        try {
-          // Fetch vitals for the appointment
-          const vitalsResponse = await getVitals(currentAppointment.appointment_id);
-          if (vitalsResponse) {
+          if (response.vitals) {
             setVitals({
-              bloodPressure: vitalsResponse.blood_pressure || '',
-              heartRate: vitalsResponse.pulse_rate || '',
-              temperature: vitalsResponse.temperature || '',
-              respiratoryRate: vitalsResponse.respiratory_rate || '',
-              spO2: vitalsResponse.spo2 || '',
-              height: vitalsResponse.height || '',
-              weight: vitalsResponse.weight || '',
+              bloodPressure: response.vitals.blood_pressure || '',
+              heartRate: response.vitals.pulse_rate || '',
+              temperature: response.vitals.temperature || '',
+              respiratoryRate: response.vitals.respiratory_rate || '',
+              spO2: response.vitals.spo2 || '',
+              height: response.vitals.height || '',
+              weight: response.vitals.weight || '',
             });
           }
-
-          // Fetch attachments for the appointment
-          const attachmentsResponse = await getAttachments(currentAppointment.appointment_id);
-          if (attachmentsResponse) {
-            setAttachments(attachmentsResponse.map(att => ({
-          id: att.id,
-          name: att.file_name,
-          type: att.file_type.includes('pdf') ? 'pdf' : 
-                att.file_type.includes('image') ? 'image' : 'document',
-          reportType: 'custom',
-          date: new Date(att.uploaded_at).toLocaleDateString(),
+          
+          // Set attachments if available
+          if (response.attachments) {
+            setAttachments(response.attachments.map(att => ({
+              id: att.id,
+              name: att.file_name,
+              type: att.file_type.includes('pdf') ? 'pdf' : 
+                    att.file_type.includes('image') ? 'image' : 'document',
+              reportType: 'custom',
+              date: new Date(att.uploaded_at).toLocaleDateString(),
               size: '1 MB',
-          url: getFullAttachmentUrl(att.file),
-          description: att.description
-        })));
+              url: getFullAttachmentUrl(att.file),
+              description: att.description
+            })));
+          }
+        }
       }
-    } catch (error) {
-          console.error("Error fetching appointment vitals/attachments:", error);
-          // Don't set error state here as these are optional data
+      
+      // If we have an appointment ID but no current appointment data, fetch it separately
+      if (appointmentId && !currentAppointment?.appointment_id) {
+        try {
+          console.log("Fetching appointment details for:", appointmentId);
+          const appointmentResponse = await getAppointmentDetails(appointmentId);
+          
+          if (appointmentResponse) {
+            console.log("Appointment details response:", appointmentResponse);
+            
+            // Set the current appointment
+            setCurrentAppointment(appointmentResponse);
+            setHasCurrentAppointment(true);
+            
+            // If we don't have patient data yet but the appointment has patient info, set it
+            if (!patient?.name && appointmentResponse.patient) {
+              setPatient(appointmentResponse.patient);
+            }
+            
+            // Fetch vitals for the appointment
+            try {
+              const vitalsResponse = await getVitals(appointmentId);
+              if (vitalsResponse) {
+                setVitals({
+                  bloodPressure: vitalsResponse.blood_pressure || '',
+                  heartRate: vitalsResponse.pulse_rate || '',
+                  temperature: vitalsResponse.temperature || '',
+                  respiratoryRate: vitalsResponse.respiratory_rate || '',
+                  spO2: vitalsResponse.spo2 || '',
+                  height: vitalsResponse.height || '',
+                  weight: vitalsResponse.weight || '',
+                });
+              }
+            } catch (vitalsError) {
+              console.error("Error fetching vitals:", vitalsError);
+              // Don't set error state as vitals are optional
+            }
+            
+            // Fetch attachments for the appointment
+            try {
+              const attachmentsResponse = await getAttachments(appointmentId);
+              if (attachmentsResponse && attachmentsResponse.length > 0) {
+                setAttachments(attachmentsResponse.map(att => ({
+                  id: att.id,
+                  name: att.file_name,
+                  type: att.file_type.includes('pdf') ? 'pdf' : 
+                        att.file_type.includes('image') ? 'image' : 'document',
+                  reportType: 'custom',
+                  date: new Date(att.uploaded_at).toLocaleDateString(),
+                  size: '1 MB',
+                  url: getFullAttachmentUrl(att.file),
+                  description: att.description
+                })));
+              }
+            } catch (attachmentsError) {
+              console.error("Error fetching attachments:", attachmentsError);
+              // Don't set error state as attachments are optional
+            }
+          }
+        } catch (appointmentError) {
+          console.error("Error fetching appointment details:", appointmentError);
+          // Don't set error state here as the main patient data might still be available
         }
       }
     } catch (error) {
@@ -290,10 +333,8 @@ const PatientInfoPage = () => {
   };
 
   useEffect(() => {
-    fetchPatientDetails();
-  }, [patient?.id]);
-
-  useEffect(() => {
+    console.log("Location state changed:", location.state);
+    
     // Update state variables when location.state changes
     if (location.state?.patientInfo) {
       setPatient(location.state.patientInfo);
@@ -302,6 +343,18 @@ const PatientInfoPage = () => {
     if (location.state?.appointmentInfo) {
       setCurrentAppointment(location.state.appointmentInfo);
       setHasCurrentAppointment(true);
+    }
+
+    // Get IDs from location state
+    const patientId = location.state?.patientInfo?.id;
+    const appointmentId = location.state?.appointmentInfo?.id;
+    
+    // Log the IDs we have for debugging
+    console.log("IDs from location state:", { patientId, appointmentId });
+    
+    // Always fetch the complete data when we have either a patient ID or appointment ID
+    if (patientId || appointmentId) {
+      fetchPatientDetails();
     }
   }, [location.state]);
 
@@ -336,17 +389,32 @@ const PatientInfoPage = () => {
       return;
     }
     
-    navigate('/consultation', {
-      state: {
-        patientInfo,
-        appointmentInfo: currentAppointment,
-        vitalsInfo: vitals,
-        complaintsData: [],
-        position: currentAppointment.position || 0,
-        late: currentAppointment.status === 'Late',
-        status: currentAppointment.status.toLowerCase(),
-      }
-    });
+    console.log("Opening consultation with:", { currentAppointment, patientInfo });
+    
+    // Create a minimal state object with the necessary data
+    const consultationState = {
+      patientInfo: patient ? {
+        id: patient.patient_id,
+        name: patient.name,
+        age: patient.age,
+        gender: patient.gender,
+        phone: patient.phone_number,
+        location: patient.location,
+        guardian: patient.guardian
+      } : patientInfo,
+      appointmentInfo: {
+        id: currentAppointment.appointment_id || currentAppointment.id,
+        token: currentAppointment.token,
+        status: currentAppointment.status,
+        disease: currentAppointment.disease
+      },
+      vitalsInfo: vitals,
+      complaintsData: complaints || [],
+      position: currentAppointment.position || 0,
+      late: currentAppointment.status === 'Late' || currentAppointment.status === 'late',
+    };
+    
+    navigate('/consultation', { state: consultationState });
   };
 
   const handleOpenAttachment = (attachment) => {
@@ -1046,7 +1114,7 @@ const PatientInfoPage = () => {
                     </Typography>
                   </Box>
                   <Typography variant="caption" color="text.secondary" sx={{ ml: 4 }}>
-                    Token #{currentAppointment.token} • {currentAppointment.doctor} • {currentAppointment.type}
+                    Token #{currentAppointment.token} • {currentAppointment.appointment_type}
                   </Typography>
                 </Box>
                   <Button 
@@ -1375,19 +1443,18 @@ const PatientInfoPage = () => {
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell>Date/Slot</TableCell>
+                      <TableCell>Date</TableCell>
                       <TableCell>Type</TableCell>
                       <TableCell>Status</TableCell>
                       <TableCell>Fees Paid</TableCell>
                       <TableCell>Mode</TableCell>
-                      <TableCell>Disease</TableCell>
                       <TableCell>Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {pastAppointments.map((appointment) => (
                       <TableRow key={appointment.id}>
-                        <TableCell>{appointment.slot}</TableCell>
+                        <TableCell>{formatDate(appointment.slot)}</TableCell>
                         <TableCell>{appointment.appointment_type}</TableCell>
                         <TableCell>
                           <Chip 
@@ -1410,7 +1477,6 @@ const PatientInfoPage = () => {
                           />
                         </TableCell>
                         <TableCell>{appointment.mode || 'N/A'}</TableCell>
-                        <TableCell>{appointment.disease || 'N/A'}</TableCell>
                         <TableCell>
                           <Box sx={{ display: 'flex', gap: 1 }}>
                             <Button

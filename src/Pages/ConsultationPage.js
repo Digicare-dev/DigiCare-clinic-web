@@ -216,12 +216,11 @@ useEffect(() => {
       setIsLoadingCurrentPrescription(true);
       setCurrentPrescriptionError(null);
 
-      const prescriptionData = await getCurrentPrescription(appointmentInfo.appointment_id,
-);
+      const prescriptionData = await getCurrentPrescription(appointmentInfo.appointment_id);
       console.log("Current prescription data:", prescriptionData);
-
       // The API returns the prescription data directly, not in an array
       if (prescriptionData) {
+        console.log("Prescription Data:", prescriptionData)
         setCurrentPrescriptionDetails(prescriptionData);
       }
     } catch (error) {
@@ -1861,11 +1860,11 @@ useEffect(() => {
                       color="primary" 
                       variant="outlined" 
                     />
-                    <Chip 
+                    { appointmentInfo.appointment_type && <Chip 
                       size="small" 
-                      label="General Checkup" 
+                      label={appointmentInfo.appointment_type} 
                       variant="outlined" 
-                    />
+                    />}
                     {patientInfo?.blood_type && patientInfo.blood_type !== '' && (
                       <Chip 
                         size="small" 
