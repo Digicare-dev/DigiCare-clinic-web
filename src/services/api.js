@@ -471,3 +471,18 @@ export const getMaxTokenNumber = async(cabinId, slot) => {
     throw error;
   }
 }
+
+// Create new slot
+export const createSlot = async (cabinId, currentSlot, payload) => {
+  try {
+    const response = await axiosInstance.post(
+      `/doctorinfo/create-slot/${cabinId}/${currentSlot}`,
+      payload,
+      { withCredentials: true }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error creating new slot:", error);
+    throw error;
+  }
+};

@@ -40,6 +40,7 @@ import {
   updateAppointmentDetails,
   removeAppointment,
   getPatientProfile,
+  createSlot
 } from "../services/api";
 import CustomSnackbar from "../components/CustomSnackbar";
 import { getCabinInfo } from '../utils/dateUtils';
@@ -264,6 +265,12 @@ export default function AppointmentTable() {
 
   const [eventSource, setEventSource] = useState(null);
 
+  const [endSlotModalOpen, setEndSlotModalOpen] = useState(false);
+  const [newSlotData, setNewSlotData] = useState({
+    datetime: ''
+  });
+  const [isCreatingSlot, setIsCreatingSlot] = useState(false);
+
   useEffect(() => {
     // Fetch appointments data on component mount
     const user = JSON.parse(localStorage.getItem("user"));
@@ -271,7 +278,7 @@ export default function AppointmentTable() {
 
     const { cabinId, selectedSlot } = getCabinInfo(user);
     if (!cabinId || !selectedSlot) return;
-
+    
     // Fetch appointments on component mount
     getAppointments();
   }, []); // Empty dependency array to run only on mount
@@ -1094,7 +1101,7 @@ export default function AppointmentTable() {
                   handleEditPatientSelect(newValue);
                 } else {
                   setSelectedAppointment(prev => ({
-                    ...prev,
+                  ...prev,
                     phone_number: newValue || ""
                   }));
                 }
@@ -1437,6 +1444,115 @@ export default function AppointmentTable() {
     }
   };
 
+  const handleEndSlotOpen = () => {
+    setEndSlotModalOpen(true);
+  };
+
+  const handleEndSlotClose = () => {
+    setEndSlotModalOpen(false);
+    setNewSlotData({ datetime: '' });
+  };
+
+  const handleNewSlotChange = (e) => {
+    setNewSlotData({
+      datetime: e.target.value
+    });
+  };
+
+  const handleEndSlotSubmit = async () => {
+    try {
+      setIsCreatingSlot(true);
+      
+      // Format the datetime string to get date and time separately
+      const datetime = new Date(newSlotData.datetime);
+      const date = datetime.toISOString().split('T')[0];
+      const time = datetime.toTimeString().split(' ')[0];
+      
+      const response = await createSlot(cabinId, selectedSlot, {
+        date: date,
+        time: time
+      });
+      
+      // Update the user's cabin slots in localStorage
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (user) {
+        // Initialize cabin_slots if it doesn't exist
+        if (!user.checkupcabindata?.[0]?.cabin_slots) {
+          user.checkupcabindata[0].cabin_slots = [];
+        }
+        
+        // Add the new slot if it doesn't exist
+        const newSlot = response.slot;
+        if (!user.checkupcabindata?.[0]?.cabin_slots.find(slot => slot.slot === newSlot)) {
+          user.checkupcabindata[0].cabin_slots.push({
+            slot: newSlot,
+            is_active: true
+          });
+        }
+        
+        // Update active status for all slots
+        user.checkupcabindata[0].cabin_slots = user.checkupcabindata[0].cabin_slots.map(slot => ({
+          ...slot,
+          is_active: slot.slot === response.slot
+        }));
+        
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+      
+      handleOpenSnackbar("Slot ended successfully and new slot created");
+      handleEndSlotClose();
+      
+      // Refresh the page to reflect the new slot
+      window.location.reload();
+    } catch (error) {
+      console.error("Error ending slot:", error);
+      handleOpenSnackbar("Failed to end slot: " + error.message, "error");
+    } finally {
+      setIsCreatingSlot(false);
+    }
+  };
+
+  // Add the end slot modal component
+  const renderEndSlotModal = () => (
+    <Modal
+      open={endSlotModalOpen}
+      onClose={handleEndSlotClose}
+      aria-labelledby="end-slot-modal"
+    >
+      <Box sx={modalStyle}>
+        <Typography variant="h6" component="h2" mb={2}>
+          End Current Slot
+        </Typography>
+        <Typography variant="body2" color="text.secondary" mb={3}>
+          Please select the date and time for the new slot
+        </Typography>
+        <TextField
+          fullWidth
+          type="datetime-local"
+          name="datetime"
+          label="Date and Time"
+          value={newSlotData.datetime}
+          onChange={handleNewSlotChange}
+          InputLabelProps={{ shrink: true }}
+          sx={{ mb: 3 }}
+          inputProps={{
+            min: new Date().toISOString().slice(0, 16)  // Set min to current datetime
+          }}
+        />
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+          <Button onClick={handleEndSlotClose}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleEndSlotSubmit}
+            disabled={!newSlotData.datetime || isCreatingSlot}
+          >
+            {isCreatingSlot ? <CircularProgress size={24} /> : "End Slot"}
+          </Button>
+        </Box>
+      </Box>
+    </Modal>
+  );
+
   return (
     <div
       style={{
@@ -1460,6 +1576,14 @@ export default function AppointmentTable() {
           <Typography variant="subtitle1" fontWeight="600">
             Summary
           </Typography>
+        </Button>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleEndSlotOpen}
+          disabled={!selectedSlot}
+        >
+          End Slot
         </Button>
       </Box>
 
@@ -1921,6 +2045,8 @@ export default function AppointmentTable() {
       >
         <AddCircleIcon fontSize="large" />
       </IconButton>
+
+      {renderEndSlotModal()}
     </div>
   );
 }
