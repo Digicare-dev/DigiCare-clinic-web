@@ -240,7 +240,7 @@ const PatientInfoPage = () => {
           // Set current appointment if available in response
           if (response.current_appointment) {
             setCurrentAppointment(response.current_appointment);
-            setHasCurrentAppointment(true);
+        setHasCurrentAppointment(true);
           }
           
           // Set past appointments
@@ -259,31 +259,31 @@ const PatientInfoPage = () => {
           setPrescriptions(prescriptionsList);
           
           // Set vitals if available
-          if (response.vitals) {
-            setVitals({
-              bloodPressure: response.vitals.blood_pressure || '',
-              heartRate: response.vitals.pulse_rate || '',
-              temperature: response.vitals.temperature || '',
+        if (response.vitals) {
+          setVitals({
+            bloodPressure: response.vitals.blood_pressure || '',
+            heartRate: response.vitals.pulse_rate || '',
+            temperature: response.vitals.temperature || '',
               respiratoryRate: response.vitals.respiratory_rate || '',
-              spO2: response.vitals.spo2 || '',
-              height: response.vitals.height || '',
-              weight: response.vitals.weight || '',
-            });
-          }
-          
+            spO2: response.vitals.spo2 || '',
+            height: response.vitals.height || '',
+            weight: response.vitals.weight || '',
+          });
+        }
+        
           // Set attachments if available
           if (response.attachments) {
-            setAttachments(response.attachments.map(att => ({
-              id: att.id,
-              name: att.file_name,
-              type: att.file_type.includes('pdf') ? 'pdf' : 
-                    att.file_type.includes('image') ? 'image' : 'document',
-              reportType: 'custom',
+          setAttachments(response.attachments.map(att => ({
+            id: att.id,
+            name: att.file_name,
+            type: att.file_type.includes('pdf') ? 'pdf' : 
+                  att.file_type.includes('image') ? 'image' : 'document',
+            reportType: 'custom',
               date: new Date(att.uploaded_at).toLocaleDateString(),
               size: '1 MB',
-              url: getFullAttachmentUrl(att.file),
-              description: att.description
-            })));
+            url: getFullAttachmentUrl(att.file),
+            description: att.description
+          })));
           }
         }
       }
@@ -399,7 +399,7 @@ const PatientInfoPage = () => {
         weight: '',
       });
     }
-
+    
     // Get IDs from location state
     const patientId = location.state?.patientInfo?.id;
     const appointmentId = location.state?.appointmentInfo?.id;
@@ -1273,49 +1273,49 @@ const PatientInfoPage = () => {
                   <Button 
                     variant="contained" 
                     color="primary" 
-                    size="medium"
+              size="medium"
                     onClick={handleOpenConsultation}
-                    startIcon={<MedicalServices />}
-                    sx={{ 
-                      fontWeight: 'bold',
-                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                      position: 'relative',
-                      overflow: 'hidden',
-                      animation: 'pulse 2s infinite',
-                      '@keyframes pulse': {
-                        '0%': {
-                          boxShadow: '0 0 0 0 rgba(25, 118, 210, 0.7)',
-                        },
-                        '70%': {
-                          boxShadow: '0 0 0 6px rgba(25, 118, 210, 0)',
-                        },
-                        '100%': {
-                          boxShadow: '0 0 0 0 rgba(25, 118, 210, 0)',
-                        }
+                  startIcon={<MedicalServices />}
+                  sx={{ 
+                    fontWeight: 'bold',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    animation: 'pulse 2s infinite',
+                    '@keyframes pulse': {
+                      '0%': {
+                        boxShadow: '0 0 0 0 rgba(25, 118, 210, 0.7)',
                       },
-                      '&:hover': {
-                        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
+                      '70%': {
+                        boxShadow: '0 0 0 6px rgba(25, 118, 210, 0)',
                       },
-                      '&::after': {
-                        content: '""',
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        background: 'linear-gradient(to right, transparent, rgba(255, 255, 255, 0.1), transparent)',
-                        transform: 'translateX(-100%)',
-                        transition: 'transform 0.6s',
-                      },
-                      '&:hover::after': {
-                        transform: 'translateX(100%)',
+                      '100%': {
+                        boxShadow: '0 0 0 0 rgba(25, 118, 210, 0)',
                       }
-                    }}
+                    },
+                    '&:hover': {
+                      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
+                    },
+                    '&::after': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      background: 'linear-gradient(to right, transparent, rgba(255, 255, 255, 0.1), transparent)',
+                      transform: 'translateX(-100%)',
+                      transition: 'transform 0.6s',
+                    },
+                    '&:hover::after': {
+                      transform: 'translateX(100%)',
+                    }
+                  }}
                   >
                     Open Consultation File
                   </Button>
                 )}
-              </Box>
+                </Box>
               <Divider sx={{ mb: 1.5 }} />
               
               {/* Vitals and Attachments in a balanced layout */}
@@ -1862,7 +1862,7 @@ const PatientInfoPage = () => {
                   {selectedPrescription.appointmentInfo.department}
                 </Typography>
               </Box>
-
+              
               {/* Patient and Appointment Info */}
               <Grid container spacing={2} sx={{ mb: 3 }}>
                 <Grid item xs={12} md={6}>
@@ -1894,7 +1894,7 @@ const PatientInfoPage = () => {
                   </Typography>
                 </Grid>
               </Grid>
-
+              
               {/* Vitals Section */}
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle2" color="primary" gutterBottom>
@@ -1915,13 +1915,13 @@ const PatientInfoPage = () => {
                         </Typography>
                         <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
                           {value}
-                        </Typography>
+                </Typography>
                       </Box>
                     </Grid>
                   ))}
                 </Grid>
               </Box>
-
+              
               {/* Complaints Section */}
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle2" color="primary" gutterBottom>
@@ -2006,7 +2006,7 @@ const PatientInfoPage = () => {
                   </Table>
                 </TableContainer>
               </Box>
-
+              
               {/* Tests Section */}
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle2" color="primary" gutterBottom>
@@ -2026,7 +2026,7 @@ const PatientInfoPage = () => {
                   ))}
                 </Box>
               </Box>
-
+              
               {/* Advice Section */}
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle2" color="primary" gutterBottom>
@@ -2044,7 +2044,7 @@ const PatientInfoPage = () => {
                   </Typography>
                 </Box>
               </Box>
-
+              
               {/* Follow-up Section */}
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle2" color="primary" gutterBottom>
@@ -2054,7 +2054,7 @@ const PatientInfoPage = () => {
                   Please return for follow-up on {selectedPrescription.initialData.followUpDate}
                 </Typography>
               </Box>
-
+              
               {/* Signature Section */}
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 4 }}>
                 <Box sx={{ textAlign: 'center' }}>
@@ -2275,8 +2275,8 @@ const PatientInfoPage = () => {
 
               <Grid container spacing={2} sx={{ mb: 3 }}>
                 {selectedAppointment.patient.phone_number && <Grid item xs={12} sm={6} md={4}>
-                  <TextField
-                    fullWidth
+            <TextField
+              fullWidth
                     label="Phone Number"
                     value={selectedAppointment.patient.phone_number}
                     InputProps={{ readOnly: true }}
@@ -2288,8 +2288,8 @@ const PatientInfoPage = () => {
                 
                 {selectedAppointment.patient.location && (
                   <Grid item xs={12} sm={6} md={4}>
-                    <TextField
-                      fullWidth
+            <TextField
+              fullWidth
                       label="Location"
                       value={selectedAppointment.patient.location}
                       InputProps={{ readOnly: true }}
@@ -2302,7 +2302,7 @@ const PatientInfoPage = () => {
                 
                 {selectedAppointment.patient.guardian && (
                   <Grid item xs={12} sm={6} md={4}>
-                    <TextField
+            <TextField
                       fullWidth
                       label="Guardian Name"
                       value={selectedAppointment.patient.guardian}
@@ -2423,30 +2423,30 @@ const PatientInfoPage = () => {
                     <Typography variant="subtitle2" color="text.secondary">
                       Status
                     </Typography>
-                    <Typography 
-                      variant="body1" 
+                <Typography 
+                  variant="body1" 
                       fontWeight="medium"
-                      sx={{ 
+                  sx={{ 
                         color: selectedAppointment.status?.toLowerCase() === 'completed' ? 'success.main' : 
                                selectedAppointment.status?.toLowerCase() === 'cancelled' ? 'error.main' : 
                                selectedAppointment.status?.toLowerCase() === 'pending' ? 'warning.main' : 'text.primary'
-                      }}
-                    >
+                  }}
+                >
                       {selectedAppointment.status || 'Pending'}
-                    </Typography>
+                </Typography>
                   </Grid>
                   
                   <Grid item xs={12} sm={6} md={4}>
                     <Typography variant="subtitle2" color="text.secondary">
                       Payment Status
                     </Typography>
-                    <Typography 
-                      variant="body1" 
+                <Typography 
+                  variant="body1" 
                       fontWeight="medium"
                       sx={{ color: selectedAppointment.paid ? 'success.main' : 'error.main' }}
                     >
                       {selectedAppointment.paid ? 'Paid' : 'Unpaid'}
-                    </Typography>
+                </Typography>
                   </Grid>
                   
                   {selectedAppointment.token && (
@@ -2460,15 +2460,15 @@ const PatientInfoPage = () => {
                     </Grid>
                   )}
                 </Grid>
-              </Box>
-            </Box>
+          </Box>
+        </Box>
           )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseAppointmentDetails}>Close</Button>
           {selectedAppointment && selectedAppointment.paid && (
-            <Button 
-              variant="contained" 
+          <Button 
+            variant="contained"
               color="primary" 
               onClick={handlePrintPaymentReceipt}
               startIcon={<Print />}
@@ -2490,7 +2490,7 @@ const PatientInfoPage = () => {
               })}
             >
               View Prescription
-            </Button>
+          </Button>
           )}
         </DialogActions>
       </Dialog>
