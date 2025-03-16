@@ -259,21 +259,29 @@ const App = () => {
                 <Routes>
                   <Route
                     path="/login"
-                    element={currentUser ? <Navigate to="/" replace /> : <Login />}
+                    element={currentUser ? (
+                      isMobile ? 
+                        <Navigate to="/mobile-queue" replace /> : 
+                        <Navigate to="/" replace />
+                    ) : <Login />}
                   />
                   <Route
                     path="/"
                     element={
                       <PrivateRoute>
-                        <Dashboard 
-                          patients={patients}
-                          setPatients={setPatients}
-                          currentPosition={currentPosition}
-                          loading={loading}
-                          handleNextPatient={handleNextPatient}
-                          handleLatePatient={handleLatePatient}
-                          shufflePosition={shufflePosition}
-                        />
+                        {isMobile ? (
+                          <Navigate to="/mobile-queue" replace />
+                        ) : (
+                          <Dashboard 
+                            patients={patients}
+                            setPatients={setPatients}
+                            currentPosition={currentPosition}
+                            loading={loading}
+                            handleNextPatient={handleNextPatient}
+                            handleLatePatient={handleLatePatient}
+                            shufflePosition={shufflePosition}
+                          />
+                        )}
                       </PrivateRoute>
                     }
                   />

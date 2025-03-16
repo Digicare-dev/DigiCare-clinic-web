@@ -795,10 +795,12 @@ const MobileAppointmentTable = () => {
 
   return (
     <Box sx={{ 
-      padding: 2,
-      paddingBottom: "72px" // Add extra padding at the bottom to ensure content isn't hidden by the bottom navigation
+      padding: { xs: '16px 0px 72px 0px', sm: 2 },
+      width: '100%',
+      maxWidth: '100%',
+      overflowX: 'hidden'
     }}>
-      <Typography variant="h5" gutterBottom>
+      <Typography variant="h5" sx={{ px: { xs: 1.5, sm: 0 } }} gutterBottom>
         Appointments
       </Typography>
 
@@ -810,6 +812,7 @@ const MobileAppointmentTable = () => {
         onChange={(e) => setSearchQuery(e.target.value)}
         margin="normal"
         size="small"
+        sx={{ px: { xs: 1.5, sm: 0 } }}
         InputProps={{
           startAdornment: (
             <InputAdornment position="start">
@@ -840,13 +843,22 @@ const MobileAppointmentTable = () => {
           No appointments found
         </Typography>
       ) : (
-        <TableContainer component={Paper} sx={{ mt: 2 }}>
-          <Table>
+        <TableContainer 
+          component={Paper} 
+          sx={{ 
+            mt: 2,
+            width: '100%',
+            maxWidth: '100%',
+            borderRadius: { xs: 0, sm: '4px' },
+            boxShadow: { xs: 'none', sm: 1 }
+          }}
+        >
+          <Table size="small" className="mobile-table">
             <TableHead>
               <TableRow>
-                <TableCell>Token</TableCell>
-                <TableCell>Patient</TableCell>
-                <TableCell>Status</TableCell>
+                <TableCell sx={{ py: 1, px: { xs: 1, sm: 2 }, width: '15%' }}>Token</TableCell>
+                <TableCell sx={{ py: 1, px: { xs: 1, sm: 2 }, width: '45%' }}>Patient</TableCell>
+                <TableCell sx={{ py: 1, px: { xs: 1, sm: 2 }, width: '40%' }}>Status</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -860,8 +872,8 @@ const MobileAppointmentTable = () => {
                     backgroundColor: appointment.isPlaceholder ? '#f9f9f9' : 'inherit'
                   }}
                 >
-                  <TableCell>{appointment.token}</TableCell>
-                  <TableCell>
+                  <TableCell sx={{ py: 1, px: { xs: 1, sm: 2 } }}>{appointment.token}</TableCell>
+                  <TableCell sx={{ py: 1, px: { xs: 1, sm: 2 } }}>
                     {appointment.isPlaceholder ? (
                       <Typography variant="body2" sx={{ color: '#999', fontStyle: 'italic' }}>
                         Empty Slot
@@ -872,7 +884,7 @@ const MobileAppointmentTable = () => {
                       </Typography>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ py: 1, px: { xs: 1, sm: 2 } }}>
                     {appointment.isPlaceholder ? (
                       <Typography variant="body2" sx={{ color: '#999', fontStyle: 'italic' }}>
                         Available

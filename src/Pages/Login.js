@@ -29,6 +29,7 @@ const Login = () => {
   const user = JSON.parse(localStorage.getItem("user"));
   const { setUser } = useContext(AuthContext);
   const navigate = useNavigate();
+  const isMobile = window.innerWidth <= 768;
   //
 
   const [credential, setCredential] = useState({
@@ -55,7 +56,7 @@ const Login = () => {
   }, []);
 
   if (user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={isMobile ? "/mobile-queue" : "/"} replace />;
   }
 
   const handleClickShowPassword = () => setShowPassword((show) => !show);
@@ -85,8 +86,9 @@ const Login = () => {
         // Update context
         setUser(response);
         
-        // Redirect to home
-        navigate("/");
+        // Redirect based on device type
+        const isMobileDevice = window.innerWidth <= 768;
+        navigate(isMobileDevice ? "/mobile-queue" : "/");
       } else {
         setError(response.message || "Login failed. Please try again.");
         setSnackbar({
