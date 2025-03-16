@@ -175,8 +175,8 @@ const MobileQueuePage = ({ patientsData, currentPositionData, onDataChange }) =>
             <RefreshIcon fontSize="small" />
           </IconButton>
         </Tooltip>
-      </Box>
-       */}
+      </Box> */}
+      
       <Divider />
 
       <Container 
