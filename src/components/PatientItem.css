@@ -310,10 +310,26 @@
 
   .drag-handle {
     position: absolute;
-    top: 6px;
-    right: 4px;
-    padding: 2px;
-    transform: scale(0.8);
+    top: 8px;
+    right: 8px;
+    padding: 4px;
+    transform: scale(0.9);
+    opacity: 0.9;
+    z-index: 20; /* Ensure it's above other elements */
+    background-color: rgba(255, 255, 255, 0.8); /* Add a semi-transparent background */
+    border-radius: 50%; /* Make it a circle */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* Add subtle shadow for visibility */
+  }
+  
+  /* Make drag handle more noticeable on touch/hover */
+  .drag-handle:active, .drag-handle:hover {
+    opacity: 1;
+    transform: scale(1);
+    background-color: rgba(255, 255, 255, 1);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   }
   
   /* Guardian and appointment type info */

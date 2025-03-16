@@ -35,11 +35,9 @@ const MobileQueuePage = ({ patientsData, currentPositionData, onDataChange }) =>
     if (patientsData) {
       setPatients(patientsData);
       
-      // Only set dataLoaded to true if we actually have patients data
-      if (patientsData.length > 0) {
-        setDataLoaded(true);
-        setLoading(false);
-      }
+      // Mark data as loaded regardless of whether there are patients or not
+      setDataLoaded(true);
+      setLoading(false);
     }
     
     if (currentPositionData !== undefined) {
@@ -52,18 +50,19 @@ const MobileQueuePage = ({ patientsData, currentPositionData, onDataChange }) =>
     }
   }, [patientsData, currentPositionData]);
 
-  // Handle initial loading state
+  // Handle initial loading state - Add a backup timeout to ensure loading screen doesn't persist
   useEffect(() => {
-    // Set a timeout to hide loader after a minimum display time
-    // even if patients array is empty (to avoid infinite loading)
+    // Set a timeout to hide loader after a maximum time
+    // This ensures loading won't stay forever if there's an issue
     const timer = setTimeout(() => {
-      if (patients.length === 0 && loading && !dataLoaded) {
+      if (loading) {
         setLoading(false);
+        setDataLoaded(true);
       }
-    }, 5000); // Show loader for at least 5 seconds
+    }, 3000); // Max loading time of 3 seconds
     
     return () => clearTimeout(timer);
-  }, [loading, patients, dataLoaded]);
+  }, [loading]);
   
   // Apply mobile layout fix on mount and window resize
   useEffect(() => {
@@ -136,8 +135,8 @@ const MobileQueuePage = ({ patientsData, currentPositionData, onDataChange }) =>
     );
   }
 
-  // Determine if we should show the loader
-  const showLoader = loading || (!dataLoaded && patients.length === 0);
+  // Simplify the showLoader logic to just use the loading state
+  const showLoader = loading;
 
   return (
     <Box sx={{ pb: 6, width: '100%', maxWidth: '100%' }} className="mobile-queue-page">
