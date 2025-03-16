@@ -224,8 +224,8 @@ const PatientInfoPage = () => {
       setLoading(true);
       setError(null);
       // Get patient ID and appointment ID from state
-      const patientId = patient?.id;
-      const appointmentId = currentAppointment?.id || location.state?.appointmentInfo?.id;
+      const patientId = location.state?.patientInfo?.id;
+      const appointmentId = location.state?.appointmentInfo?.id;
       
       console.log("Fetching details with:", { patientId, appointmentId });
       
@@ -377,9 +377,26 @@ const PatientInfoPage = () => {
       setPatient(location.state.patientInfo);
     }
     
+    // IMPORTANT: Always update hasCurrentAppointment, not just when true
+    setHasCurrentAppointment(location.state?.appointmentInfo !== undefined);
+    
     if (location.state?.appointmentInfo) {
       setCurrentAppointment(location.state.appointmentInfo);
-      setHasCurrentAppointment(true);
+    } else {
+      // Also clear the currentAppointment when no appointment info exists
+      setCurrentAppointment(null);
+      // Also clear attachments since they're associated with appointments
+      setAttachments([]);
+      // Reset vitals when switching to a patient without an appointment
+      setVitals({
+        bloodPressure: '',
+        heartRate: '',
+        temperature: '',
+        respiratoryRate: '',
+        spO2: '',
+        height: '',
+        weight: '',
+      });
     }
 
     // Get IDs from location state
@@ -394,7 +411,6 @@ const PatientInfoPage = () => {
       fetchPatientDetails();
     }
   }, [location.state]);
-
 
   const handleCreatePrescription = () => {
     // Safely extract values with optional chaining and default values
@@ -1458,7 +1474,7 @@ const PatientInfoPage = () => {
             printWindow.print();
           } catch (error) {
             console.error('Error printing attachment:', error);
-            setAttachmentsError('Failed to print the file. Please try downloading it first.');
+            setAttachmentsError('Failed to print the file. Please download it first.');
           }
         };
       } else {
