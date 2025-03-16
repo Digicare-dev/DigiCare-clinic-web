@@ -178,6 +178,8 @@ const PatientItem = ({
           isDone ? "done" : ""
         } ${isCancelled ? "cancelled" : ""} ${isPending ? "pending" : ""}`}
         onClick={handlePatientClick} // Add the click handler
+        data-paid={paid ? "true" : "false"}
+        data-present={checkin ? "true" : "false"}
     >
       <div className="patient-content">
           <div className={`token-badge ${isCurrent ? "current-token" : ""} ${isLate ? "late-token" : ""} ${status === "cancelled" ? "cancelled-token" : ""}`}>
