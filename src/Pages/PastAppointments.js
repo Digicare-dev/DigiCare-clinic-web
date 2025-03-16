@@ -353,10 +353,6 @@ export default function PastAppointments() {
     const slotObj = cabinSlots.find(s => (typeof s === 'string' ? s : s.slot) === slot);
     const isActive = typeof slotObj === 'string' ? true : (slotObj?.is_active ?? true);
     
-    if (!isActive) {
-      console.log("Viewing inactive slot:", slot);
-    }
-    
     getAppointments(slot); // Fetch appointments for the selected slot
   };
 
@@ -1090,15 +1086,11 @@ export default function PastAppointments() {
                     onClick={() => handleSlotClick(slot)}
                     sx={{
                       position: 'relative',
-                      borderColor: isActive ? undefined : '#f44336',
-                      color: selectedSlot === slot ? undefined : (isActive ? undefined : '#f44336'),
                       '&::after': {
-                        content: isActive ? '""' : '"(Inactive)"',
                         position: 'absolute',
                         top: '-8px',
                         right: '-8px',
                         fontSize: '0.6rem',
-                        color: '#f44336',
                         fontWeight: 'bold',
                         display: isActive ? 'none' : 'block'
                       }

@@ -64,6 +64,7 @@ import { PageHeader } from '../components/common/PageHeader';
 import ReportLink from '../components/ReportLink';
 import dayjs from 'dayjs';
 import { getAppointmentDetails, updateAppointmentDetails, removeAppointment, getPatientDetails } from '../services/api';
+import { printPrescription } from '../utils/prescriptionUtils';
 
 const AppointmentDetails = () => {
   const user = JSON.parse(localStorage.getItem('user'));
@@ -320,174 +321,23 @@ const AppointmentDetails = () => {
   
   // Add function to handle printing the prescription
   const handlePrintPrescription = () => {
-    // Create a new window with the prescription content
-    const printWindow = window.open('', '_blank');
-    
-    // Generate the prescription HTML content
-    const prescriptionContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Prescription - ${patientInfo.name}</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            color: #333;
-          }
-          .header {
-            text-align: center;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #2196f3;
-            padding-bottom: 10px;
-          }
-          .clinic-name {
-            font-size: 24px;
-            font-weight: bold;
-            color: #2196f3;
-          }
-          .doctor-info {
-            font-size: 16px;
-            margin: 5px 0;
-          }
-          .patient-info {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-            padding: 10px;
-            background-color: #f5f5f5;
-            border-radius: 5px;
-          }
-          .patient-details, .appointment-details {
-            flex: 1;
-          }
-          .section-title {
-            font-size: 18px;
-            font-weight: bold;
-            margin: 15px 0 10px 0;
-            color: #2196f3;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 5px;
-          }
-          .medication-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 10px 0 20px 0;
-          }
-          .medication-table th, .medication-table td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-          }
-          .medication-table th {
-            background-color: #f5f5f5;
-          }
-          .tests-list, .advice {
-            margin: 10px 0;
-            padding: 10px;
-            background-color: #f9f9f9;
-            border-radius: 5px;
-          }
-          .footer {
-            margin-top: 30px;
-            display: flex;
-            justify-content: space-between;
-          }
-          .signature {
-            text-align: right;
-            margin-top: 50px;
-          }
-          @media print {
-            body {
-              margin: 0;
-              padding: 15px;
-            }
-            button {
-              display: none;
-            }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="clinic-name">DigiCare Medical Center</div>
-          <div class="doctor-info">${user.checkupcabindata[0].doctor}</div>
-          <div class="doctor-info">${selectedPrescription?.appointmentInfo?.department || 'General Medicine'}</div>
-        </div>
-        
-        <div class="patient-info">
-          <div class="patient-details">
-            <p><strong>Patient Name:</strong> ${patientInfo.name}</p>
-            <p><strong>Patient ID:</strong> ${patientInfo.id}</p>
-            <p><strong>Age/Gender:</strong> ${patientInfo.age} years, ${patientInfo.gender}</p>
-          </div>
-          <div class="appointment-details">
-            <p><strong>Date:</strong> ${selectedPrescription?.appointmentInfo?.date}</p>
-            <p><strong>Appointment ID:</strong> ${selectedPrescription?.appointmentInfo?.id}</p>
-            <p><strong>BP:</strong> ${selectedPrescription?.initialData?.vitals?.bloodPressure} mmHg | <strong>Temp:</strong> ${selectedPrescription?.initialData?.vitals?.temperature}°C</p>
-          </div>
-        </div>
-        
-        <div class="section-title">Diagnosis</div>
-        <p>${selectedPrescription?.initialData?.diagnosis?.[0]?.diagnosis || selectedPrescription?.appointmentInfo?.reason}</p>
-        
-        <div class="section-title">Medications</div>
-        <table class="medication-table">
-          <thead>
-            <tr>
-              <th>Medication</th>
-              <th>Dose</th>
-              <th>Frequency</th>
-              <th>Duration</th>
-              <th>Instructions</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${selectedPrescription?.initialData?.medications?.map(med => `
-              <tr>
-                <td>${med.medicine}</td>
-                <td>${med.dose}</td>
-                <td>${med.frequency}</td>
-                <td>${med.duration}</td>
-                <td>${med.notes || med.timing || ''}</td>
-              </tr>
-            `).join('') || ''}
-          </tbody>
-        </table>
-        
-        <div class="section-title">Tests Recommended</div>
-        <div class="tests-list">
-          ${selectedPrescription?.initialData?.tests?.map(test => `<p>• ${test}</p>`).join('') || 'No tests recommended'}
-        </div>
-        
-        <div class="section-title">Advice</div>
-        <div class="advice">
-          <p>${selectedPrescription?.initialData?.advice || 'Follow a healthy diet and exercise regularly.'}</p>
-        </div>
-        
-        <div class="section-title">Follow-up</div>
-        <p>Please return for follow-up on ${selectedPrescription?.initialData?.followUpDate || 'as advised'}.</p>
-        
-        <div class="footer">
-          <div></div>
-          <div class="signature">
-            <p>${user.checkupcabindata[0].doctor}</p>
-            <p>${selectedPrescription?.appointmentInfo?.department || 'General Medicine'}</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-    
-    // Write the content to the new window
-    printWindow.document.open();
-    printWindow.document.write(prescriptionContent);
-    printWindow.document.close();
-    
-    // Wait for the content to load and then print
-    printWindow.onload = function() {
-      printWindow.print();
+    // Prepare prescription data object
+    const prescriptionData = {
+      patientInfo: patientInfo,
+      appointmentInfo: selectedPrescription?.appointmentInfo || {
+        date: new Date().toLocaleDateString(),
+      },
+      complaints: selectedPrescription?.initialData?.complaints || [],
+      diagnoses: selectedPrescription?.initialData?.diagnosis || [{
+        diagnosis: selectedPrescription?.appointmentInfo?.reason,
+        notes: ''
+      }],
+      medications: selectedPrescription?.initialData?.medications || [],
+      tests: selectedPrescription?.initialData?.tests || [],
     };
+    
+    // Use the global prescription print utility
+    printPrescription(prescriptionData);
   };
 
   // Add function to handle printing the payment receipt
