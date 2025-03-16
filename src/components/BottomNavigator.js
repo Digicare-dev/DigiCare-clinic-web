@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import Box from "@mui/material/Box";
 import BottomNavigation from "@mui/material/BottomNavigation";
 import BottomNavigationAction from "@mui/material/BottomNavigationAction";
+import { styled } from '@mui/material/styles';
 
 import AddIcon from "@mui/icons-material/Add";
 import MedicalInformationIcon from "@mui/icons-material/MedicalInformation";
@@ -10,40 +11,68 @@ import TimerIcon from "@mui/icons-material/Timer";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import QueueIcon from "@mui/icons-material/PeopleAlt";
 
+// Create a more compact version of BottomNavigationAction
+const CompactBottomNavigationAction = styled(BottomNavigationAction)(({ theme }) => ({
+  padding: '6px 0',
+  minWidth: 'auto',
+  '& .MuiBottomNavigationAction-label': {
+    fontSize: '0.8rem',
+    '&.Mui-selected': {
+      fontSize: '1rem',
+    },
+  },
+  '& .MuiSvgIcon-root': {
+    fontSize: '1.5rem',
+  },
+}));
+
 export default function BottomNavigator() {
   const navigate = useNavigate();
   const location = useLocation();
 
   // Map paths to their respective indices
   const pathToIndex = {
-    "/": 0,
+    "/mobile-queue": 0,
     "/add-appointment": 1,
     "/mobile-appointments": 2,
-    "/mobile-queue": 3,
   };
 
   const [value, setValue] = React.useState(pathToIndex[location.pathname] || 0);
 
   return (
-    <Box sx={{ position: "fixed", bottom: "0", width: "100%", zIndex: 1000 }}>
+    <Box sx={{ 
+      position: "fixed", 
+      bottom: "0", 
+      width: "100%", 
+      zIndex: 1000,
+      boxShadow: '0px -2px 5px rgba(0, 0, 0, 0.05)'
+    }}>
       <BottomNavigation
         showLabels
         value={value}
+        sx={{ 
+          height: 48, // Reduced height
+          '& .MuiBottomNavigationAction-root': {
+            py: 0
+          }
+        }}
         onChange={(event, newValue) => {
           setValue(newValue);
-          const paths = ["/", "/add-appointment", "/mobile-appointments", "/mobile-queue"];
+          const paths = ["/mobile-queue", "/add-appointment", "/mobile-appointments"];
           navigate(paths[newValue]);
         }}
       >
-        <BottomNavigationAction label="Home" icon={<TimerIcon />} />
-        <BottomNavigationAction label="Add New" icon={<AddIcon />} />
-        <BottomNavigationAction
-          label="Appointments"
-          icon={<CalendarTodayIcon />}
-        />
-        <BottomNavigationAction
+        <CompactBottomNavigationAction
           label="Queue"
           icon={<QueueIcon />}
+        />
+        <CompactBottomNavigationAction 
+          label="Add New" 
+          icon={<AddIcon />} 
+        />
+        <CompactBottomNavigationAction
+          label="Appointments"
+          icon={<CalendarTodayIcon />}
         />
       </BottomNavigation>
     </Box>

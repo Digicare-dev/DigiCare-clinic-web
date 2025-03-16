@@ -171,7 +171,8 @@ const PatientItem = ({
           transform: CSS.Transform.toString(transform),
           transition,
           opacity: isDragging ? 0.5 : 1,
-          cursor: 'pointer', // Add cursor pointer to indicate clickable
+          cursor: 'pointer',
+          WebkitTapHighlightColor: 'rgba(0,0,0,0)', // Remove default tap highlight on mobile
         }}
         className={`patient-item ${isCurrent ? "current" : ""} ${isLate ? "late" : ""} ${
           isDone ? "done" : ""

@@ -121,7 +121,9 @@ const QueueContainer = ({
           gap: 2,
           p: 4,
           textAlign: 'center'
-        }}>
+        }}
+        className="empty-queue-message"
+        >
           <Typography variant="h6" color="text.secondary">
             No patients in queue
           </Typography>

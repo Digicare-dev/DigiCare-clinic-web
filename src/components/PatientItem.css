@@ -199,41 +199,138 @@
 /* Fix for mobile */
 @media (max-width: 768px) {
   .patient-item {
-    padding: 0.75rem;
+    padding: 8px 8px 0 8px; /* Remove bottom padding */
+    margin-bottom: 8px;
+    width: 100%;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
   }
 
   .patient-content {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .patient-info {
-    margin-left: 0;
-  }
-
-  .token-badge {
-    margin-bottom: 0.5rem;
-  }
-
-  .action-buttons {
     width: 100%;
-    justify-content: flex-start;
-    margin-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .token-and-details {
     display: flex;
     flex-direction: row;
-    gap: 0.25rem;
+    width: 100%;
+    margin-bottom: 8px;
+    gap: 6px;
+  }
+
+  .patient-details {
+    flex: 1;
+    min-width: 0;
+    /* Allow space for drag handle */
+    padding-right: 20px;
+  }
+  
+  /* Position action buttons at the bottom with full width */
+  .action-buttons {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-evenly; /* Evenly space buttons */
+    margin: 0;
+    padding: 4px 8px;
+    gap: 8px;
+    background-color: #f9f9f9;
+    border-top: 1px solid #eee;
+    border-radius: 0 0 8px 8px;
   }
   
   .action-buttons .MuiButton-root {
+    flex: 1; /* Make buttons expand to fill space */
     font-size: 0.7rem;
-    padding: 2px 4px;
-    min-width: 60px;
+    padding: 4px 8px;
+    min-width: 50px;
+    height: 30px;
+    line-height: 1;
+  }
+  
+  .action-buttons .MuiButton-startIcon {
+    margin-right: 4px;
+  }
+  
+  .action-buttons .MuiButton-startIcon > *:nth-of-type(1) {
+    font-size: 0.85rem;
+  }
+
+  .token-badge {
+    margin-bottom: 0;
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    min-width: 32px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .patient-header {
+    margin-bottom: 4px;
+  }
+
+  .patient-header h3 {
+    font-size: 0.9rem;
+    line-height: 1.2;
+    margin: 0;
+  }
+
+  .status-tags {
+    gap: 4px;
+    margin-top: 4px;
+  }
+
+  .status-tags .MuiChip-root {
+    height: 20px;
+    font-size: 0.65rem;
+  }
+  
+  .status-tags .MuiChip-icon {
+    font-size: 0.7rem;
+  }
+  
+  .status-tags .MuiChip-label {
+    padding-left: 4px;
+    padding-right: 6px;
+  }
+
+  .meta-item {
+    font-size: 0.7rem;
+    margin-top: 4px;
+  }
+
+  .meta-item svg {
+    font-size: 0.8rem;
   }
 
   .drag-handle {
     position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
+    top: 6px;
+    right: 4px;
+    padding: 2px;
+    transform: scale(0.8);
+  }
+  
+  /* Guardian and appointment type info */
+  .appointment-type,
+  .guardian-info {
+    font-size: 0.7rem;
+    margin-top: 2px;
+  }
+  
+  /* Reduce margins for more compact layout */
+  .MuiBox-root {
+    margin-top: 2px !important;
+  }
+  
+  /* Smaller icons for better mobile view */
+  .MuiSvgIcon-fontSizeSmall {
+    font-size: 0.85rem;
   }
 }
 

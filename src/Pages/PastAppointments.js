@@ -257,11 +257,10 @@ export default function PastAppointments() {
     const user = JSON.parse(localStorage.getItem("user"));
     if (!user) return;
 
-    const { cabinId, selectedSlot } = getCabinInfo(user);
+    const { cabinId, selectedSlot, cabinSlots: allCabinSlots } = getCabinInfo(user);
     if (!cabinId) return;
     
-    const cabinSlots = selectedSlot ? [selectedSlot] : [];
-    console.log("Available cabin slots:", cabinSlots);
+    console.log("Available cabin slots:", allCabinSlots);
     
     // Format the selected date as YYYY-MM-DD in UTC
     // This ensures we're using the date in UTC time, not local time
@@ -273,7 +272,10 @@ export default function PastAppointments() {
     console.log("Filtering for date:", selectedDateString);
     
     // Find matching slots for the selected date by comparing UTC dates
-    const matchingCabinSlots = cabinSlots.filter(slotStr => {
+    // Include all slots for the selected date, both active and inactive
+    const matchingCabinSlots = allCabinSlots.filter(slot => {
+      // Extract the slot date string from the slot object or string
+      const slotStr = typeof slot === 'string' ? slot : slot.slot;
       const slotDate = new Date(slotStr);
       const slotYear = slotDate.getUTCFullYear();
       const slotMonth = String(slotDate.getUTCMonth() + 1).padStart(2, '0');
@@ -297,13 +299,18 @@ export default function PastAppointments() {
     
     // If slots are available
     setNoSlots(false);
-    setMatchingSlots(matchingCabinSlots);
+    
+    // Convert slot objects to slot strings for display and selection
+    const slotStrings = matchingCabinSlots.map(slot => 
+      typeof slot === 'string' ? slot : slot.slot
+    );
+    setMatchingSlots(slotStrings);
     
     // Always select the first matching slot
-    setSelectedSlot(matchingCabinSlots[0]);
+    setSelectedSlot(slotStrings[0]);
     
     // Now fetch the appointments directly
-    getAppointments(matchingCabinSlots[0]);
+    getAppointments(slotStrings[0]);
     
   }, [selectedDate, cabinId]);
 
@@ -340,6 +347,15 @@ export default function PastAppointments() {
       ...parsedState,
       selectedSlot: slot
     }));
+    
+    // Find if this is an inactive slot
+    const cabinSlots = user?.checkupcabindata?.[0]?.cabin_slots || [];
+    const slotObj = cabinSlots.find(s => (typeof s === 'string' ? s : s.slot) === slot);
+    const isActive = typeof slotObj === 'string' ? true : (slotObj?.is_active ?? true);
+    
+    if (!isActive) {
+      console.log("Viewing inactive slot:", slot);
+    }
     
     getAppointments(slot); // Fetch appointments for the selected slot
   };
@@ -1062,11 +1078,31 @@ export default function PastAppointments() {
                   timeZone: 'UTC'  // Force UTC timezone
                 });
                 
+                // Find the corresponding slot object to check its is_active status
+                const cabinSlots = user?.checkupcabindata?.[0]?.cabin_slots || [];
+                const slotObj = cabinSlots.find(s => (typeof s === 'string' ? s : s.slot) === slot);
+                const isActive = typeof slotObj === 'string' ? true : (slotObj?.is_active ?? true);
+                
                 return (
                   <Button
                     key={slot}
                     variant={selectedSlot === slot ? "contained" : "outlined"}
                     onClick={() => handleSlotClick(slot)}
+                    sx={{
+                      position: 'relative',
+                      borderColor: isActive ? undefined : '#f44336',
+                      color: selectedSlot === slot ? undefined : (isActive ? undefined : '#f44336'),
+                      '&::after': {
+                        content: isActive ? '""' : '"(Inactive)"',
+                        position: 'absolute',
+                        top: '-8px',
+                        right: '-8px',
+                        fontSize: '0.6rem',
+                        color: '#f44336',
+                        fontWeight: 'bold',
+                        display: isActive ? 'none' : 'block'
+                      }
+                    }}
                   >
                     {timeStr}
                   </Button>

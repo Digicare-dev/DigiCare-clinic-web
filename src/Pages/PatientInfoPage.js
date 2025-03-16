@@ -40,6 +40,8 @@ import {
   MenuItem,
   CircularProgress,
   Alert,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
   CalendarToday,
@@ -109,6 +111,8 @@ const PatientInfoPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { openAppointmentForm } = useAppointmentForm();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
   // Consolidated state declarations
   const [loading, setLoading] = useState(true);
@@ -751,7 +755,6 @@ const PatientInfoPage = () => {
                 <p><strong>Patient Name:</strong> ${prescriptionObj.patient.name}</p>
                 <p><strong>Patient ID:</strong> ${prescriptionObj.patient.id}</p>
                 <p><strong>Age/Gender:</strong> ${prescriptionObj.patient.age} years, ${prescriptionObj.patient.gender}</p>
-                ${prescriptionObj.vitals.weight !== 'N/A' ? `<p><strong>Weight:</strong> ${prescriptionObj.vitals.weight} kg</p>` : ''}
               </div>
               <div class="appointment-details">
                 <p><strong>Date:</strong> ${prescriptionObj.appointment.date}</p>
@@ -1631,51 +1634,53 @@ const PatientInfoPage = () => {
                     Token #{currentAppointment.token} • {currentAppointment.appointment_type}
                   </Typography>
                 </Box>
+                {!isMobile && (
                   <Button 
                     variant="contained" 
                     color="primary" 
-              size="medium"
+                    size="medium"
                     onClick={handleOpenConsultation}
-                  startIcon={<MedicalServices />}
-                  sx={{ 
-                    fontWeight: 'bold',
-                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    animation: 'pulse 2s infinite',
-                    '@keyframes pulse': {
-                      '0%': {
-                        boxShadow: '0 0 0 0 rgba(25, 118, 210, 0.7)',
+                    startIcon={<MedicalServices />}
+                    sx={{ 
+                      fontWeight: 'bold',
+                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      animation: 'pulse 2s infinite',
+                      '@keyframes pulse': {
+                        '0%': {
+                          boxShadow: '0 0 0 0 rgba(25, 118, 210, 0.7)',
+                        },
+                        '70%': {
+                          boxShadow: '0 0 0 6px rgba(25, 118, 210, 0)',
+                        },
+                        '100%': {
+                          boxShadow: '0 0 0 0 rgba(25, 118, 210, 0)',
+                        }
                       },
-                      '70%': {
-                        boxShadow: '0 0 0 6px rgba(25, 118, 210, 0)',
+                      '&:hover': {
+                        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
                       },
-                      '100%': {
-                        boxShadow: '0 0 0 0 rgba(25, 118, 210, 0)',
+                      '&::after': {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'linear-gradient(to right, transparent, rgba(255, 255, 255, 0.1), transparent)',
+                        transform: 'translateX(-100%)',
+                        transition: 'transform 0.6s',
+                      },
+                      '&:hover::after': {
+                        transform: 'translateX(100%)',
                       }
-                    },
-                    '&:hover': {
-                      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
-                    },
-                    '&::after': {
-                      content: '""',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      background: 'linear-gradient(to right, transparent, rgba(255, 255, 255, 0.1), transparent)',
-                      transform: 'translateX(-100%)',
-                      transition: 'transform 0.6s',
-                    },
-                    '&:hover::after': {
-                      transform: 'translateX(100%)',
-                    }
-                  }}
+                    }}
                   >
                     Open Consultation File
                   </Button>
-                </Box>
+                )}
+              </Box>
               <Divider sx={{ mb: 1.5 }} />
               
               {/* Vitals and Attachments in a balanced layout */}

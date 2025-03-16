@@ -27,11 +27,13 @@ import {
   MenuItem,
   ToggleButton,
   ToggleButtonGroup,
+  Autocomplete,
 } from "@mui/material";
 import {
   fetchAppointments,
   updateAppointmentDetails,
   removeAppointment,
+  getPatientProfile,
 } from "../services/api";
 import "./MobileAppointmentTable.css";
 import SearchIcon from "@mui/icons-material/Search";
@@ -72,6 +74,7 @@ const generateDisplayRows = (actualRows) => {
 const getStatusColor = (status) => {
   switch (status) {
     case "done":
+    case "done_checkup":
       return "success";
     case "cancelled":
       return "error";
@@ -92,18 +95,51 @@ const MobileAppointmentTable = () => {
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isCanceling, setIsCanceling] = useState(false);
+  const [cancelConfirmationOpen, setCancelConfirmationOpen] = useState(false);
+  const [rowToCancel, setRowToCancel] = useState(null);
+  const [editMobileSearchResults, setEditMobileSearchResults] = useState([]);
+  const [isEditSearching, setIsEditSearching] = useState(false);
 
+  const { cabinId, selectedSlot } = getCabinInfo(user);
+
+  // Use generateDisplayRows to include empty slots
+  const displayRows = useMemo(() => {
+    // First get the filtered appointments based on search
+    let filtered = searchQuery ? 
+      appointments.filter((apt) => apt.patientName.toLowerCase().includes(searchQuery.toLowerCase())) :
+      appointments;
+    
+    // Then generate display rows to include empty slots
+    return generateDisplayRows(filtered).sort((a, b) => Number(a.token) - Number(b.token));
+  }, [appointments, searchQuery]);
+
+  // Keep the original filtered appointments logic for backward compatibility
   const filteredAppointments = useMemo(() => {
-    if (!searchQuery) return appointments;
+    if (!searchQuery) {
+      // Sort appointments by token number (converting to number for proper numeric sort)
+      return [...appointments].sort((a, b) => Number(a.token) - Number(b.token));
+    }
+    
     const query = searchQuery.toLowerCase();
-    return appointments.filter((apt) =>
-      apt.patientName.toLowerCase().includes(query)
-    );
+    return appointments
+      .filter((apt) => apt.patientName.toLowerCase().includes(query))
+      .sort((a, b) => Number(a.token) - Number(b.token)); // Sort filtered results too
   }, [appointments, searchQuery]);
 
   const handleEditClick = (appointment) => {
-    setSelectedAppointment(appointment);
+    // Format the appointment to match the expected structure in the edit form
+    const formattedAppointment = {
+      ...appointment,
+      firstName: appointment.patientName.split(" ")[0] || "",
+      lastName: appointment.patientName.split(" ").slice(1).join(" ") || "",
+    };
+    
+    setSelectedAppointment(formattedAppointment);
     setEditModalOpen(true);
+    
+    // Clear any previous search results
+    setEditMobileSearchResults([]);
   };
 
   const handleEditModalClose = () => {
@@ -111,16 +147,56 @@ const MobileAppointmentTable = () => {
     setSelectedAppointment(null);
   };
 
-  const handleUpdateAppointment = async () => {
+  const handleEditMobileSearch = async (value) => {
+    if (!value || value.length !== 10) {
+      setEditMobileSearchResults([]);
+      return;
+    }
+
+    setIsEditSearching(true);
+    try {
+      const result = await getPatientProfile(value);
+      if (result && result.length > 0) {
+        setEditMobileSearchResults(result);
+      } else {
+        setEditMobileSearchResults([]);
+      }
+    } catch (error) {
+      console.error("Error searching patient profile:", error);
+      setEditMobileSearchResults([]);
+    } finally {
+      setIsEditSearching(false);
+    }
+  };
+
+  const handleEditPatientSelect = (patient) => {
+    if (patient) {
+      setSelectedAppointment(prev => ({
+        ...prev,
+        phone_number: patient.phone_number,
+        firstName: patient.name.split(" ")[0] || "",
+        lastName: patient.name.split(" ").slice(1).join(" ") || "",
+        age: patient.age || "",
+        sex: patient.gender || "",
+        location: patient.location || "",
+        guardian: patient.guardian || "",
+      }));
+      setEditMobileSearchResults([]);
+    }
+  };
+
+  const handleConfirmEdit = async () => {
     if (!selectedAppointment) return;
 
     setIsUpdating(true);
     try {
+      const fullName = `${selectedAppointment.firstName} ${selectedAppointment.lastName}`.trim();
+      
       const payload = {
         token: selectedAppointment.token,
         appointment_id: selectedAppointment.appointment_id,
-        name: `${selectedAppointment.patientName}`.toUpperCase(),
-        guardian: `${selectedAppointment.guardian}`.toUpperCase(),
+        name: fullName.toUpperCase(),
+        guardian: `${selectedAppointment.guardian || ""}`.toUpperCase(),
         checkin: selectedAppointment.checkin,
         paid: selectedAppointment.paid,
         mode: selectedAppointment.mode || "",
@@ -135,10 +211,28 @@ const MobileAppointmentTable = () => {
 
       await updateAppointmentDetails(payload);
 
+      // Update the local state with the updated appointment
       setAppointments((prev) =>
-        prev.map((apt) =>
-          apt.token === selectedAppointment.token ? selectedAppointment : apt
-        )
+        prev.map((apt) => {
+          if (apt.token === selectedAppointment.token) {
+            return {
+              ...apt,
+              patientName: fullName,
+              guardian: selectedAppointment.guardian || "",
+              checkin: selectedAppointment.checkin,
+              paid: selectedAppointment.paid,
+              mode: selectedAppointment.mode || "",
+              fees_paid: selectedAppointment.fees_paid || 0,
+              disease: selectedAppointment.disease || null,
+              appointment_type: selectedAppointment.appointment_type || "New",
+              phone_number: selectedAppointment.phone_number || "",
+              age: selectedAppointment.age || "",
+              sex: selectedAppointment.sex || "",
+              location: selectedAppointment.location || "",
+            };
+          }
+          return apt;
+        })
       );
 
       handleEditModalClose();
@@ -149,51 +243,55 @@ const MobileAppointmentTable = () => {
     }
   };
 
-  const handleCheckinChange = (event) => {
-    setSelectedAppointment((prev) => ({
-      ...prev,
-      checkin: event.target.checked,
-    }));
-  };
+  const handleCancelAppointment = async () => {
+    if (!rowToCancel) return;
+    
+    setIsCanceling(true);
+    try {
+      await removeAppointment({
+        appointment_id: rowToCancel.appointment_id,
+      });
 
-  const handlePaymentChange = (event) => {
-    const checked = event.target.checked;
+      setAppointments((prev) =>
+        prev.filter((apt) => apt.token !== rowToCancel.token)
+      );
 
-    setSelectedAppointment((prev) => ({
-      ...prev,
-      paid: checked,
-      mode: checked ? prev.mode || "cash" : "",
-      fees_paid: checked ? prev.fees_paid || 250 : 0,
-    }));
-  };
-
-  const handleSexChange = (event, newSex) => {
-    if (newSex !== null) {
-      setSelectedAppointment((prev) => ({
-        ...prev,
-        sex: newSex,
-      }));
+      setCancelConfirmationOpen(false);
+      handleEditModalClose();
+    } catch (error) {
+      console.error("Failed to cancel appointment:", error);
+    } finally {
+      setIsCanceling(false);
+      setRowToCancel(null);
     }
   };
 
   const fetchAppointmentsData = async () => {
     try {
-      // Import dummy data service dynamically
-      const { fetchDummyAppointmentTable } = await import('../services/dummyDataService');
+      setLoading(true);
+      let data;
       
-      // Fetch dummy appointment data
-      const data = await fetchDummyAppointmentTable();
+      if (process.env.REACT_APP_DEMO_MODE === 'true') {
+        // Import dummy data service for demo mode
+        const { fetchDummyAppointmentTable } = await import('../services/dummyDataService');
+        data = await fetchDummyAppointmentTable();
+      } else if (cabinId && selectedSlot) {
+        // Use the real API for production mode
+        data = await fetchAppointments(cabinId, selectedSlot);
+      } else {
+        throw new Error("Missing cabin or slot information");
+      }
       
       if (data && data.length > 0) {
-        console.log("Received mobile dummy data:", data); // Debug log
+        console.log("Received appointment data:", data);
         
         const formatted = data.map((item) => ({
           id: item.token,
           token: item.token,
           patientName: item.name || '',
-          checkin: item.status === "done_checkup" ? true : Math.random() > 0.3, // Randomize for demo
-          paid: item.status === "done_checkup" ? true : Math.random() > 0.2, // Randomize for demo
-          status: item.status === "done_checkup" ? "done" : (item.status || "pending"),
+          checkin: item.status === "done_checkup" ? true : item.checkin || false,
+          paid: item.status === "done_checkup" ? true : item.paid || false,
+          status: item.status || "pending",
           guardian: item?.patient?.guardian || "N/A",
           isPlaceholder: false,
           appointment_id: item.appointment_id,
@@ -207,17 +305,16 @@ const MobileAppointmentTable = () => {
           location: item?.patient?.location || "",
         }));
 
-        console.log("Formatted mobile data:", formatted); // Debug log
         setAppointments(formatted);
       } else {
-        console.log("No mobile data received or empty data array"); // Debug log
+        console.log("No appointment data received or empty data array");
         setAppointments([]);
       }
-      setLoading(false);
     } catch (err) {
       console.error("Failed to load appointments:", err);
       setError("Failed to load appointments");
       setAppointments([]);
+    } finally {
       setLoading(false);
     }
   };
@@ -247,43 +344,11 @@ const MobileAppointmentTable = () => {
     eventSource.onmessage = (event) => {
       try {
         const parsedData = JSON.parse(event.data);
-
+        console.log("SSE received in mobile view:", parsedData);
+        
+        // Handle real-time updates
         if (parsedData.appointment) {
-          // Update appointments state optimistically
-          setAppointments((prev) => {
-            const existingIndex = prev.findIndex(
-              (a) => a.token === parsedData.appointment.token
-            );
-
-            const updatedAppointment = {
-              id: parsedData.appointment.token,
-              token: parsedData.appointment.token,
-              patientName: parsedData.appointment.name,
-              checkin: parsedData.appointment.checkin || false,
-              paid: parsedData.appointment.paid || false,
-              status:
-                parsedData.appointment.status === "done_checkup"
-                  ? "done"
-                  : parsedData.appointment.status,
-              guardian: parsedData?.patient?.guardian || "N/A",
-              isPlaceholder: false,
-              appointment_id: parsedData.appointment.appointment_id,
-              disease: parsedData.appointment.disease || null,
-              appointment_type:
-                parsedData.appointment.appointment_type || "New",
-              phone_number: parsedData.appointment.phone_number || "",
-              age: parsedData.appointment.age || "",
-              sex: parsedData.appointment.sex || "",
-              location: parsedData.appointment.location || "",
-            };
-
-            if (existingIndex !== -1) {
-              const newApps = [...prev];
-              newApps[existingIndex] = updatedAppointment;
-              return newApps;
-            }
-            return [...prev, updatedAppointment];
-          });
+          fetchAppointmentsData(); // Refresh data when an appointment update is received
         }
       } catch (error) {
         console.error("Error parsing SSE data:", error);
@@ -291,330 +356,330 @@ const MobileAppointmentTable = () => {
     };
 
     eventSource.onerror = (error) => {
-      // console.error("SSE error:", error);
+      console.error("EventSource failed:", error);
       eventSource.close();
     };
 
     return () => {
-      eventSource.close();
+      if (eventSource) {
+        eventSource.close();
+      }
     };
-  }, []);
+  }, [cabinId, selectedSlot]);
 
-  const displayedRows = generateDisplayRows(filteredAppointments);
-
-  const handleDeleteAppointment = async () => {
-    if (!selectedAppointment) return;
-
-    setIsDeleting(true);
-    try {
-      const payload = {
-        appointment_id: selectedAppointment.appointment_id,
-      };
-
-      await removeAppointment(payload); // Call the delete API
-
-      handleEditModalClose(); // Close the edit modal
-    } catch (error) {
-      console.error("Failed to delete appointment:", error);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" p={3}>
-        <CircularProgress size={24} />
-        <Typography variant="body2" sx={{ ml: 2 }}>
-          Loading appointments...
-        </Typography>
-      </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <Box p={2}>
-        <Typography color="error">{error}</Typography>
-      </Box>
-    );
-  }
-
-  return (
-    <Box p={1} sx={{ paddingBottom: "100px" }}>
-      <TextField
-        fullWidth
-        variant="outlined"
-        placeholder="Search patients..."
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        sx={{ mb: 1 }}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <SearchIcon />
-            </InputAdornment>
-          ),
-        }}
-      />
-      <Box
-        sx={{
-          height: "calc(90vh - 180px)",
-          overflowY: "auto",
-          pb: 4,
-        }}
-      >
-        <TableContainer component={Paper}>
-          <Table size="small" className="mobile-table">
-            <TableHead>
-              <TableRow>
-                <TableCell>Token</TableCell>
-                <TableCell>Patient</TableCell>
-                <TableCell>Guardian</TableCell>
-                <TableCell align="center">Check-In</TableCell>
-                <TableCell align="center">Payment</TableCell>
-                <TableCell align="center">Status</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {displayedRows.map((row) => (
-                <TableRow
-                  key={row.token}
-                  className={row.isPlaceholder ? "placeholder-row" : ""}
-                  onClick={() => !row.isPlaceholder && handleEditClick(row)}
-                  onDoubleClick={() =>
-                    !row.isPlaceholder && handleEditClick(row)
-                  }
-                  role="button"
-                  tabIndex={0}
-                  style={{ cursor: row.isPlaceholder ? "default" : "pointer" }}
-                >
-                  <TableCell>#{row.token}</TableCell>
-                  <TableCell>
-                    {row.isPlaceholder ? (
-                      <Typography variant="caption" color="textSecondary">
-                        Empty Slot
-                      </Typography>
-                    ) : (
-                      row.patientName
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {row.isPlaceholder ? "-" : row.guardian || "N/A"}
-                  </TableCell>
-                  <TableCell align="center">
-                    {row.isPlaceholder ? (
-                      "-"
-                    ) : row.checkin ? (
-                      <CheckCircle fontSize="small" color="success" />
-                    ) : (
-                      <Cancel fontSize="small" color="error" />
-                    )}
-                  </TableCell>
-                  <TableCell align="center">
-                    {row.isPlaceholder ? (
-                      "-"
-                    ) : row.paid ? (
-                      <Chip
-                        label="Paid"
-                        size="small"
-                        color="success"
-                        variant="outlined"
-                      />
-                    ) : (
-                      <Chip
-                        label="Not Paid"
-                        size="small"
-                        color="error"
-                        variant="outlined"
-                      />
-                    )}
-                  </TableCell>
-                  <TableCell align="center">
-                    <Chip
-                      label={row.status}
-                      size="small"
-                      className="status-chip"
-                      color={getStatusColor(row.status)}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Box>
-      {/* Edit Modal */}
-      <Dialog open={editModalOpen} onClose={handleEditModalClose}>
-        <DialogTitle sx={{ position: "relative", pr: 6 }}>
-          Edit Appointment
-          <IconButton
-            aria-label="close"
-            onClick={handleEditModalClose}
-            sx={{
-              position: "absolute",
-              right: 8,
-              top: 8,
-              color: (theme) => theme.palette.grey[500],
+  // Render functions
+  const renderEditModal = () => (
+    <Dialog
+      open={editModalOpen}
+      onClose={handleEditModalClose}
+      fullWidth
+      maxWidth="md"
+      PaperProps={{
+        sx: {
+          width: "95vw",
+          maxWidth: "95vw",
+          borderRadius: 2,
+          p: 2,
+        }
+      }}
+    >
+      <DialogTitle sx={{ position: "relative", pr: 6, p: 0, mb: 2 }}>
+        <Typography variant="h6" sx={{ fontSize: '1.1rem' }}>Edit Appointment</Typography>
+        <IconButton
+          aria-label="close"
+          onClick={handleEditModalClose}
+          sx={{
+            position: "absolute",
+            right: 0,
+            top: 0,
+            color: (theme) => theme.palette.grey[500],
+            padding: '4px',
+          }}
+        >
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent sx={{ p: 0, pt: 1 }}>
+        {selectedAppointment && (
+          <div
+            style={{
+              display: "grid",
+              gap: "12px",
+              gridTemplateColumns: "1fr 1fr",
+              paddingTop: "8px"
             }}
           >
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>{" "}
-        <DialogContent>
-          {/* Patient Name */}
-          <TextField
-            fullWidth
-            label="Patient Name"
-            value={selectedAppointment?.patientName || ""}
-            onChange={(e) =>
-              setSelectedAppointment((prev) => ({
-                ...prev,
-                patientName: e.target.value,
-              }))
-            }
-            margin="dense"
-          />
-
-          {/* Check-in and Payment Row */}
-          <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={selectedAppointment?.checkin || false}
-                  onChange={handleCheckinChange}
+            <TextField
+              fullWidth
+              label="Token Number"
+              type="number"
+              disabled={true}
+              value={selectedAppointment.token}
+              InputProps={{ 
+                readOnly: true,
+                style: { fontSize: '0.85rem' } 
+              }}
+              InputLabelProps={{ 
+                style: { fontSize: '0.85rem' } 
+              }}
+              size="small"
+            />
+            <Autocomplete
+              fullWidth
+              options={editMobileSearchResults}
+              getOptionLabel={(option) => {
+                // Handle both objects from dropdown and direct string input
+                return typeof option === 'object' ? option?.phone_number || "" : option || "";
+              }}
+              loading={isEditSearching}
+              value={selectedAppointment.phone_number || ""}
+              onChange={(_, newValue) => {
+                if (typeof newValue === 'object') {
+                  handleEditPatientSelect(newValue);
+                } else {
+                  setSelectedAppointment(prev => ({
+                    ...prev,
+                    phone_number: newValue || ""
+                  }));
+                }
+              }}
+              freeSolo={true}
+              size="small"
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Mobile"
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSelectedAppointment(prev => ({
+                      ...prev,
+                      phone_number: value
+                    }));
+                    handleEditMobileSearch(value);
+                  }}
+                  inputProps={{
+                    ...params.inputProps,
+                    maxLength: 10,
+                    value: selectedAppointment.phone_number || "",
+                    style: { fontSize: '0.85rem' }
+                  }}
+                  InputLabelProps={{ 
+                    style: { fontSize: '0.85rem' } 
+                  }}
+                  InputProps={{
+                    ...params.InputProps,
+                    style: { fontSize: '0.85rem' },
+                    endAdornment: (
+                      <>
+                        {isEditSearching ? <CircularProgress color="inherit" size={16} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                  size="small"
                 />
+              )}
+              renderOption={(props, option) => (
+                <li {...props} style={{ fontSize: '0.85rem' }}>
+                  <div>
+                    <Typography variant="body2" style={{ fontSize: '0.85rem' }}>{option.name}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {option.phone_number}
+                    </Typography>
+                  </div>
+                </li>
+              )}
+            />
+            <TextField
+              fullWidth
+              label="First Name"
+              value={selectedAppointment.firstName || ""}
+              onChange={(e) =>
+                setSelectedAppointment((prev) => ({
+                  ...prev,
+                  firstName: e.target.value,
+                }))
               }
-              label="Checked In"
+              InputProps={{ style: { fontSize: '0.85rem' } }}
+              InputLabelProps={{ style: { fontSize: '0.85rem' } }}
+              size="small"
+            />
+            <TextField
+              fullWidth
+              label="Last Name"
+              value={selectedAppointment.lastName || ""}
+              onChange={(e) =>
+                setSelectedAppointment((prev) => ({
+                  ...prev,
+                  lastName: e.target.value,
+                }))
+              }
+              InputProps={{ style: { fontSize: '0.85rem' } }}
+              InputLabelProps={{ style: { fontSize: '0.85rem' } }}
+              size="small"
             />
             <FormControlLabel
               control={
                 <Checkbox
-                  checked={selectedAppointment?.paid || false}
-                  onChange={handlePaymentChange}
-                />
-              }
-              label="Payment"
-            />
-          </Box>
-
-          {/* Payment Mode and Fees Paid Row */}
-          {selectedAppointment?.paid && (
-            <Box sx={{ display: "flex", gap: 1 }}>
-              <FormControl fullWidth>
-                <InputLabel>Payment Mode</InputLabel>
-                <Select
-                  value={selectedAppointment?.mode || "cash"}
+                  checked={selectedAppointment.checkin}
                   onChange={(e) =>
                     setSelectedAppointment((prev) => ({
                       ...prev,
-                      mode: e.target.value,
+                      checkin: e.target.checked,
                     }))
                   }
-                  label="Payment Mode"
+                  size="small"
+                />
+              }
+              label={
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    fontWeight: selectedAppointment.checkin ? 'bold' : 'normal',
+                    color: selectedAppointment.checkin ? 'primary.main' : 'text.primary',
+                    fontSize: '0.85rem'
+                  }}
                 >
-                  <MenuItem value="cash">Cash</MenuItem>
-                  <MenuItem value="online">Online</MenuItem>
-                </Select>
-              </FormControl>
-              <TextField
-                fullWidth
-                label="Fees Paid"
-                type="number"
-                value={selectedAppointment?.fees_paid || 0}
-                onChange={(e) =>
-                  setSelectedAppointment((prev) => ({
-                    ...prev,
-                    fees_paid: Number(e.target.value),
-                  }))
-                }
-              />
-            </Box>
-          )}
-          {/* Mobile and Age Row */}
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <TextField
-              fullWidth
-              label="Mobile"
-              slotProps={{ input: { maxLength: 10 } }}
-              value={selectedAppointment?.phone_number || ""}
-              onChange={(e) => {
-                if (e.target.value.length > 10) {
-                  return;
-                }
-                setSelectedAppointment((prev) => ({
-                  ...prev,
-                  phone_number: e.target.value,
-                }));
-              }}
-              margin="dense"
+                  {selectedAppointment.checkin ? "Present" : "Absent"}
+                </Typography>
+              }
             />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={selectedAppointment.paid}
+                  onChange={(e) =>
+                    setSelectedAppointment((prev) => ({
+                      ...prev,
+                      paid: e.target.checked,
+                      mode: e.target.checked ? prev.mode || "cash" : "",
+                      fees_paid: e.target.checked ? prev.fees_paid || 250 : 0,
+                    }))
+                  }
+                  size="small"
+                />
+              }
+              label={
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    fontWeight: selectedAppointment.paid ? 'bold' : 'normal',
+                    color: selectedAppointment.paid ? 'primary.main' : 'text.primary',
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  Payment Done
+                </Typography>
+              }
+            />
+            {selectedAppointment.paid && (
+              <>
+                <FormControl fullWidth size="small">
+                  <InputLabel sx={{ fontSize: '0.85rem' }}>Payment Mode</InputLabel>
+                  <Select
+                    value={selectedAppointment.mode || "cash"}
+                    onChange={(e) =>
+                      setSelectedAppointment((prev) => ({
+                        ...prev,
+                        mode: e.target.value,
+                      }))
+                    }
+                    label="Payment Mode"
+                    sx={{ fontSize: '0.85rem' }}
+                  >
+                    <MenuItem value="cash" sx={{ fontSize: '0.85rem' }}>Cash</MenuItem>
+                    <MenuItem value="online" sx={{ fontSize: '0.85rem' }}>Online</MenuItem>
+                  </Select>
+                </FormControl>
+                <TextField
+                  fullWidth
+                  label="Fees"
+                  type="number"
+                  value={selectedAppointment.fees_paid || 0}
+                  onChange={(e) =>
+                    setSelectedAppointment((prev) => ({
+                      ...prev,
+                      fees_paid: Number(e.target.value),
+                    }))
+                  }
+                  InputProps={{ style: { fontSize: '0.85rem' } }}
+                  InputLabelProps={{ style: { fontSize: '0.85rem' } }}
+                  size="small"
+                />
+              </>
+            )}
             <TextField
               fullWidth
               label="Age"
-              value={selectedAppointment?.age || ""}
+              type="number"
+              value={selectedAppointment.age || ""}
               onChange={(e) =>
                 setSelectedAppointment((prev) => ({
                   ...prev,
                   age: e.target.value,
                 }))
               }
-              margin="dense"
+              InputProps={{ style: { fontSize: '0.85rem' } }}
+              InputLabelProps={{ style: { fontSize: '0.85rem' } }}
+              size="small"
             />
-          </Box>
-          <TextField
-            fullWidth
-            label="Guardian"
-            value={selectedAppointment?.guardian || ""}
-            onChange={(e) =>
-              setSelectedAppointment((prev) => ({
-                ...prev,
-                guardian: e.target.value,
-              }))
-            }
-            margin="dense"
-          />
-
-          {/* Gender Toggle Group */}
-          <ToggleButtonGroup
-            value={selectedAppointment?.sex || ""}
-            exclusive
-            onChange={handleSexChange}
-            color="primary"
-            fullWidth
-            sx={{ mb: 1.5 }}
-          >
-            <ToggleButton value="M">Male</ToggleButton>
-            <ToggleButton value="F">Female</ToggleButton>
-            <ToggleButton value="O">Other</ToggleButton>
-          </ToggleButtonGroup>
-
-          {/* Location and Appointment Type Row */}
-          <Box
-            sx={{
-              display: "flex",
-              gap: 1,
-              mb: 1,
-              alignItems: "center",
-            }}
-          >
+            <FormControl component="fieldset">
+              <ToggleButtonGroup
+                value={selectedAppointment.sex || ""}
+                exclusive
+                onChange={(_, newValue) =>
+                  setSelectedAppointment((prev) => ({
+                    ...prev,
+                    sex: newValue || "",
+                  }))
+                }
+                color="primary"
+                size="small"
+                sx={{ height: '36px' }}
+              >
+                <ToggleButton value="M" color="primary" sx={{ fontSize: '0.75rem', py: 0 }}>
+                  Male
+                </ToggleButton>
+                <ToggleButton value="F" color="secondary" sx={{ fontSize: '0.75rem', py: 0 }}>
+                  Female
+                </ToggleButton>
+                <ToggleButton value="O" sx={{ fontSize: '0.75rem', py: 0 }}>
+                  Other
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </FormControl>
             <TextField
               fullWidth
-              label="Location"
-              value={selectedAppointment?.location || ""}
+              label="Guardian"
+              value={selectedAppointment.guardian || ""}
+              onChange={(e) =>
+                setSelectedAppointment((prev) => ({
+                  ...prev,
+                  guardian: e.target.value,
+                }))
+              }
+              InputProps={{ style: { fontSize: '0.85rem' } }}
+              InputLabelProps={{ style: { fontSize: '0.85rem' } }}
+              size="small"
+            />
+            <TextField
+              fullWidth
+              label="Place"
+              value={selectedAppointment.location || ""}
               onChange={(e) =>
                 setSelectedAppointment((prev) => ({
                   ...prev,
                   location: e.target.value,
                 }))
               }
-              margin="dense"
-              sx={{ marginBottom: "0" }}
+              InputProps={{ style: { fontSize: '0.85rem' } }}
+              InputLabelProps={{ style: { fontSize: '0.85rem' } }}
+              size="small"
             />
-            <FormControl fullWidth>
-              <InputLabel sx={{ mt: 1 }}>Appointment Type</InputLabel>
+            <FormControl fullWidth size="small">
+              <InputLabel sx={{ fontSize: '0.85rem' }}>Appointment Type</InputLabel>
               <Select
-                value={selectedAppointment?.appointment_type || "New"}
+                value={selectedAppointment.appointment_type || "New"}
                 onChange={(e) =>
                   setSelectedAppointment((prev) => ({
                     ...prev,
@@ -622,59 +687,282 @@ const MobileAppointmentTable = () => {
                   }))
                 }
                 label="Appointment Type"
-                sx={{ mt: 1 }}
+                sx={{ fontSize: '0.85rem' }}
               >
-                <MenuItem value="New">New</MenuItem>
-                <MenuItem value="Follow-up">Follow-up</MenuItem>
-                <MenuItem value="Emergency">Emergency</MenuItem>
+                <MenuItem value="New" sx={{ fontSize: '0.85rem' }}>New</MenuItem>
+                <MenuItem value="Follow-up" sx={{ fontSize: '0.85rem' }}>Follow-up</MenuItem>
+                <MenuItem value="Emergency" sx={{ fontSize: '0.85rem' }}>Emergency</MenuItem>
+                <MenuItem value="Routine" sx={{ fontSize: '0.85rem' }}>Routine</MenuItem>
+                <MenuItem value="Cancelled" sx={{ fontSize: '0.85rem' }}>Cancelled</MenuItem>
               </Select>
             </FormControl>
-          </Box>
-
-          {/* Disease */}
-          <TextField
-            fullWidth
-            label="Disease"
-            value={selectedAppointment?.disease || ""}
-            onChange={(e) =>
-              setSelectedAppointment((prev) => ({
-                ...prev,
-                disease: e.target.value,
-              }))
+            <TextField
+              fullWidth
+              label="Complaint"
+              value={selectedAppointment.disease || ""}
+              onChange={(e) =>
+                setSelectedAppointment((prev) => ({
+                  ...prev,
+                  disease: e.target.value,
+                }))
+              }
+              InputProps={{ style: { fontSize: '0.85rem' } }}
+              InputLabelProps={{ style: { fontSize: '0.85rem' } }}
+              size="small"
+            />
+          </div>
+        )}
+      </DialogContent>
+      <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
+        <Button
+          onClick={() => {
+            setRowToCancel(selectedAppointment);
+            setCancelConfirmationOpen(true);
+          }}
+          color="error"
+          variant="outlined"
+          sx={{ 
+            mr: 2,
+            borderWidth: "1px",
+            fontSize: '0.75rem',
+            py: 0.5,
+            px: 1.5,
+            '&:hover': {
+              borderWidth: "1px"
             }
-            margin="dense"
-            sx={{ mb: 0 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={handleDeleteAppointment}
-            color="error"
-            variant="contained"
-            disabled={isDeleting}
-            sx={{ mx: 1, mb: 2 }}
-          >
-            {isDeleting ? (
-              <CircularProgress size={24} color="inherit" />
-            ) : (
-              "Delete"
-            )}
-          </Button>
-          <Button
-            onClick={handleUpdateAppointment}
-            color="primary"
-            variant="contained"
-            disabled={isUpdating}
-            sx={{ mx: 1, mb: 2 }}
-          >
-            {isUpdating ? (
-              <CircularProgress size={24} color="inherit" />
-            ) : (
-              "Update"
-            )}
-          </Button>
-        </DialogActions>
-      </Dialog>{" "}
+          }}
+          disabled={isCanceling}
+          size="small"
+        >
+          {isCanceling ? <CircularProgress size={16} /> : "Cancel Appointment"}
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleConfirmEdit}
+          disabled={isUpdating}
+          sx={{ 
+            fontSize: '0.75rem',
+            py: 0.5,
+            px: 1.5
+          }}
+          size="small"
+        >
+          {isUpdating ? <CircularProgress size={16} /> : "Update"}
+        </Button>
+      </Box>
+    </Dialog>
+  );
+
+  // Confirmation dialog for cancelling an appointment
+  const renderCancelConfirmationDialog = () => (
+    <Dialog 
+      open={cancelConfirmationOpen} 
+      onClose={() => setCancelConfirmationOpen(false)}
+      PaperProps={{
+        sx: {
+          width: "85vw",
+          maxWidth: "85vw",
+          borderRadius: 2,
+        }
+      }}
+    >
+      <DialogTitle sx={{ fontSize: '1rem', pt: 2, pb: 1 }}>Confirm Cancellation</DialogTitle>
+      <DialogContent sx={{ pt: 0, px: 2, pb: 1 }}>
+        <Typography sx={{ fontSize: '0.85rem' }}>
+          Are you sure you want to cancel this appointment for {rowToCancel?.patientName || rowToCancel?.firstName + ' ' + rowToCancel?.lastName}?
+        </Typography>
+      </DialogContent>
+      <DialogActions sx={{ p: 1.5 }}>
+        <Button 
+          onClick={() => setCancelConfirmationOpen(false)} 
+          size="small"
+          sx={{ fontSize: '0.75rem' }}
+        >
+          No
+        </Button>
+        <Button 
+          onClick={handleCancelAppointment} 
+          color="error" 
+          autoFocus 
+          size="small"
+          sx={{ fontSize: '0.75rem' }}
+        >
+          Yes, Cancel
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+
+  return (
+    <Box sx={{ 
+      padding: 2,
+      paddingBottom: "72px" // Add extra padding at the bottom to ensure content isn't hidden by the bottom navigation
+    }}>
+      <Typography variant="h5" gutterBottom>
+        Appointments
+      </Typography>
+
+      <TextField
+        fullWidth
+        variant="outlined"
+        placeholder="Search patients..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        margin="normal"
+        size="small"
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon fontSize="small" />
+            </InputAdornment>
+          ),
+          style: { fontSize: '0.9rem' }
+        }}
+      />
+
+      {loading ? (
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            height: "200px",
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      ) : error ? (
+        <Typography color="error" align="center" sx={{ mt: 2 }}>
+          {error}
+        </Typography>
+      ) : filteredAppointments.length === 0 ? (
+        <Typography align="center" sx={{ mt: 2 }}>
+          No appointments found
+        </Typography>
+      ) : (
+        <TableContainer component={Paper} sx={{ mt: 2 }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Token</TableCell>
+                <TableCell>Patient</TableCell>
+                <TableCell>Status</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {displayRows.map((appointment) => (
+                <TableRow 
+                  key={appointment.token}
+                  onClick={() => !appointment.isPlaceholder && handleEditClick(appointment)}
+                  hover={!appointment.isPlaceholder}
+                  sx={{ 
+                    cursor: appointment.isPlaceholder ? 'default' : 'pointer',
+                    backgroundColor: appointment.isPlaceholder ? '#f9f9f9' : 'inherit'
+                  }}
+                >
+                  <TableCell>{appointment.token}</TableCell>
+                  <TableCell>
+                    {appointment.isPlaceholder ? (
+                      <Typography variant="body2" sx={{ color: '#999', fontStyle: 'italic' }}>
+                        Empty Slot
+                      </Typography>
+                    ) : (
+                      <Typography variant="body1">
+                        {appointment.patientName}
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {appointment.isPlaceholder ? (
+                      <Typography variant="body2" sx={{ color: '#999', fontStyle: 'italic' }}>
+                        Available
+                      </Typography>
+                    ) : (
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.3 }}>
+                        <Box sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center',
+                          backgroundColor: getStatusColor(appointment.status) === 'success' ? '#e7f7e7' : 
+                                          getStatusColor(appointment.status) === 'error' ? '#ffeaea' : 
+                                          getStatusColor(appointment.status) === 'info' ? '#e3f2fd' : '#f5f5f5',
+                          borderRadius: '4px',
+                          py: 0.2,
+                          px: 0.5,
+                          width: 'fit-content'
+                        }}>
+                          <Box sx={{ 
+                            width: '6px', 
+                            height: '6px', 
+                            borderRadius: '50%',
+                            mr: 0.5, 
+                            backgroundColor: getStatusColor(appointment.status) === 'success' ? 'success.main' : 
+                                            getStatusColor(appointment.status) === 'error' ? 'error.main' : 
+                                            getStatusColor(appointment.status) === 'info' ? 'info.main' : 'grey.500',
+                          }} />
+                          <Typography sx={{ fontSize: '0.65rem', fontWeight: 500 }}>
+                            {appointment.status === "done" || appointment.status === "done_checkup" ? "Completed" : 
+                             appointment.status === "cancelled" ? "Cancelled" : "Pending"}
+                          </Typography>
+                        </Box>
+                        
+                        <Box sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center',
+                          backgroundColor: appointment.checkin ? '#e7f7e7' : '#f5f5f5',
+                          borderRadius: '4px',
+                          py: 0.2,
+                          px: 0.5,
+                          width: 'fit-content'
+                        }}>
+                          <Box sx={{ 
+                            width: '6px', 
+                            height: '6px', 
+                            borderRadius: '50%',
+                            mr: 0.5, 
+                            backgroundColor: appointment.checkin ? 'success.main' : 'grey.400',
+                          }} />
+                          <Typography sx={{ fontSize: '0.65rem', fontWeight: 500 }}>
+                            {appointment.checkin ? "Present" : "Absent"}
+                          </Typography>
+                        </Box>
+                        
+                        {appointment.paid && (
+                          <Box sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center',
+                            backgroundColor: '#e7f7e7',
+                            borderRadius: '4px',
+                            py: 0.2,
+                            px: 0.5,
+                            width: 'fit-content'
+                          }}>
+                            <Box sx={{ 
+                              width: '6px', 
+                              height: '6px', 
+                              borderRadius: '50%',
+                              mr: 0.5, 
+                              backgroundColor: 'success.main',
+                            }} />
+                            <Typography sx={{ fontSize: '0.65rem', fontWeight: 500 }}>
+                              Paid ({appointment.mode || 'cash'})
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+
+      {/* Edit Modal */}
+      {renderEditModal()}
+      
+      {/* Cancel Confirmation Dialog */}
+      {renderCancelConfirmationDialog()}
     </Box>
   );
 };

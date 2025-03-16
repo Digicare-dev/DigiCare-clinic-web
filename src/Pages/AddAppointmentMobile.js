@@ -15,9 +15,11 @@ import {
   ToggleButton,
   Box,
   Snackbar,
+  Autocomplete,
 } from "@mui/material";
-import { addAppointment, fetchAppointments } from "../services/api";
+import { addAppointment, fetchAppointments, getPatientProfile } from "../services/api";
 import { getCabinInfo } from "../utils/dateUtils";
+import "./AddAppointmentMobile.css";
 
 export default function AddAppointmentMobile({ patients }) {
   const user = JSON.parse(localStorage.getItem("user"));
@@ -26,6 +28,8 @@ export default function AddAppointmentMobile({ patients }) {
   const [error, setError] = useState("");
   const [suggestedToken, setSuggestedToken] = useState(1);
   const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [mobileSearchResults, setMobileSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   const [formData, setFormData] = useState({
     token: "",
@@ -41,8 +45,8 @@ export default function AddAppointmentMobile({ patients }) {
     checkin: false,
     paid: false,
     status: "pending",
-    mode: "",
-    fees_paid: 0,
+    mode: "cash",
+    fees_paid: 250,
   });
 
   const fetchSuggestedToken = () => {
@@ -162,6 +166,44 @@ export default function AddAppointmentMobile({ patients }) {
     }
   };
 
+  const handleMobileSearch = async (value) => {
+    if (!value || value.length !== 10) {
+      setMobileSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const result = await getPatientProfile(value);
+      if (result && result.length > 0) {
+        setMobileSearchResults(result);
+      } else {
+        setMobileSearchResults([]);
+      }
+    } catch (error) {
+      console.error("Error searching patient profile:", error);
+      setMobileSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handlePatientSelect = (patient) => {
+    if (patient) {
+      setFormData(prev => ({
+        ...prev,
+        phone_number: patient.phone_number,
+        firstName: patient.name.split(" ")[0] || "",
+        lastName: patient.name.split(" ").slice(1).join(" ") || "",
+        age: patient.age || "",
+        sex: patient.gender || "",
+        location: patient.location || "",
+        guardian: patient.guardian || "",
+      }));
+      setMobileSearchResults([]);
+    }
+  };
+
   return (
     <div
       style={{
@@ -204,6 +246,76 @@ export default function AddAppointmentMobile({ patients }) {
         />
 
         {/* Name Row */}
+        <Box sx={{ mb: 2 }}>
+          <Autocomplete
+            fullWidth
+            options={mobileSearchResults}
+            getOptionLabel={(option) => {
+              // Handle both objects from dropdown and direct string input
+              return typeof option === 'object' ? option?.phone_number || "" : option || "";
+            }}
+            loading={isSearching}
+            value={formData.phone_number || ""}
+            onChange={(_, newValue) => {
+              if (typeof newValue === 'object') {
+                handlePatientSelect(newValue);
+              } else {
+                setFormData(prev => ({
+                  ...prev,
+                  phone_number: newValue || ""
+                }));
+              }
+            }}
+            freeSolo={true}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Mobile"
+                name="phone_number"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value.length <= 10) {
+                    setFormData(prev => ({
+                      ...prev,
+                      phone_number: value
+                    }));
+                    handleMobileSearch(value);
+                  }
+                }}
+                inputProps={{
+                  ...params.inputProps,
+                  maxLength: 10,
+                  value: formData.phone_number || ""
+                }}
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {isSearching ? <CircularProgress color="inherit" size={20} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+                sx={{ mb: 2 }}
+              />
+            )}
+            renderOption={(props, option) => {
+              const { key, ...otherProps } = props;
+              const uniqueKey = option.patient_id;
+              return (
+                <li key={uniqueKey} {...otherProps}>
+                  <div>
+                    <Typography variant="body1">{option.name}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {option.phone_number}
+                    </Typography>
+                  </div>
+                </li>
+              );
+            }}
+          />
+        </Box>
+
         <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
           <TextField
             fullWidth
@@ -237,7 +349,17 @@ export default function AddAppointmentMobile({ patients }) {
                 }
               />
             }
-            label="Check-in"
+            label={
+              <Typography 
+                variant="body1" 
+                sx={{ 
+                  fontWeight: formData.checkin ? 'bold' : 'normal',
+                  color: formData.checkin ? 'primary.main' : 'text.primary'
+                }}
+              >
+                Present in Clinic
+              </Typography>
+            }
           />
           <FormControlLabel
             control={
@@ -246,7 +368,17 @@ export default function AddAppointmentMobile({ patients }) {
                 onChange={handlePaidCheckboxChange}
               />
             }
-            label="Payment"
+            label={
+              <Typography 
+                variant="body1" 
+                sx={{ 
+                  fontWeight: formData.paid ? 'bold' : 'normal',
+                  color: formData.paid ? 'primary.main' : 'text.primary'
+                }}
+              >
+                Payment Done
+              </Typography>
+            }
           />
         </Box>
 
@@ -272,22 +404,12 @@ export default function AddAppointmentMobile({ patients }) {
               value={formData.fees_paid}
               onChange={handleInputChange}
               InputProps={{ inputProps: { min: 0 } }}
-              placeholder="250"
             />
           </Box>
         )}
 
-        {/* Age & Mobile Row */}
-        <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-          <TextField
-            fullWidth
-            label="Mobile"
-            name="phone_number"
-            value={formData.phone_number}
-            onChange={handleInputChange}
-            inputProps={{ maxLength: 10 }}
-            helperText="Will enable fields"
-          />
+        {/* Age & Gender Row */}
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mb: 2 }}>
           <TextField
             fullWidth
             label="Age"
@@ -296,24 +418,26 @@ export default function AddAppointmentMobile({ patients }) {
             value={formData.age}
             onChange={handleInputChange}
             InputProps={{ inputProps: { min: 0, max: 120 } }}
-            disabled={!formData.phone_number}
           />
+          
+          <FormControl component="fieldset" fullWidth>
+            <ToggleButtonGroup
+              value={formData.sex}
+              exclusive
+              onChange={handleSexChange}
+              color="primary"
+              fullWidth
+            >
+              <ToggleButton value="M" color="primary">
+                Male
+              </ToggleButton>
+              <ToggleButton value="F" color="secondary">
+                Female
+              </ToggleButton>
+              <ToggleButton value="O">Other</ToggleButton>
+            </ToggleButtonGroup>
+          </FormControl>
         </Box>
-
-        {/* Gender Toggle Group */}
-        <ToggleButtonGroup
-          value={formData.sex}
-          exclusive
-          onChange={handleSexChange}
-          color="primary"
-          fullWidth
-          sx={{ mb: 2 }}
-          disabled={!formData.phone_number}
-        >
-          <ToggleButton value="M">Male</ToggleButton>
-          <ToggleButton value="F">Female</ToggleButton>
-          <ToggleButton value="O">Other</ToggleButton>
-        </ToggleButtonGroup>
 
         {/* Guardian & Location Row */}
         <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
@@ -323,7 +447,6 @@ export default function AddAppointmentMobile({ patients }) {
             name="guardian"
             value={formData.guardian.toUpperCase()}
             onChange={handleInputChange}
-            disabled={!formData.phone_number}
           />
           <TextField
             fullWidth
@@ -331,14 +454,13 @@ export default function AddAppointmentMobile({ patients }) {
             name="location"
             value={formData.location.toUpperCase()}
             onChange={handleInputChange}
-            disabled={!formData.phone_number}
           />
         </Box>
 
         {/* Disease and Appointment Type */}
         <TextField
           fullWidth
-          label="Disease"
+          label="Complaint"
           name="disease"
           value={formData.disease}
           onChange={handleInputChange}
@@ -346,7 +468,7 @@ export default function AddAppointmentMobile({ patients }) {
         />
 
         <FormControl fullWidth sx={{ mb: 2 }}>
-          <InputLabel>Appointment Type</InputLabel>
+          <InputLabel>Appointment Type *</InputLabel>
           <Select
             name="appointment_type"
             value={formData.appointment_type}
@@ -383,7 +505,6 @@ export default function AddAppointmentMobile({ patients }) {
         }}
       >
         <Button
-          // type="submit"
           onClick={handleSubmit}
           fullWidth
           variant="contained"

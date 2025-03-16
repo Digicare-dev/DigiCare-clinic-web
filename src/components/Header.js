@@ -29,7 +29,8 @@ import "./Header.module.css";
 import { getPatientProfile, getPatientDetails } from "../services/api";
 
 function Header({ closeEventSource }) {
-  const isMobile = window.innerWidth <= 768;
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const isMobile = windowWidth <= 768;
   const [open, setOpen] = useState(false);
   const { setUser } = useContext(AuthContext);
   const { openAppointmentForm } = useAppointmentForm();
@@ -40,6 +41,18 @@ function Header({ closeEventSource }) {
   const [patients, setPatients] = useState([]);
   const [showPatientList, setShowPatientList] = useState(false);
   const searchContainerRef = useRef(null);
+
+  // Add resize event listener to update windowWidth
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -181,7 +194,7 @@ function Header({ closeEventSource }) {
         <img
           src={logo}
           alt="DigiCare"
-          style={{ width: "150px", height: "40px" }}
+          style={{ width: isMobile ? "120px" : "150px", height: isMobile ? "32px" : "40px" }}
         />
       </Box>
 
@@ -190,12 +203,22 @@ function Header({ closeEventSource }) {
         ref={searchContainerRef}
         sx={{ 
           flex: 1, 
-          maxWidth: '550px', 
+          maxWidth: isMobile ? '100%' : '550px', 
           mx: 'auto',
           position: 'relative',
           display: 'flex',
           alignItems: 'center',
-          gap: 2
+          gap: isMobile ? 1 : 2,
+          flexDirection: isMobile ? 'column' : 'row',
+          width: isMobile ? '100%' : 'auto',
+          ...(isMobile && {
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: '60px', // Position at the bottom of the main header
+            padding: '0 16px',
+            zIndex: 100
+          })
         }}
       >
         <Button 
@@ -231,9 +254,9 @@ function Header({ closeEventSource }) {
         </Button>
 
         <TextField
-          placeholder="Enter 10-digit phone number to search patient..."
+          placeholder={isMobile ? "Search patient by phone..." : "Enter 10-digit phone number to search patient..."}
           variant="outlined"
-          size="small"
+          size={isMobile ? "medium" : "small"}
           fullWidth
           value={searchQuery}
           onChange={handleSearchInputChange}
@@ -245,24 +268,37 @@ function Header({ closeEventSource }) {
           disabled={loading}
           error={!!error}
           helperText={error}
+          sx={{
+            width: '100%',
+            ...(isMobile && {
+              '& .MuiOutlinedInput-root': {
+                height: '48px',
+                fontSize: '16px',
+                borderRadius: '24px',
+              },
+              '& .MuiInputBase-input': {
+                padding: '12px 14px 12px 0',
+              }
+            })
+          }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon color="action" />
+                <SearchIcon color="action" sx={{ fontSize: isMobile ? '1.4rem' : '1.2rem' }} />
               </InputAdornment>
             ),
             endAdornment: (
               <>
-                {loading && <CircularProgress size={20} />}
+                {loading && <CircularProgress size={isMobile ? 24 : 20} />}
                 {searchQuery && !loading && (
                   <InputAdornment position="end">
                     <IconButton
                       aria-label="clear search"
                       onClick={handleClearSearch}
                       edge="end"
-                      size="small"
+                      size={isMobile ? "medium" : "small"}
                     >
-                      <CloseIcon fontSize="small" />
+                      <CloseIcon fontSize={isMobile ? "medium" : "small"} />
                     </IconButton>
                   </InputAdornment>
                 )}
@@ -280,12 +316,18 @@ function Header({ closeEventSource }) {
               left: 0,
               right: 0,
               zIndex: 1000,
-              mt: 1,
+              mt: isMobile ? 0.5 : 1,
               bgcolor: 'background.paper',
-              borderRadius: 1,
+              borderRadius: isMobile ? 2 : 1,
               boxShadow: 3,
-              maxHeight: '300px',
+              maxHeight: isMobile ? '350px' : '300px',
               overflowY: 'auto',
+              ...(isMobile && {
+                mx: 0,
+                border: '1px solid rgba(0, 0, 0, 0.12)',
+                width: 'calc(100% - 32px)',
+                left: '16px'
+              })
             }}
           >
             <List sx={{ p: 0 }}>
@@ -296,21 +338,32 @@ function Header({ closeEventSource }) {
                   onClick={() => handlePatientSelect(patient)}
                   divider={index < patients.length - 1}
                   sx={{
-                    py: 1.5,
+                    py: isMobile ? 2 : 1.5,
                     '&:hover': {
                       bgcolor: 'rgba(25, 118, 210, 0.08)',
                     },
+                    ...(isMobile && {
+                      px: 3
+                    })
                   }}
                 >
                   <ListItemText
                     primary={
-                      <Typography variant="subtitle1" component="div" sx={{ fontWeight: 500 }}>
+                      <Typography variant="subtitle1" component="div" sx={{ fontWeight: 500, fontSize: isMobile ? '1rem' : 'inherit' }}>
                         {patient.name}
                       </Typography>
                     }
                     secondary={
-                      <Box sx={{ mt: 0.5 }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ mt: isMobile ? 0.75 : 0.5 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: 1,
+                          ...(isMobile && {
+                            fontSize: '0.9rem',
+                            flexWrap: 'wrap'
+                          })
+                        }}>
                           <span>{patient.phone_number}</span>
                           <span>•</span>
                           <span>{patient.age || 'N/A'} years</span>
@@ -318,7 +371,7 @@ function Header({ closeEventSource }) {
                           <span>{patient.gender === 'M' ? 'Male' : patient.gender === 'F' ? 'Female' : patient.gender || 'N/A'}</span>
                         </Typography>
                         {patient.location && (
-                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, ...(isMobile && { fontSize: '0.9rem' }) }}>
                             {patient.location}
                           </Typography>
                         )}
@@ -331,6 +384,9 @@ function Header({ closeEventSource }) {
           </Box>
         )}
       </Box>
+
+      {/* We don't need additional space in the header for mobile since we're using margin-bottom in CSS */}
+      {/* {isMobile && <Box sx={{ height: 48 }} />} */}
 
       {/* Mobile Logout Button */}
       {isMobile && (

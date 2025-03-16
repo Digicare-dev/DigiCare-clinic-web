@@ -39,7 +39,7 @@ import {
 import { ThemeProvider } from '@mui/material/styles';
 import { theme } from './theme/theme';
 import Dashboard from './Pages/Dashboard';
-import { getCabinInfo } from './utils/dateUtils';
+import { getLatestCabinSlot, getCabinInfoFromUser } from './utils/dateUtils';
 import PatientInfoPage from './Pages/PatientInfoPage';
 import ConsultationPage from './Pages/ConsultationPage';
 import PDFViewer from './components/PDFViewer';
@@ -50,8 +50,8 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 const App = () => {
   const user = JSON.parse(localStorage.getItem("user"));
   
-  // Extract cabin information using the standardized function
-  const { cabinId, selectedSlot } = getCabinInfo(user);
+  // Extract cabin information using the new utility function
+  const { cabinId, selectedSlot } = getCabinInfoFromUser(user);
   
   const isMobile = window.innerWidth <= 768;
   const [currentPosition, setCurrentPosition] = useState(1);
@@ -375,7 +375,28 @@ const App = () => {
                     path="/mobile-queue"
                     element={
                       <PrivateRoute>
-                        <MobileQueuePage />
+                        <MobileQueuePage 
+                          patientsData={patients} 
+                          currentPositionData={currentPosition} 
+                          onDataChange={() => {
+                            // Reuse existing function to fetch data
+                            const fetchData = async () => {
+                              setLoading(true);
+                              try {        
+                                const patientsData = await fetchPatients(cabinId, selectedSlot);
+                                setPatients(patientsData);
+                                
+                                const currentPositionData = await fetchCurrentPosition(cabinId, selectedSlot);
+                                setCurrentPosition(currentPositionData.current_number || currentPositionData.position);
+                              } catch (error) {
+                                console.error("Error loading data:", error);
+                              } finally {
+                                setLoading(false);
+                              }
+                            };
+                            fetchData();
+                          }}
+                        />
                       </PrivateRoute>
                     }
                   />

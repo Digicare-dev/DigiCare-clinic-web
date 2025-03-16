@@ -120,5 +120,5 @@ export const getCabinInfo = (user) => {
   // Get the selected slot using getLatestCabinSlot
   const selectedSlot = getLatestCabinSlot(cabinSlots);
   
-  return { cabinId, selectedSlot };
+  return { cabinId, selectedSlot, cabinSlots };
 };
