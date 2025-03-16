@@ -42,7 +42,7 @@ import {
   getPatientProfile,
 } from "../services/api";
 import CustomSnackbar from "../components/CustomSnackbar";
-import { getLatestCabinSlot } from '../utils/dateUtils';
+import { getCabinInfo } from '../utils/dateUtils';
 import { useNavigate, useLocation } from "react-router-dom";
 import { EventSource } from "eventsource";
 import { useAppointmentForm } from "../context/AppointmentFormContext";
@@ -132,8 +132,7 @@ function CustomToolbar(props) {
 
 export default function AppointmentTable() {
   const user = JSON.parse(localStorage.getItem("user"));
-  const cabinId = user?.checkupcabindata?.[0]?.id;
-  const selectedSlot = getLatestCabinSlot(user?.checkupcabindata?.[0]?.cabin_slots);
+  const { cabinId, selectedSlot } = getCabinInfo(user);
   const [currentCabinSlot, setCurrentCabinSlot] = useState(null);
 
   const [rows, setRows] = React.useState([]);
@@ -266,12 +265,15 @@ export default function AppointmentTable() {
   const [eventSource, setEventSource] = useState(null);
 
   useEffect(() => {
+    // Fetch appointments data on component mount
+    const user = JSON.parse(localStorage.getItem("user"));
     if (!user) return;
-    
+
+    const { cabinId, selectedSlot } = getCabinInfo(user);
+    if (!cabinId || !selectedSlot) return;
+
     // Fetch appointments on component mount
     getAppointments();
-    
-    
   }, []); // Empty dependency array to run only on mount
 
   // Add SSE for real-time appointment updates

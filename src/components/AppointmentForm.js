@@ -19,7 +19,7 @@ import {
 } from "@mui/material";
 import { useAppointmentForm } from '../context/AppointmentFormContext';
 import { addAppointment, getPatientProfile, getMaxTokenNumber } from "../services/api";
-import { getLatestCabinSlot } from '../utils/dateUtils';
+import { getCabinInfo } from "../utils/dateUtils";
 import CustomSnackbar from "./CustomSnackbar";
 
 const modalStyle = {
@@ -59,8 +59,7 @@ const AppointmentForm = () => {
   
   // Get user and cabin information
   const user = JSON.parse(localStorage.getItem("user"));
-  const cabinId = user?.checkupcabindata?.[0]?.id;
-  const selectedSlot = getLatestCabinSlot(user?.checkupcabindata?.[0]?.cabin_slots);
+  const { cabinId, selectedSlot } = getCabinInfo(user);
 
   const [newAppointment, setNewAppointment] = useState({
     id: "",
@@ -278,6 +277,15 @@ const AppointmentForm = () => {
   const AddAppointmentApi = async (newEntry) => {
     setIsAdding(true);
     try {
+      // Get the latest cabin information
+      const user = JSON.parse(localStorage.getItem("user"));
+      const { cabinId, selectedSlot } = getCabinInfo(user);
+      if (!cabinId || !selectedSlot) {
+        handleOpenSnackbar("Unable to retrieve cabin information", "error");
+        setIsAdding(false);
+        return;
+      }
+      
       console.log("Adding appointment with slot:", selectedSlot); // Debug log
       
       // Add new appointment

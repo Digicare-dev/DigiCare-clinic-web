@@ -1,12 +1,22 @@
 export const getLatestCabinSlot = (cabinSlots) => {
   if (!cabinSlots || cabinSlots.length === 0) return null;
 
+  // Find the slot where is_active is true
+  const activeSlot = cabinSlots.find(slot => slot.is_active === true);
+  
+  // If there's an active slot, return it
+  if (activeSlot) {
+    return activeSlot.slot;
+  }
+
+  // Fallback to the old logic if no active slot is found
   // Convert all slots to Date objects and sort them
-  const sortedSlots = [...cabinSlots].sort((a, b) => {
-    const dateA = new Date(a);
-    const dateB = new Date(b);
-    return dateB - dateA; // Sort in descending order (latest first)
-  });
+  const sortedSlots = [...cabinSlots].map(slot => typeof slot === 'string' ? slot : slot.slot)
+    .sort((a, b) => {
+      const dateA = new Date(a);
+      const dateB = new Date(b);
+      return dateB - dateA; // Sort in descending order (latest first)
+    });
 
   // Get the most recent slot that's not in the past
   const now = new Date();
@@ -36,8 +46,16 @@ export const getCabinInfoFromUser = (user) => {
     return { cabinId, selectedSlot: null };
   }
 
+  // Find the active slot
+  const activeSlot = cabinSlots.find(slot => slot.is_active === true);
+  if (activeSlot) {
+    return { cabinId, selectedSlot: activeSlot.slot };
+  }
+
+  // Fallback to the old logic if no active slot is found
   // Convert all slots to Date objects
-  const slotDates = cabinSlots.map(slot => new Date(slot));
+  const slotStrings = cabinSlots.map(slot => typeof slot === 'string' ? slot : slot.slot);
+  const slotDates = slotStrings.map(slot => new Date(slot));
   
   // Sort slots by date (ascending)
   slotDates.sort((a, b) => a - b);
@@ -49,7 +67,7 @@ export const getCabinInfoFromUser = (user) => {
   if (now > slotDates[slotDates.length - 1]) {
     return { 
       cabinId, 
-      selectedSlot: cabinSlots[cabinSlots.length - 1] 
+      selectedSlot: slotStrings[slotStrings.length - 1] 
     };
   }
   
@@ -57,7 +75,7 @@ export const getCabinInfoFromUser = (user) => {
   if (now < slotDates[0]) {
     return { 
       cabinId, 
-      selectedSlot: cabinSlots[0] 
+      selectedSlot: slotStrings[0] 
     };
   }
   
@@ -66,7 +84,7 @@ export const getCabinInfoFromUser = (user) => {
     if (now >= slotDates[i] && now < slotDates[i + 1]) {
       return { 
         cabinId, 
-        selectedSlot: cabinSlots[i] 
+        selectedSlot: slotStrings[i] 
       };
     }
   }
@@ -74,6 +92,33 @@ export const getCabinInfoFromUser = (user) => {
   // Fallback to the first slot if no match found (shouldn't reach here given the cases above)
   return { 
     cabinId, 
-    selectedSlot: cabinSlots[0] 
+    selectedSlot: slotStrings[0] 
   };
+};
+
+/**
+ * Standardized function to get cabin information from user data
+ * This function is the recommended way to extract cabin information and should be
+ * used in place of direct access, getLatestCabinSlot, or getCabinInfoFromUser
+ * 
+ * @param {Object} user - The user object containing checkupcabindata
+ * @returns {Object} - An object containing cabinId and selectedSlot
+ */
+export const getCabinInfo = (user) => {
+  if (!user?.checkupcabindata || !user.checkupcabindata.length) {
+    return { cabinId: null, selectedSlot: null };
+  }
+
+  // Extract the cabinId from the first checkupcabindata entry
+  const cabinId = user.checkupcabindata[0].id;
+  const cabinSlots = user.checkupcabindata[0].cabin_slots || [];
+
+  if (!cabinSlots.length) {
+    return { cabinId, selectedSlot: null };
+  }
+
+  // Get the selected slot using getLatestCabinSlot
+  const selectedSlot = getLatestCabinSlot(cabinSlots);
+  
+  return { cabinId, selectedSlot };
 };

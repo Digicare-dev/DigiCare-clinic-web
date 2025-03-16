@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback } from "react";
-import { getLatestCabinSlot } from '../utils/dateUtils';
-import { fetchPatients, fetchCurrentPosition } from '../services/api';
+import { getCabinInfo } from '../utils/dateUtils';
+import { fetchPatients, fetchCurrentPosition, fetchAppointments, updateCabinSlot } from '../services/api';
 
 export const AppContext = createContext();
 
@@ -15,11 +15,36 @@ export const AppProvider = ({ children }) => {
   });
 
   useEffect(() => {
-    if (user?.checkupcabindata?.[0]?.cabin_slots) {
-      const latestSlot = getLatestCabinSlot(user.checkupcabindata[0].cabin_slots);
-      setCurrentCabinSlot(latestSlot);
-    }
-  }, [user?.checkupcabindata]);
+    if (!user) return;
+    
+    const { cabinId, selectedSlot } = getCabinInfo(user);
+    setCurrentCabinSlot(selectedSlot);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    
+    const { cabinId } = getCabinInfo(user);
+    if (!currentCabinSlot || !cabinId) return;
+
+    updateCabinSlot(
+      cabinId,
+      currentCabinSlot,
+      currentPosition
+    );
+  }, [currentCabinSlot, currentPosition]);
+
+  useEffect(() => {
+    if (!user) return;
+    
+    const { cabinId } = getCabinInfo(user);
+    if (!currentCabinSlot || !cabinId) return;
+
+    fetchAppointmentData(
+      cabinId,
+      currentCabinSlot
+    );
+  }, [currentCabinSlot]);
 
   const fetchPatientsData = useCallback(async () => {
     if (!currentCabinSlot || !user?.checkupcabindata?.[0]?.id) return;

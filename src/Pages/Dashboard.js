@@ -28,6 +28,7 @@ import {
 } from '@mui/icons-material';
 import { SlotSelector } from '../components/SlotSelector';
 import QueueContainer from '../components/QueueContainer';
+import { getCabinInfo } from "../utils/dateUtils";
 
 const StatCard = ({ title, value, icon, color, subtitle }) => (
   <Card sx={{ height: '100%' }}>
@@ -79,10 +80,20 @@ const Dashboard = ({
     averageWaitTime: 0,
   });
   const [recentPatients, setRecentPatients] = useState([]);
-  const slots = user?.checkupcabindata?.[0]?.cabin_slots || [];
   const [currentCabinSlot, setCurrentCabinSlot] = useState(null);
+  const [slots, setSlots] = useState([]);
 
   useEffect(() => {
+    // Fetch appointments data on component mount
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (!user) return;
+
+    const { cabinId, selectedSlot } = getCabinInfo(user);
+    if (!cabinId) return;
+
+    const newSlots = selectedSlot ? [selectedSlot] : [];
+    setSlots(newSlots);
+
     if (fetchPatientsData) {
       fetchPatientsData();
     }

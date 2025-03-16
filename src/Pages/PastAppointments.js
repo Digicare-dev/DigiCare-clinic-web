@@ -39,6 +39,7 @@ import {
 } from "../services/api";
 
 import { useNavigate, useLocation } from "react-router-dom";
+import { getCabinInfo } from "../utils/dateUtils";
 
 // Key for storing state in sessionStorage
 const PAST_APPOINTMENTS_STATE_KEY = 'pastAppointmentsState';
@@ -86,9 +87,9 @@ export default function PastAppointments() {
     const savedState = sessionStorage.getItem(PAST_APPOINTMENTS_STATE_KEY);
     if (savedState) {
       const parsedState = JSON.parse(savedState);
-      return parsedState.selectedDate ? new Date(parsedState.selectedDate) : new Date();
+      return parsedState.selectedDate ? new Date(parsedState.selectedDate) : getUTCDateOnly();
     }
-    return new Date();
+    return getUTCDateOnly();
   });
   
   const [searchQuery, setSearchQuery] = useState(() => {
@@ -252,15 +253,38 @@ export default function PastAppointments() {
 
   // First useEffect - Only find matching slots when the date changes
   useEffect(() => {
-    if (!selectedDate || !cabinId) return;
+    // Fetch past appointments data
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (!user) return;
 
-    // Format the selected date as YYYY-MM-DD
-    const selectedDateString = selectedDate.toISOString().split("T")[0];
+    const { cabinId, selectedSlot } = getCabinInfo(user);
+    if (!cabinId) return;
     
-    // Find matching slots for the selected date
-    const matchingCabinSlots = cabinSlots.filter(slot => 
-      slot.startsWith(selectedDateString)
-    );
+    const cabinSlots = selectedSlot ? [selectedSlot] : [];
+    console.log("Available cabin slots:", cabinSlots);
+    
+    // Format the selected date as YYYY-MM-DD in UTC
+    // This ensures we're using the date in UTC time, not local time
+    const year = selectedDate.getUTCFullYear();
+    const month = String(selectedDate.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(selectedDate.getUTCDate()).padStart(2, '0');
+    const selectedDateString = `${year}-${month}-${day}`;
+    
+    console.log("Filtering for date:", selectedDateString);
+    
+    // Find matching slots for the selected date by comparing UTC dates
+    const matchingCabinSlots = cabinSlots.filter(slotStr => {
+      const slotDate = new Date(slotStr);
+      const slotYear = slotDate.getUTCFullYear();
+      const slotMonth = String(slotDate.getUTCMonth() + 1).padStart(2, '0');
+      const slotDay = String(slotDate.getUTCDate()).padStart(2, '0');
+      const slotDateString = `${slotYear}-${slotMonth}-${slotDay}`;
+      
+      console.log("Comparing slot date:", slotDateString, "with selected date:", selectedDateString);
+      return slotDateString === selectedDateString;
+    });
+    
+    console.log("Matching slots for date:", matchingCabinSlots);
     
     if (matchingCabinSlots.length === 0) {
       // If no slots available for this date
@@ -275,23 +299,27 @@ export default function PastAppointments() {
     setNoSlots(false);
     setMatchingSlots(matchingCabinSlots);
     
-    // Only update selected slot if none is selected or current selection doesn't match date
-    if (!selectedSlot || !matchingCabinSlots.includes(selectedSlot)) {
-      setSelectedSlot(matchingCabinSlots[0]);
-    }
-    // Removed direct call to getAppointments here
-  }, [selectedDate, cabinId]); // Removed cabinSlots from dependency array
-
-  // Second useEffect - Only fetch appointments when the selected slot changes
-  useEffect(() => {
-    if (selectedSlot) {
-      getAppointments(selectedSlot);
-    }
-  }, [selectedSlot]);
+    // Always select the first matching slot
+    setSelectedSlot(matchingCabinSlots[0]);
+    
+    // Now fetch the appointments directly
+    getAppointments(matchingCabinSlots[0]);
+    
+  }, [selectedDate, cabinId]);
 
   // Handle date change
   const handleDateChange = (newDate) => {
+    console.log("Date changed to:", newDate);
     setSelectedDate(newDate);
+    
+    // Save to session storage
+    const currentState = sessionStorage.getItem(PAST_APPOINTMENTS_STATE_KEY);
+    const parsedState = currentState ? JSON.parse(currentState) : {};
+    sessionStorage.setItem(PAST_APPOINTMENTS_STATE_KEY, JSON.stringify({
+      ...parsedState,
+      selectedDate: newDate.toISOString()
+    }));
+    
     // The slots and data will be updated by the useEffect that depends on selectedDate
   };
 
@@ -302,7 +330,17 @@ export default function PastAppointments() {
 
   // Handle slot selection
   const handleSlotClick = (slot) => {
+    console.log("Slot clicked:", slot);
     setSelectedSlot(slot);
+    
+    // Save to session storage
+    const currentState = sessionStorage.getItem(PAST_APPOINTMENTS_STATE_KEY);
+    const parsedState = currentState ? JSON.parse(currentState) : {};
+    sessionStorage.setItem(PAST_APPOINTMENTS_STATE_KEY, JSON.stringify({
+      ...parsedState,
+      selectedSlot: slot
+    }));
+    
     getAppointments(slot); // Fetch appointments for the selected slot
   };
 
@@ -331,7 +369,10 @@ export default function PastAppointments() {
   };
 
   const getAppointments = async (dateTime) => {
-    if (!cabinId || !dateTime) return;
+    if (!cabinId || !dateTime) {
+      console.log("Cannot fetch appointments - missing cabinId or dateTime:", { cabinId, dateTime });
+      return;
+    }
     
     setLoading(true);
     try {
@@ -339,6 +380,7 @@ export default function PastAppointments() {
       
       // Call the real API to fetch appointments
       const data = await fetchAppointments(cabinId, dateTime);
+      console.log("Received appointment data:", data);
       
       if (data && data.length !== 0) {
         console.log("Received past appointments data:", data);
@@ -908,6 +950,16 @@ export default function PastAppointments() {
     </Dialog>
   );
 
+  // Helper function to create a Date object with only the date part in UTC
+  function getUTCDateOnly() {
+    const now = new Date();
+    return new Date(Date.UTC(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    ));
+  }
+
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <div
@@ -975,9 +1027,24 @@ export default function PastAppointments() {
             <DatePicker
               label="Select Date"
               value={selectedDate}
-              onChange={handleDateChange}
+              onChange={(newDate) => {
+                // Ensure we're using UTC date
+                const utcDate = new Date(Date.UTC(
+                  newDate.getFullYear(),
+                  newDate.getMonth(),
+                  newDate.getDate()
+                ));
+                handleDateChange(utcDate);
+              }}
               maxDate={new Date()}
-              slotProps={{ textField: { size: 'small', sx: { width: 200 } } }}
+              slotProps={{ 
+                textField: { 
+                  size: 'small', 
+                  sx: { width: 200 }
+                }
+              }}
+              // Use date-fns compatible format
+              format="dd/MM/yyyy"
             />
             {loading && <CircularProgress size={24} />}
           </Box>
@@ -988,7 +1055,12 @@ export default function PastAppointments() {
               {matchingSlots.map((slot, index) => {
                 // Format the time for display
                 const slotDate = new Date(slot);
-                const timeStr = slotDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                // Adjust to display in UTC time instead of local time
+                const timeStr = new Date(slotDate.getTime()).toLocaleTimeString([], { 
+                  hour: '2-digit', 
+                  minute: '2-digit',
+                  timeZone: 'UTC'  // Force UTC timezone
+                });
                 
                 return (
                   <Button

@@ -135,6 +135,13 @@
     max-width: 100vw;
     overflow-x: hidden;
     overflow-y: scroll;
+    padding-bottom: 80px; /* Add extra padding at the bottom for the BottomNavigator */
+  }
+
+  /* Specific style for the mobile queue page */
+  .mobile-queue-page .queue-container {
+    height: calc(100vh - 180px);
+    margin-bottom: 60px;
   }
 
   .patient-item {

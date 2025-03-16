@@ -8,6 +8,8 @@ import AddIcon from "@mui/icons-material/Add";
 import MedicalInformationIcon from "@mui/icons-material/MedicalInformation";
 import TimerIcon from "@mui/icons-material/Timer";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
+import QueueIcon from "@mui/icons-material/PeopleAlt";
+
 export default function BottomNavigator() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -17,6 +19,7 @@ export default function BottomNavigator() {
     "/": 0,
     "/add-appointment": 1,
     "/mobile-appointments": 2,
+    "/mobile-queue": 3,
   };
 
   const [value, setValue] = React.useState(pathToIndex[location.pathname] || 0);
@@ -28,17 +31,19 @@ export default function BottomNavigator() {
         value={value}
         onChange={(event, newValue) => {
           setValue(newValue);
-          const paths = ["/", "/add-appointment", "/mobile-appointments"];
+          const paths = ["/", "/add-appointment", "/mobile-appointments", "/mobile-queue"];
           navigate(paths[newValue]);
         }}
       >
-        <BottomNavigationAction label="Queue" icon={<TimerIcon />} />
-
+        <BottomNavigationAction label="Home" icon={<TimerIcon />} />
         <BottomNavigationAction label="Add New" icon={<AddIcon />} />
-
         <BottomNavigationAction
           label="Appointments"
           icon={<CalendarTodayIcon />}
+        />
+        <BottomNavigationAction
+          label="Queue"
+          icon={<QueueIcon />}
         />
       </BottomNavigation>
     </Box>

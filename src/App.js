@@ -18,6 +18,7 @@ import PrescriptionPage from "./Pages/PrescriptionPage";
 import { EventSource } from "eventsource";
 import AddAppointmentMobile from "./Pages/AddAppointmentMobile";
 import MobileAppointmentTable from "./Pages/MobileAppointmentTable";
+import MobileQueuePage from "./Pages/MobileQueuePage";
 import PastAppointmentsPage from "./Pages/PastAppointments";
 import { Navigate } from "react-router-dom";
 import AppointmentForm from "./components/AppointmentForm";
@@ -38,7 +39,7 @@ import {
 import { ThemeProvider } from '@mui/material/styles';
 import { theme } from './theme/theme';
 import Dashboard from './Pages/Dashboard';
-import { getLatestCabinSlot, getCabinInfoFromUser } from './utils/dateUtils';
+import { getCabinInfo } from './utils/dateUtils';
 import PatientInfoPage from './Pages/PatientInfoPage';
 import ConsultationPage from './Pages/ConsultationPage';
 import PDFViewer from './components/PDFViewer';
@@ -49,8 +50,8 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 const App = () => {
   const user = JSON.parse(localStorage.getItem("user"));
   
-  // Extract cabin information using the new utility function
-  const { cabinId, selectedSlot } = getCabinInfoFromUser(user);
+  // Extract cabin information using the standardized function
+  const { cabinId, selectedSlot } = getCabinInfo(user);
   
   const isMobile = window.innerWidth <= 768;
   const [currentPosition, setCurrentPosition] = useState(1);
@@ -367,6 +368,14 @@ const App = () => {
                     element={
                       <PrivateRoute>
                         <ConsultationPage />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/mobile-queue"
+                    element={
+                      <PrivateRoute>
+                        <MobileQueuePage />
                       </PrivateRoute>
                     }
                   />

@@ -37,6 +37,7 @@ import "./MobileAppointmentTable.css";
 import SearchIcon from "@mui/icons-material/Search";
 import { CheckCircle, Cancel, Edit } from "@mui/icons-material";
 import CloseIcon from "@mui/icons-material/Close";
+import { getCabinInfo } from "../utils/dateUtils";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
@@ -227,11 +228,11 @@ const MobileAppointmentTable = () => {
     // Set up SSE connection
     if (!user?.checkupcabindata?.[0]?.id) return;
 
-    const doctorId = user.checkupcabindata[0].id;
-    const slotTime = user.checkupcabindata[0].cabin_slots[0];
+    const { cabinId, selectedSlot } = getCabinInfo(user);
+    if (!cabinId || !selectedSlot) return;
 
     // Format date for SSE URL
-    const date = new Date(slotTime);
+    const date = new Date(selectedSlot);
     const formattedDate = date
       .toISOString()
       .replace(".000", "")
@@ -239,7 +240,7 @@ const MobileAppointmentTable = () => {
       .replace("Z", "+00:00");
     const encodedDate = encodeURIComponent(formattedDate);
 
-    const sseUrl = `${API_BASE_URL}/doctorinfo/queue_updates/${doctorId}/${encodedDate}`;
+    const sseUrl = `${API_BASE_URL}/doctorinfo/queue_updates/${cabinId}/${encodedDate}`;
 
     const eventSource = new EventSource(sseUrl, { withCredentials: true });
 

@@ -67,7 +67,7 @@ import {
   suggestMedicine,
   suggestDiagnosis
 } from "../services/api";
-import { getCabinInfoFromUser } from "../utils/dateUtils";
+import { getCabinInfo } from "../utils/dateUtils";
 
 // Add this with your other dummy data arrays at the top of the file
 
@@ -251,9 +251,8 @@ export const PrescriptionForm = forwardRef(({
   });
   const user = JSON.parse(localStorage.getItem("user"));
   
-
-  // Extract cabin information using the new utility function
-  const { cabinId, selectedSlot } = getCabinInfoFromUser(user);
+  // Extract cabin information using the standardized function
+  const { cabinId, selectedSlot } = getCabinInfo(user);
 
   const [newTest, setNewTest] = useState("");
   const [signature, setSignature] = useState(initialData.signature || "");
@@ -832,249 +831,67 @@ console.log('initialData', initialData);
 
   // Function to load past prescriptions
   const loadPastPrescriptions = async () => {
-    if (!patientInfo || !patientInfo.id) {
-      console.warn("No patient information available", patientInfo);
-      return;
-    }
-    
-    console.log("Loading prescriptions for patient:", patientInfo);
-    
-    setIsLoadingPrescriptions(true);
     try {
-      // Import the fetchPastPrescriptions function from the fixed service
-      const { getPastPrescriptions  } = await import('../services/api');
+      // Get cabinId from user
+      const { cabinId } = getCabinInfo(user);
       
-      // Fetch past prescriptions for the patient
+      console.log("Loading prescriptions for patient:", patientInfo);
       
-      console.log("Calling fetchPastPrescriptions with ID:", patientInfo.id);
-      const response = await getPastPrescriptions(patientInfo.id, cabinId);
-      console.log("Fetched prescriptions response:", response);
-      
-      // Handle the new response structure
-      let prescriptions = [];
-      
-      if (!response) {
-        console.warn("No response received from fetchPastPrescriptions");
-        showNotification("No past prescriptions data available", "warning");
-      } else if (response.prescription && Array.isArray(response.prescription)) {
-        // Map the new structure to match the expected format
-        prescriptions = response.prescription.map((item, index) => ({
-          id: index, // Generate an id if not present
-          date: new Date().toISOString(), // Use current date if not present
-          medications: item.medicines && item.medicines.length > 0 ? 
-            // Map medicines to the expected format
-            item.medicines.map(med => ({
-              medicine: med.name || '',
-              dose: med.dose || '',
-              timing: med.when || '',
-              frequency: med.frequency || '',
-              duration: med.duration || '',
-              notes: med.notes || ''
-            })) : []
-        }));
+      setIsLoadingPrescriptions(true);
+      try {
+        // Import the fetchPastPrescriptions function from the fixed service
+        const { getPastPrescriptions  } = await import('../services/api');
         
-        // Filter out prescriptions with no medications
-        prescriptions = prescriptions.filter(p => p.medications && p.medications.length > 0);
-      } else if (response && Array.isArray(response)) {
-        // Handle the old response format
-        prescriptions = response;
-      } else {
-        // Handle unexpected response format
-        console.error("Unexpected response format:", response);
-        showNotification("Error loading past prescriptions: Unexpected data format", "error");
-        prescriptions = [];
-      }
-      
-      console.log("Processed prescriptions:", prescriptions);
-      
-      if (prescriptions && prescriptions.length > 0) {
-        setPastPrescriptions(prescriptions);
-      } else {
-        console.warn("No prescriptions returned for patient ID:", patientInfo.id);
+        // Fetch past prescriptions for the patient
+        
+        console.log("Calling fetchPastPrescriptions with ID:", patientInfo.id);
+        const response = await getPastPrescriptions(patientInfo.id, cabinId);
+        console.log("Fetched prescriptions response:", response);
+        
+        // Handle the new response structure
+        let prescriptions = [];
+        
+        if (!response) {
+          console.warn("No response received from fetchPastPrescriptions");
+          showNotification("No past prescriptions data available", "warning");
+        } else if (response.prescription && Array.isArray(response.prescription)) {
+          // Map the new structure to match the expected format
+          prescriptions = response.prescription.map((item, index) => ({
+            id: index, // Generate an id if not present
+            date: new Date().toISOString(), // Use current date if not present
+            medications: item.medicines && item.medicines.length > 0 ? 
+              // Map medicines to the expected format
+              item.medicines.map(med => ({
+                medicine: med.name || '',
+                dose: med.dose || '',
+                timing: med.when || '',
+                frequency: med.frequency || '',
+                duration: med.duration || '',
+                notes: med.notes || ''
+              })) : []
+          }));
+          
+          // Filter out prescriptions with no medications
+        }
+      } catch (error) {
+        console.error("Error fetching past prescriptions:", error);
+        showNotification("Failed to load past prescriptions", "error");
+      } finally {
+        setIsLoadingPrescriptions(false);
       }
     } catch (error) {
-      console.error("Error loading past prescriptions:", error);
-    } finally {
-      setIsLoadingPrescriptions(false);
+      console.error("Error in loadPastPrescriptions:", error);
     }
-    
-    // Open the modal
-    setPastPrescriptionsOpen(true);
+
+    if (!patientInfo || !patientInfo.id) {
+      console.warn("No patient information available", patientInfo);
+      showNotification("No patient information available", "warning");
+      return;
+    }
   };
   
   // Function to copy medications from a past prescription
   const copyMedicationsFromPast = (pastMedications) => {
-    console.log('Copying medications:', pastMedications);
-    
-    // Filter out medications that already exist in the current list
-    const existingMedicineNames = medications.map(med => med.medicine.toLowerCase());
-    
-    // Handle both old and new structure
-    const newMedications = pastMedications.filter(med => {
-      const medicineName = (med.medicine || med.name || '').toLowerCase();
-      return medicineName && !existingMedicineNames.includes(medicineName);
-    });
-    
-    console.log('New medications to add (duplicates filtered):', newMedications);
-    
-    // Skip if no new medications to add (silently ignore duplicates)
-    if (newMedications.length === 0) {
-      showNotification("No new medications to add", "info");
-      return;
-    }
-    
-    // Add isEditing property to each medication and ensure all required fields are present
-    const medicationsWithEditing = newMedications.map(med => ({
-      medicine: med.medicine || med.name || '',
-      dose: med.dose || '',
-      timing: med.timing || med.when || '',
-      frequency: med.frequency || '',
-      duration: med.duration || '',
-      notes: med.notes || '',
-      isEditing: false
-    }));
-    
-    // Remove any empty rows from current medications
-    const nonEmptyMedications = medications.filter(med => 
-      med.medicine || med.dose || med.timing || med.frequency || med.duration || med.notes
-    );
-    
-    // Check if we have an empty table (no non-empty rows)
-    const hasEmptyTable = nonEmptyMedications.length === 0;
-    
-    // If table is empty, just use the new medications
-    // Otherwise, append the new medications to the existing non-empty ones
-    let updatedMedications = hasEmptyTable
-      ? medicationsWithEditing
-      : [...nonEmptyMedications, ...medicationsWithEditing];
-    
-    // Add an empty row at the end for new entries
-    updatedMedications.push({
-      medicine: '',
-      dose: '',
-      timing: '',
-      frequency: '',
-      duration: '',
-      notes: '',
-      isEditing: false
-    });
-    
-    // Set the medications state
-    setMedications(updatedMedications);
-    showNotification(`Added ${medicationsWithEditing.length} medications from past prescription`, "success");
-  };
-
-  // Function to handle opening the save template dialog
-  const handleSaveTemplateOpen = (templateType) => {
-    setCurrentTemplateType(templateType);
-    setTemplateName('');
-    setSaveTemplateOpen(true);
-  };
-
-  // Function to handle closing the save template dialog
-  const handleSaveTemplateClose = () => {
-    setSaveTemplateOpen(false);
-  };
-
-  // Function to reset templates to defaults
-  const handleResetTemplates = () => {
-    if (window.confirm('This will reset all templates to defaults. Continue?')) {
-      const templates = resetToDefaultTemplates();
-      setAvailableTemplates(templates[currentTemplateType] || []);
-    }
-  };
-
-  // Function to handle opening the load template dialog
-  const handleLoadTemplateOpen = async (templateType) => {
-    setCurrentTemplateType(templateType);
-    
-    // Get user and cabin info
-    const user = JSON.parse(localStorage.getItem("user"));
-    const { cabinId } = getCabinInfoFromUser(user);
-    
-    try {
-      // Call the API to get templates
-      const apiTemplates = await getTemplatesFromAPI(templateType, cabinId);
-      console.log(`Templates from API for ${templateType}:`, apiTemplates);
-      
-      if (apiTemplates && apiTemplates.length > 0) {
-        // Transform API templates to match the expected format based on template type
-        let transformedTemplates = [];
-        
-        switch (templateType) {
-          case 'complaints':
-            transformedTemplates = apiTemplates.map(template => ({
-              name: template.name,
-              timestamp: new Date().toISOString(), // Use current time as timestamp
-              data: template.complaints.map(complaint => ({
-                complaint: complaint.name,
-                severity: complaint.severity || '',
-                duration: complaint.duration || '',
-                frequency: complaint.frequency || '',
-                notes: complaint.notes || '',
-                isEditing: false
-              }))
-            }));
-            break;
-            
-          case 'diagnoses':
-            transformedTemplates = apiTemplates.map(template => ({
-              name: template.name,
-              timestamp: new Date().toISOString(),
-              data: template.diagnosis.map(diagnosis => ({
-                diagnosis: diagnosis.name,
-                duration: diagnosis.duration || '',
-                notes: diagnosis.notes || '',
-                isEditing: false
-              }))
-            }));
-            break;
-            
-          case 'medications':
-            transformedTemplates = apiTemplates.map(template => ({
-              name: template.name,
-              timestamp: new Date().toISOString(),
-              data: template.medicines.map(medicine => ({
-                medicine: medicine.name,
-                dose: medicine.dose || '',
-                timing: medicine.when || '',
-                frequency: medicine.frequency || '',
-                duration: medicine.duration || '',
-                notes: medicine.notes || '',
-                isEditing: false
-              }))
-            }));
-            break;
-        }
-        
-        console.log('Transformed templates:', transformedTemplates);
-        setAvailableTemplates(transformedTemplates);
-      } else {
-        // If no API data, use local templates
-        const localTemplates = getTemplates(templateType);
-        setAvailableTemplates(localTemplates);
-      }
-    } catch (error) {
-      console.error(`Error fetching ${templateType} templates from API:`, error);
-      // Fallback to local templates
-      const localTemplates = getTemplates(templateType);
-      setAvailableTemplates(localTemplates);
-    }
-    
-    setLoadTemplateOpen(true);
-  };
-
-  // Function to handle closing the load template dialog
-  const handleLoadTemplateClose = () => {
-    setLoadTemplateOpen(false);
-  };
-
-  // Function to save a template
-  const handleSaveTemplate = () => {
-    if (!templateName.trim()) {
-      alert('Please enter a template name');
-      return;
-    }
 
     let templateData;
     switch (currentTemplateType) {
@@ -1152,7 +969,7 @@ console.log('initialData', initialData);
 
       // Get user and cabin info
       const user = JSON.parse(localStorage.getItem("user"));
-      const { cabinId } = getCabinInfoFromUser(user);
+      const { cabinId } = getCabinInfo(user);
       
       // Call the API to save the template
       try {
@@ -1351,7 +1168,7 @@ console.log('initialData', initialData);
       try {
         // Get user and cabin info
         const user = JSON.parse(localStorage.getItem("user"));
-        const { cabinId } = getCabinInfoFromUser(user);
+        const { cabinId } = getCabinInfo(user);
         
         // Determine the API template type based on currentTemplateType
         let apiTemplateType;
@@ -1477,7 +1294,7 @@ console.log('initialData', initialData);
 
     // Get user and cabin info
     const user = JSON.parse(localStorage.getItem("user"));
-    const { cabinId } = getCabinInfoFromUser(user);
+    const { cabinId } = getCabinInfo(user);
 
     // Prepare the payload based on template type
     let payload;
@@ -2034,6 +1851,45 @@ console.log('initialData', initialData);
       }));
     }
   }, [initialData]);
+
+  // Function to handle opening the save template dialog
+  const handleSaveTemplateOpen = (templateType) => {
+    setCurrentTemplateType(templateType);
+    setTemplateName('');
+    setSaveTemplateOpen(true);
+  };
+
+  // Function to handle closing the save template dialog
+  const handleSaveTemplateClose = () => {
+    setSaveTemplateOpen(false);
+  };
+
+  // Function to reset templates to defaults
+  const handleResetTemplates = () => {
+    if (window.confirm('This will reset all templates to defaults. Continue?')) {
+      const templates = resetToDefaultTemplates();
+      setAvailableTemplates(templates[currentTemplateType] || []);
+    }
+  };
+
+  // Function to handle opening the load template dialog
+  const handleLoadTemplateOpen = (templateType) => {
+    setCurrentTemplateType(templateType);
+    setLoadTemplateOpen(true);
+  };
+
+  // Function to handle closing the load template dialog
+  const handleLoadTemplateClose = () => {
+    setLoadTemplateOpen(false);
+  };
+
+  // Function to save a template
+  const handleSaveTemplate = () => {
+    if (!templateName.trim()) {
+      showNotification('Please enter a template name', 'error');
+      return;
+    }
+  };
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>

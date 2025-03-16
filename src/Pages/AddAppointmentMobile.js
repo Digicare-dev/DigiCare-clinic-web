@@ -17,6 +17,7 @@ import {
   Snackbar,
 } from "@mui/material";
 import { addAppointment, fetchAppointments } from "../services/api";
+import { getCabinInfo } from "../utils/dateUtils";
 
 export default function AddAppointmentMobile({ patients }) {
   const user = JSON.parse(localStorage.getItem("user"));
@@ -106,9 +107,16 @@ export default function AddAppointmentMobile({ patients }) {
     }
 
     try {
+      const { cabinId, selectedSlot } = getCabinInfo(user);
+      if (!cabinId || !selectedSlot) {
+        setError("Unable to retrieve cabin information");
+        setLoading(false);
+        return;
+      }
+
       const payload = {
-        cabinId: user.checkupcabindata[0].id,
-        slot: user.checkupcabindata[0].cabin_slots[0],
+        cabinId: cabinId,
+        slot: selectedSlot,
         name: `${formData.firstName} ${formData.lastName}`.trim().toUpperCase(),
         token: formData.token,
         paid: formData.paid,

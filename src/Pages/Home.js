@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useMediaQuery, ListItem, Typography } from "@mui/material";
 import Skeleton from "@mui/material/Skeleton";
 import QueueContainer from "../components/QueueContainer";
 import { keyframes } from "@emotion/react";
 import StatisticsCard from "./StatisticsCard";
 import DoctorHeader from "./DoctorHeader";
+import { getCabinInfo } from "../utils/dateUtils";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
@@ -50,11 +51,8 @@ export default function Home({
     const user = JSON.parse(localStorage.getItem("user"));
     if (!user) return;
     
-    const cabinId = user?.checkupcabindata?.[0]?.id;
-    if (!cabinId) return;
-    
-    const selectedSlot = user?.checkupcabindata?.[0]?.cabin_slots[0];
-    if (!selectedSlot) return;
+    const { cabinId, selectedSlot } = getCabinInfo(user);
+    if (!cabinId || !selectedSlot) return;
     
     // Create formatted date for the SSE URL
     const date = new Date(selectedSlot);
