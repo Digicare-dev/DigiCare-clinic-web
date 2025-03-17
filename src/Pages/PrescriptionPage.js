@@ -33,6 +33,7 @@ import {
   AccordionSummary,
   AccordionDetails,
   CircularProgress,
+  Backdrop,
 } from "@mui/material";
 import {
   RemoveCircleOutline,
@@ -664,9 +665,18 @@ export const PrescriptionForm = forwardRef(({
     console.log("Cleared saved prescription form state");
   };
   
+  // Add a state for isSubmitting (for the submit button loader)
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Add a state for prefillLoading (for the backdrop when loading patient details)
+  const [prefillLoading, setPrefillLoading] = useState(false);
+  
   // Update handleSubmit to use selectedPatientDetails for API calls
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Set submitting state to show loader
+    setIsSubmitting(true);
     
     // Debug output for medications
     console.log('Medications state before submission:', JSON.stringify(medications));
@@ -864,6 +874,10 @@ export const PrescriptionForm = forwardRef(({
           
           // Clear the saved form state since submission was successful
           localStorage.removeItem(PRESCRIPTION_FORM_STATE_KEY);
+          
+          // Reset the form 
+          resetPrescription();
+          
         } catch (error) {
           console.error("Error saving prescription:", error);
           showNotification(`Failed to save prescription: ${error.message}`, "error");
@@ -881,6 +895,9 @@ export const PrescriptionForm = forwardRef(({
     } catch (error) {
       console.error("Error in submission process:", error);
       showNotification(`Submission failed: ${error.message}`, "error");
+    } finally {
+      // Always set submitting to false when done
+      setIsSubmitting(false);
     }
   };
 
@@ -2437,7 +2454,7 @@ export const PrescriptionForm = forwardRef(({
     localStorage.removeItem(PRESCRIPTION_FORM_STATE_KEY);
     
     // Show notification
-    showNotification("Prescription form has been reset", "info");
+    // showNotification("Prescription form has been reset", "info");
   };
 
   // Add an effect to handle page reload warning
@@ -2475,6 +2492,17 @@ export const PrescriptionForm = forwardRef(({
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
+      {/* Add Backdrop for patient prefill loading */}
+      <Backdrop
+        sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
+        open={prefillLoading}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <CircularProgress color="inherit" />
+          <Typography variant="h6">Loading patient details...</Typography>
+        </Box>
+      </Backdrop>
+      
       <Container className="prescription-container" sx={{ 
         pb: 3,
         height: 'auto',
@@ -2549,6 +2577,9 @@ export const PrescriptionForm = forwardRef(({
                             
                             // Show success notification
                             showNotification("Patient details loaded successfully", "success");
+                            
+                            // Show backdrop while loading patient details
+                            setPrefillLoading(true);
                             
                             // Get complete patient details including vitals and any existing prescription data
                             (async () => {
@@ -2684,6 +2715,9 @@ export const PrescriptionForm = forwardRef(({
                                 }
                               } catch (error) {
                                 console.error("Error loading complete patient details:", error);
+                              } finally {
+                                // Always hide the backdrop when done
+                                setPrefillLoading(false);
                               }
                             })();
                           }
@@ -4039,8 +4073,10 @@ export const PrescriptionForm = forwardRef(({
                   variant="contained"
                   color="primary"
                   sx={{ px: 3, py: 1 }}
+                  disabled={isSubmitting}
+                  startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
                 >
-                  {readOnly ? "Save" : "Submit"}
+                  {isSubmitting ? "Submitting..." : (readOnly ? "Save" : "Submit")}
                 </Button>
               )}
               {showPrintButton && !readOnly && (
