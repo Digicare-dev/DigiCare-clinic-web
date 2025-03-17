@@ -1547,6 +1547,19 @@ const ConsultationPage = () => {
               >
                 {isEditingVitals ? (isSavingVitals ? "Saving..." : "Save Vitals") : "Edit Vitals"}
               </Button>
+              
+              {/* Add button to view past prescriptions */}
+              <Button 
+                variant="outlined" 
+                color="info"
+                size="small" 
+                startIcon={<History />}
+                onClick={() => setPastPrescriptionsOpen(true)}
+                disabled={isLoadingPrescriptions || pastPrescriptions.length === 0}
+                sx={{ ml: 2 }}
+              >
+                {isLoadingPrescriptions ? "Loading..." : "View Past Prescriptions"}
+              </Button>
             </Box>
           </Box>
           <Paper variant="outlined" sx={{ p: 1.5, bgcolor: isEditingVitals ? 'background.paper' : '#f8f9fa' }}>
@@ -2245,6 +2258,187 @@ const ConsultationPage = () => {
               'Complete Consultation'
             )}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Prescription Modal */}
+      <Dialog
+        open={prescriptionModalOpen}
+        onClose={handleClosePrescriptionModal}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">Prescription Details</Typography>
+            <IconButton onClick={handleClosePrescriptionModal}>
+              <Close />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent dividers>
+          {selectedPrescription && (
+            <PrescriptionForm
+              patientInfo={selectedPrescription.patientInfo}
+              appointmentInfo={selectedPrescription.appointmentInfo}
+              initialData={selectedPrescription.initialData}
+              readOnly={selectedPrescription.readOnly}
+            />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClosePrescriptionModal}>Close</Button>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            onClick={handlePrintPrescription}
+            startIcon={<Print />}
+          >
+            Print
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Past Prescriptions Modal */}
+      <Dialog
+        open={pastPrescriptionsOpen}
+        onClose={() => setPastPrescriptionsOpen(false)}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">Past Prescriptions</Typography>
+            <IconButton onClick={() => setPastPrescriptionsOpen(false)}>
+              <Close />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent dividers>
+          {isLoadingPrescriptions ? (
+            <Box display="flex" justifyContent="center" p={3}>
+              <CircularProgress size={24} sx={{ mr: 1 }} />
+              <Typography>Loading past prescriptions...</Typography>
+            </Box>
+          ) : pastPrescriptions.length === 0 ? (
+            <Box display="flex" justifyContent="center" p={3}>
+              <Typography>No past prescriptions found for this patient.</Typography>
+            </Box>
+          ) : (
+            <Box sx={{ maxHeight: '75vh', overflowY: 'auto' }}>
+              {pastPrescriptions.map((prescription, index) => (
+                <Paper 
+                  key={index} 
+                  elevation={0} 
+                  variant="outlined" 
+                  sx={{ 
+                    mb: 4, 
+                    p: 3,
+                    backgroundColor: '#fff',
+                  }}
+                >
+                  {/* Prescription Header with Date */}
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    borderBottom: '2px solid #2196f3',
+                    pb: 1,
+                    mb: 3,
+                    backgroundColor: '#f8fafc',
+                    p: 2,
+                    borderRadius: '8px 8px 0 0',
+                    border: '1px solid #e2e8f0',
+                    borderBottom: '2px solid #2196f3'
+                  }}>
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: '600',
+                      color: '#1e40af',
+                      fontSize: '1.1rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1
+                    }}>
+                      <CalendarToday sx={{ fontSize: '1.2rem', color: '#2563eb' }} />
+                      {prescription.created_at ? new Date(prescription.created_at).toLocaleDateString() : 'No date'}
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      size="small"
+                      startIcon={<ContentCopyIcon />}
+                      onClick={() => handleOpenPrescription(prescription)}
+                    >
+                      View Details
+                    </Button>
+                  </Box>
+                  
+                  {/* Medications Table */}
+                  {prescription.medicines && prescription.medicines.length > 0 && (
+                    <Box mb={2}>
+                      <Typography variant="subtitle2" gutterBottom>Medications:</Typography>
+                      <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow sx={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
+                              <TableCell>Medicine</TableCell>
+                              <TableCell>Dose</TableCell>
+                              <TableCell>Timing</TableCell>
+                              <TableCell>Frequency</TableCell>
+                              <TableCell>Duration</TableCell>
+                              <TableCell>Notes</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {prescription.medicines.map((med, idx) => (
+                              <TableRow key={idx}>
+                                <TableCell>{med.name || 'N/A'}</TableCell>
+                                <TableCell>{med.dose || 'N/A'}</TableCell>
+                                <TableCell>{med.when || 'N/A'}</TableCell>
+                                <TableCell>{med.frequency || 'N/A'}</TableCell>
+                                <TableCell>{med.duration || 'N/A'}</TableCell>
+                                <TableCell>{med.notes || 'N/A'}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </Box>
+                  )}
+                  
+                  {/* Diagnosis Section */}
+                  {prescription.diagnosis && prescription.diagnosis.length > 0 && (
+                    <Box mb={2}>
+                      <Typography variant="subtitle2" gutterBottom>Diagnosis:</Typography>
+                      <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow sx={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
+                              <TableCell>Diagnosis</TableCell>
+                              <TableCell>Duration</TableCell>
+                              <TableCell>Notes</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {prescription.diagnosis.map((diag, idx) => (
+                              <TableRow key={idx}>
+                                <TableCell>{diag.name || 'N/A'}</TableCell>
+                                <TableCell>{diag.duration || 'N/A'}</TableCell>
+                                <TableCell>{diag.notes || 'N/A'}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </Box>
+                  )}
+                </Paper>
+              ))}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPastPrescriptionsOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Container>

@@ -1332,6 +1332,13 @@ export const PrescriptionForm = forwardRef(({
           
           // Filter out prescriptions with no medications
         }
+        
+        // Set the past prescriptions state
+        setPastPrescriptions(prescriptions);
+        
+        // Open the modal to display past prescriptions
+        setPastPrescriptionsOpen(true);
+        
       } catch (error) {
         console.error("Error fetching past prescriptions:", error);
         showNotification("Failed to load past prescriptions", "error");
@@ -1351,86 +1358,36 @@ export const PrescriptionForm = forwardRef(({
   
   // Function to copy medications from a past prescription
   const copyMedicationsFromPast = (pastMedications) => {
-    let templateData;
-    switch (currentTemplateType) {
-      case 'medications':
-        templateData = medications.filter(m => m.medicine && m.medicine.trim());
-        break;
-      case 'diagnoses':
-        templateData = diagnoses.filter(d => d.diagnosis && d.diagnosis.trim());
-        break;
-      case 'complaints':
-        templateData = complaints.filter(c => c.complaint && c.complaint.trim());
-        break;
-      default:
-        templateData = [];
-    }
-
-    if (templateData.length === 0) {
-      alert('No data to save as template');
+    if (!pastMedications || pastMedications.length === 0) {
+      showNotification('No medications to copy', 'warning');
       return;
     }
 
-    // Get user and cabin info
-    const user = JSON.parse(localStorage.getItem("user"));
-    const { cabinId } = getCabinInfo(user);
+    console.log('Copying medications from past prescription:', pastMedications);
 
-      let payload;
-      let templateType;
-      switch (currentTemplateType) {
-        case 'medications':
-          payload = {
-            name: templateName,
-            items: templateData.map(med => ({
-              name: med.medicine,
-              dose: med.dose,
-              when: med.timing,
-              frequency: med.frequency,
-              duration: med.duration,
-              notes: med.notes
-            }))
-          };
-          templateType = 'medicines';
-          break;
-        case 'diagnoses':
-          payload = {
-            name: templateName,
-            items: templateData.map(diag => ({
-              name: diag.diagnosis,
-              duration: diag.duration,
-              notes: diag.notes
-            }))
-          };
-          templateType = 'diagnosis';
-          break;
-        case 'complaints':
-          payload = {
-            name: templateName,
-            items: templateData.map(complaint => ({
-              name: complaint.complaint,
-              severity: complaint.severity,
-              frequency: complaint.frequency,
-              duration: complaint.duration,
-              notes: complaint.notes
-            }))
-          };
-          templateType = 'complaints';
-          break;
+    // Create a new array with existing medications plus the past ones
+    const newMedications = [...medications];
+    
+    // Add each past medication to the current medications list
+    pastMedications.forEach(med => {
+      if (med.medicine && med.medicine.trim()) {
+        newMedications.push({
+          medicine: med.medicine || '',
+          dose: med.dose || '',
+          timing: med.timing || '',
+          frequency: med.frequency || '',
+          duration: med.duration || '',
+          notes: med.notes || '',
+          isChecked: false
+        });
       }
+    });
 
-      try {
-      // Save template using the API
-      saveTemplate(templateType, cabinId, payload);
-        console.log(`Template "${templateName}" saved successfully to API`);
-        
-        handleSaveTemplateClose();
-        
-        // Show success notification
-        showNotification(`Template "${templateName}" saved successfully`);
-      } catch (error) {
-        console.error('Error saving template to API:', error);
-      showNotification(`Failed to save template: ${error.message}`, 'error');
-    }
+    // Update the medications state
+    setMedications(newMedications);
+    
+    // Show success notification
+    showNotification('Medications copied successfully', 'success');
   };
 
   // Function to load a template
@@ -3596,10 +3553,11 @@ export const PrescriptionForm = forwardRef(({
                       <Button
                         variant="outlined"
                         size="small"
-                        startIcon={<HistoryIcon />}
+                        startIcon={isLoadingPrescriptions ? <CircularProgress size={16} /> : <HistoryIcon />}
                         onClick={loadPastPrescriptions}
+                        disabled={isLoadingPrescriptions}
                       >
-                        Load Previous
+                        {isLoadingPrescriptions ? "Loading..." : "Load Previous"}
                       </Button>
                     )}
                   </Box>
