@@ -746,7 +746,7 @@ export const PrescriptionForm = forwardRef(({
               const appointmentResult = await addAppointment({
                 cabinId: cabinId,
                 slot: selectedSlot,
-                name: prescription.patientName,
+                name: prescription.patientName.trim().toUpperCase(),
                 token: tokenNumber,
                 disease: "",
                 appointment_type: "New",
@@ -2350,7 +2350,31 @@ export const PrescriptionForm = forwardRef(({
     const value = e.target.value.replace(/\D/g, ''); // Only allow digits
     setMobileNumber(value);
     
-    
+    // Save the mobile number to localStorage directly
+    const savedState = localStorage.getItem(PRESCRIPTION_FORM_STATE_KEY);
+    if (savedState) {
+      try {
+        const parsedState = JSON.parse(savedState);
+        parsedState.mobileNumber = value;
+        localStorage.setItem(PRESCRIPTION_FORM_STATE_KEY, JSON.stringify(parsedState));
+      } catch (error) {
+        console.error('Error updating mobile number in localStorage:', error);
+      }
+    } else {
+      // If no saved state exists, create a new one with just the mobile number
+      const newState = {
+        prescription: {},
+        complaints: [],
+        diagnoses: [],
+        medications: [],
+        signature: "",
+        mobileNumber: value,
+        patientSearchResults: [],
+        isPatientFromSearch: false,
+        selectedPatientDetails: null
+      };
+      localStorage.setItem(PRESCRIPTION_FORM_STATE_KEY, JSON.stringify(newState));
+    }
     
     // Clear previous search results when input changes
     if (value.length < 10) {
@@ -2461,6 +2485,9 @@ export const PrescriptionForm = forwardRef(({
 
   // Add a function to reset the prescription form
   const resetPrescription = () => {
+    // Save the current mobile number before resetting
+    const currentMobileNumber = mobileNumber;
+    
     // Reset all state to default values
     setPrescription({
       patientName: "",
@@ -2496,14 +2523,58 @@ export const PrescriptionForm = forwardRef(({
     setDiagnoses([{ diagnosis: '', duration: '', notes: '', isEditing: false }]);
     setMedications([{ medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false }]);
     setSignature("");
-    setMobileNumber("");
+    // Keep the mobile number
+    // setMobileNumber("");
     setPatientSearchResults([]);
     setSearchError("");
     setIsPatientFromSearch(false);
     setSelectedPatientDetails(null);
     
-    // Clear localStorage
+    // Clear localStorage but preserve the mobile number
     localStorage.removeItem(PRESCRIPTION_FORM_STATE_KEY);
+    
+    // If we had a mobile number, save it back to localStorage
+    if (currentMobileNumber) {
+      const newState = {
+        prescription: {
+          patientName: "",
+          age: "",
+          gender: "",
+          weight: "",
+          vitals: {
+            bloodPressure: "",
+            heartRate: "",
+            temperature: "",
+            spO2: "",
+            weight: "",
+            height: "",
+            bloodSugar: ""
+          },
+          medications: [
+            { medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false }
+          ],
+          complaints: [
+            { complaint: '', severity: '', frequency: '', duration: '', notes: '', isEditing: false }
+          ],
+          diagnoses: [
+            { diagnosis: '', duration: '', notes: '', isEditing: false }
+          ],
+          tests: [],
+          instructions: "",
+          followUp: null,
+          signature: ""
+        },
+        complaints: [{ complaint: '', severity: '', frequency: '', duration: '', notes: '', isEditing: false }],
+        diagnoses: [{ diagnosis: '', duration: '', notes: '', isEditing: false }],
+        medications: [{ medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false }],
+        signature: "",
+        mobileNumber: currentMobileNumber,
+        patientSearchResults: [],
+        isPatientFromSearch: false,
+        selectedPatientDetails: null
+      };
+      localStorage.setItem(PRESCRIPTION_FORM_STATE_KEY, JSON.stringify(newState));
+    }
     
     // Show notification
     // showNotification("Prescription form has been reset", "info");

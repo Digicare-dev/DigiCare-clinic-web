@@ -1548,18 +1548,6 @@ const ConsultationPage = () => {
                 {isEditingVitals ? (isSavingVitals ? "Saving..." : "Save Vitals") : "Edit Vitals"}
               </Button>
               
-              {/* Add button to view past prescriptions */}
-              <Button 
-                variant="outlined" 
-                color="info"
-                size="small" 
-                startIcon={<History />}
-                onClick={() => setPastPrescriptionsOpen(true)}
-                disabled={isLoadingPrescriptions || pastPrescriptions.length === 0}
-                sx={{ ml: 2 }}
-              >
-                {isLoadingPrescriptions ? "Loading..." : "View Past Prescriptions"}
-              </Button>
             </Box>
           </Box>
           <Paper variant="outlined" sx={{ p: 1.5, bgcolor: isEditingVitals ? 'background.paper' : '#f8f9fa' }}>
