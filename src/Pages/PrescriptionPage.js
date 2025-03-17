@@ -48,6 +48,8 @@ import {
   Add as AddIcon,
   CalendarToday,
   Delete as DeleteIcon,
+  Print,
+  RestartAlt,
 } from "@mui/icons-material";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -65,9 +67,15 @@ import {
   editTemplate as editTemplateApi,
   getCurrentPrescription,
   suggestMedicine,
-  suggestDiagnosis
+  suggestDiagnosis,
+  getPatientProfile,
+  getPatientDetails,
+  savePrescription,
+  addAppointment,
+  getMaxTokenNumber
 } from "../services/api";
 import { getCabinInfo } from "../utils/dateUtils";
+import { printPrescription } from "../utils/prescriptionUtils";
 
 // Add this with your other dummy data arrays at the top of the file
 
@@ -207,6 +215,9 @@ const complaintFrequencySuggestions = [
   "In the morning"
 ];
 
+// Add a constant for the localStorage key
+const PRESCRIPTION_FORM_STATE_KEY = "prescriptionFormState";
+
 // Change from a page to a reusable component with forwardRef
 export const PrescriptionForm = forwardRef(({ 
   initialData , 
@@ -219,8 +230,15 @@ export const PrescriptionForm = forwardRef(({
   hidePatientDetails = false,
   patientInfo = null
 }, ref) => {
-  // Initialize state with empty values
-  const [prescription, setPrescription] = useState({
+  // Initialize state with saved data or empty values
+  const [prescription, setPrescription] = useState(() => {
+    // Try to load saved state from localStorage
+    const savedState = localStorage.getItem(PRESCRIPTION_FORM_STATE_KEY);
+    if (savedState) {
+      try {
+        const parsedState = JSON.parse(savedState);
+        console.log("Restored prescription form state from localStorage");
+        return parsedState.prescription || {
     patientName: "",
     age: "",
     gender: "",
@@ -229,7 +247,6 @@ export const PrescriptionForm = forwardRef(({
       bloodPressure: "",
       heartRate: "",
       temperature: "",
-      respiratoryRate: "",
       spO2: "",
       weight: "",
       height: "",
@@ -246,27 +263,145 @@ export const PrescriptionForm = forwardRef(({
     ],
     tests: [],
     instructions: "",
-    followUp: "",
-    signature: "",
+          followUp: null,
+          signature: ""
+        };
+      } catch (error) {
+        console.error("Error parsing saved prescription form state:", error);
+        // Fall back to default initialData or empty state
+      }
+    }
+    
+    // Use initialData if provided or default to empty state
+    return initialData || {
+      patientName: "",
+      age: "",
+      gender: "",
+      weight: "",
+      vitals: {
+        bloodPressure: "",
+        heartRate: "",
+        temperature: "",
+        spO2: "",
+        weight: "",
+        height: "",
+        bloodSugar: ""
+      },
+      medications: [
+        { medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false }
+      ],
+      complaints: [
+        { complaint: '', severity: '', frequency: '', duration: '', notes: '', isEditing: false }
+      ],
+      diagnoses: [
+        { diagnosis: '', duration: '', notes: '', isEditing: false }
+      ],
+      tests: [],
+      instructions: "",
+      followUp: null,
+      signature: ""
+    };
   });
+  
+  // Add states for mobile number search functionality
+  const [mobileNumber, setMobileNumber] = useState(() => {
+    // Try to load saved state from localStorage
+    const savedState = localStorage.getItem(PRESCRIPTION_FORM_STATE_KEY);
+    if (savedState) {
+      try {
+        const parsedState = JSON.parse(savedState);
+        return parsedState.mobileNumber || "";
+      } catch (error) {
+        return "";
+      }
+    }
+    return "";
+  });
+  const [isSearching, setIsSearching] = useState(false);
+  const [patientSearchResults, setPatientSearchResults] = useState(() => {
+    // Try to load saved state from localStorage
+    const savedState = localStorage.getItem(PRESCRIPTION_FORM_STATE_KEY);
+    if (savedState) {
+      try {
+        const parsedState = JSON.parse(savedState);
+        return parsedState.patientSearchResults || [];
+      } catch (error) {
+        return [];
+      }
+    }
+    return [];
+  });
+  const [searchError, setSearchError] = useState("");
+  const [isPatientFromSearch, setIsPatientFromSearch] = useState(() => {
+    // Try to load saved state from localStorage
+    const savedState = localStorage.getItem(PRESCRIPTION_FORM_STATE_KEY);
+    if (savedState) {
+      try {
+        const parsedState = JSON.parse(savedState);
+        return parsedState.isPatientFromSearch || false;
+      } catch (error) {
+        return false;
+      }
+    }
+    return false;
+  });
+  
+  // Add a state variable to store the complete patient details from API
+  const [selectedPatientDetails, setSelectedPatientDetails] = useState(() => {
+    // Try to load saved state from localStorage
+    const savedState = localStorage.getItem(PRESCRIPTION_FORM_STATE_KEY);
+    if (savedState) {
+      try {
+        const parsedState = JSON.parse(savedState);
+        return parsedState.selectedPatientDetails || null;
+      } catch (error) {
+        return null;
+      }
+    }
+    return null;
+  });
+  
   const user = JSON.parse(localStorage.getItem("user"));
   
   // Extract cabin information using the standardized function
   const { cabinId, selectedSlot } = getCabinInfo(user);
 
   const [newTest, setNewTest] = useState("");
-  const [signature, setSignature] = useState(initialData.signature || "");
+  const [signature, setSignature] = useState(() => {
+    const savedState = localStorage.getItem(PRESCRIPTION_FORM_STATE_KEY);
+    if (savedState) {
+      try {
+        const parsedState = JSON.parse(savedState);
+        return parsedState.signature || initialData.signature || "";
+      } catch (error) {
+        return initialData.signature || "";
+      }
+    }
+    return initialData.signature || "";
+  });
  
   console.log(initialData);
 
-  // Initialize complaints with initialData or default
-  const [complaints, setComplaints] = useState(
-    initialData.complaints && initialData.complaints.length > 0 ?
+  // Initialize complaints with saved state, initialData, or default
+  const [complaints, setComplaints] = useState(() => {
+    // First try to get from localStorage
+    const savedState = localStorage.getItem(PRESCRIPTION_FORM_STATE_KEY);
+    if (savedState) {
+      try {
+        const parsedState = JSON.parse(savedState);
+        if (parsedState.complaints && Array.isArray(parsedState.complaints) && parsedState.complaints.length > 0) {
+          return parsedState.complaints;
+        }
+      } catch (error) {
+        console.error("Error parsing complaints from localStorage:", error);
+      }
+    }
+    
+    // If not in localStorage, use initialData or default
+    return (initialData && initialData.complaints && Array.isArray(initialData.complaints) && initialData.complaints.length > 0) ?
     initialData.complaints :
-    [
-      { complaint: '', severity: '', frequency: '', duration: '', notes: '', isEditing: false }
-    ]
-  );
+      [{ complaint: '', severity: '', frequency: '', duration: '', notes: '', isEditing: false }];
+  });
 
   // Add these dummy data arrays near your other dummy data
   const diagnosisDurationSuggestions = [
@@ -325,25 +460,47 @@ export const PrescriptionForm = forwardRef(({
     "Lifelong"
   ];
 
-console.log('initialData', initialData);
-
-  // Initialize diagnoses with initialData or default
-  const [diagnoses, setDiagnoses] = useState(
-    initialData.diagnoses && initialData.diagnoses.length > 0 ?
+  // Initialize diagnoses with saved state, initialData, or default
+  const [diagnoses, setDiagnoses] = useState(() => {
+    // First try to get from localStorage
+    const savedState = localStorage.getItem(PRESCRIPTION_FORM_STATE_KEY);
+    if (savedState) {
+      try {
+        const parsedState = JSON.parse(savedState);
+        if (parsedState.diagnoses && Array.isArray(parsedState.diagnoses) && parsedState.diagnoses.length > 0) {
+          return parsedState.diagnoses;
+        }
+      } catch (error) {
+        console.error("Error parsing diagnoses from localStorage:", error);
+      }
+    }
+    
+    // If not in localStorage, use initialData or default
+    return (initialData && initialData.diagnoses && Array.isArray(initialData.diagnoses) && initialData.diagnoses.length > 0) ?
     initialData.diagnoses :
-    [
-      { diagnosis: '', duration: '', notes: '', isEditing: false }
-    ]
-  );
+      [{ diagnosis: '', duration: '', notes: '', isEditing: false }];
+  });
 
-  // Initialize medications with initialData or default
-  const [medications, setMedications] = useState(
-    initialData.medications && initialData.medications.length > 0 ?
+  // Initialize medications with saved state, initialData, or default
+  const [medications, setMedications] = useState(() => {
+    // First try to get from localStorage
+    const savedState = localStorage.getItem(PRESCRIPTION_FORM_STATE_KEY);
+    if (savedState) {
+      try {
+        const parsedState = JSON.parse(savedState);
+        if (parsedState.medications && Array.isArray(parsedState.medications) && parsedState.medications.length > 0) {
+          return parsedState.medications;
+        }
+      } catch (error) {
+        console.error("Error parsing medications from localStorage:", error);
+      }
+    }
+    
+    // If not in localStorage, use initialData or default
+    return (initialData && initialData.medications && Array.isArray(initialData.medications) && initialData.medications.length > 0) ?
     initialData.medications :
-    [
-      { medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false }
-    ]
-  );
+      [{ medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false }];
+  });
 
   // Ensure all rows have isEditing property and other required fields
   useEffect(() => {
@@ -371,7 +528,7 @@ console.log('initialData', initialData);
       }));
       setMedications(updatedMedications);
     }
-  }, []);
+  }, [medications]);
 
   // Add new state variables for past prescriptions
   const [pastPrescriptionsOpen, setPastPrescriptionsOpen] = useState(false);
@@ -468,11 +625,49 @@ console.log('initialData', initialData);
     }
   }, [ref, prescription, complaints, diagnoses, medications, signature, onSubmit]);
   
-  // Update handleSubmit to use the onSubmit prop
-  const handleSubmit = (e) => {
+  // Sync medications with prescription.medications
+  useEffect(() => {
+    if (prescription.medications && prescription.medications.length > 0) {
+      // Check if they're different
+      if (JSON.stringify(prescription.medications) !== JSON.stringify(medications)) {
+        setMedications(prescription.medications);
+      }
+    }
+  }, [prescription.medications]);
+  
+  // Add an effect to save the state to localStorage whenever it changes
+  useEffect(() => {
+    if (!readOnly) {  // Don't save if in read-only mode
+      // Create a state object with all the form data
+      const stateToSave = {
+        prescription,
+        complaints,
+        diagnoses,
+        medications,
+        signature,
+        mobileNumber,
+        patientSearchResults,
+        isPatientFromSearch,
+        selectedPatientDetails
+      };
+      
+      // Save to localStorage
+      localStorage.setItem(PRESCRIPTION_FORM_STATE_KEY, JSON.stringify(stateToSave));
+      console.log("Saved prescription form state to localStorage");
+    }
+  }, [prescription, complaints, diagnoses, medications, signature, mobileNumber, 
+      patientSearchResults, isPatientFromSearch, selectedPatientDetails, readOnly]);
+  
+  // Add a cleanup function to clear localStorage when form is submitted successfully
+  const clearSavedFormState = () => {
+    localStorage.removeItem(PRESCRIPTION_FORM_STATE_KEY);
+    console.log("Cleared saved prescription form state");
+  };
+  
+  // Update handleSubmit to use selectedPatientDetails for API calls
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-     // Debug point 3: Before form submission
     // Debug output for medications
     console.log('Medications state before submission:', JSON.stringify(medications));
     
@@ -485,14 +680,207 @@ console.log('initialData', initialData);
       signature
     };
     
-     // Debug point 4: Form data prepared for submission
     console.log('Form data being submitted:', JSON.stringify(formData));
     
-    // Call the onSubmit function passed as prop
+    try {
+      // Get user and cabin information
+      const user = JSON.parse(localStorage.getItem("user"));
+      const { cabinId, selectedSlot } = getCabinInfo(user);
+      
+      if (!cabinId || !selectedSlot) {
+        showNotification("Unable to retrieve cabin information", "error");
+        return;
+      }
+      
+      let appointmentId = null;
+      let patientId = null;
+      
+      // First check if we have patient info (meaning a patient was selected from search)
+      if (selectedPatientDetails) {
+        console.log("Using stored patient details for patient ID:", patientId);
+        
+        // STEP 1: Check the current_appointment field from getPatientDetails
+        if (selectedPatientDetails.current_appointment) {
+          // STEP 2: Patient has a current appointment, use it directly
+          appointmentId = selectedPatientDetails.current_appointment.appointment_id;
+          console.log(`Using existing current appointment: ${appointmentId} - Skipping addAppointment API`);
+        } 
+        // STEP 3: Patient does NOT have a current appointment, create a new one
+        else {
+          console.log("Current appointment is NULL, creating new appointment with addAppointment API");
+          
+          if (prescription.patientName && mobileNumber) {
+            try {
+              // Get max token for the appointment
+              const maxToken = await getMaxTokenNumber(cabinId, selectedSlot);
+              const tokenNumber = maxToken + 1;
+              
+              console.log(`Creating new appointment with token: ${tokenNumber}`);
+              
+              // Create new appointment using addAppointment API
+              const appointmentResult = await addAppointment({
+                cabinId: cabinId,
+                slot: selectedSlot,
+                name: prescription.patientName,
+                token: tokenNumber,
+                disease: "",
+                appointment_type: "New",
+                phone_number: mobileNumber,
+                age: prescription.age,
+                gender: prescription.gender === "Male" ? "M" : prescription.gender === "Female" ? "F" : "O",
+                location: selectedPatientDetails.patient.location || "",
+                guardian: selectedPatientDetails.patient.guardian || "",
+                fees_paid: 0,
+                mode: "",
+                paid: false,
+                checkin: true
+              });
+              
+              console.log("Appointment created response:", appointmentResult);
+              
+              // Extract appointment_id from the addAppointment response
+              if (appointmentResult && appointmentResult.appointment_id) {
+                appointmentId = appointmentResult.appointment_id;
+                console.log(`Created new appointment: ${appointmentId} for patient: ${patientId}`);
+                
+                // Notify the user about the new appointment
+                const tokenNumber = appointmentResult.queue?.appointment?.token || "Unknown";
+                showNotification(`New appointment created with token: ${tokenNumber}`, "success");
+              } else {
+                throw new Error("Failed to get appointment ID from response");
+              }
+            } catch (error) {
+              console.error("Error creating appointment:", error);
+              showNotification(`Failed to create appointment: ${error.message}`, "error");
+              return;
+            }
+          } else {
+            showNotification("Patient information is incomplete. Please fill name and mobile number.", "error");
+            return;
+          }
+        }
+      } else {debugger;
+        console.log("Current appointment is NULL, creating new appointment with addAppointment API");
+          
+        if (prescription.patientName && mobileNumber) {
+          try {
+            // Get max token for the appointment
+            const maxToken = await getMaxTokenNumber(cabinId, selectedSlot);
+            const tokenNumber = maxToken + 1;
+            
+            console.log(`Creating new appointment with token: ${tokenNumber}`);
+            
+            // Create new appointment using addAppointment API
+            const appointmentResult = await addAppointment({
+              cabinId: cabinId,
+              slot: selectedSlot,
+              name: prescription.patientName,
+              token: tokenNumber,
+              disease: "",
+              appointment_type: "New",
+              phone_number: mobileNumber,
+              age: prescription.age,
+              gender: prescription.gender === "Male" ? "M" : prescription.gender === "Female" ? "F" : "O",
+              fees_paid: 0,
+              mode: "",
+              paid: false,
+              checkin: true
+            });
+            
+            console.log("Appointment created response:", appointmentResult);
+            
+            // Extract appointment_id from the addAppointment response
+            if (appointmentResult && appointmentResult.appointment_id) {
+              appointmentId = appointmentResult.appointment_id;
+              console.log(`Created new appointment: ${appointmentId} for patient: ${patientId}`);
+              
+              // Notify the user about the new appointment
+              const tokenNumber = appointmentResult.queue?.appointment?.token || "Unknown";
+              showNotification(`New appointment created with token: ${tokenNumber}`, "success");
+            } else {
+              throw new Error("Failed to get appointment ID from response");
+            }
+          } catch (error) {
+            console.error("Error creating appointment:", error);
+            showNotification(`Failed to create appointment: ${error.message}`, "error");
+            return;
+          }
+        } else {
+          showNotification("Patient information is incomplete. Please fill name and mobile number.", "error");
+          return;
+        }       
+      }
+      
+      // STEP 4: Now save the prescription using the appointment ID (either from current_appointment or newly created)
+      if (appointmentId) {
+        console.log(`Using appointment ID: ${appointmentId} to save prescription`);
+        
+        // Prepare prescription payload
+        const prescriptionPayload = {
+          appointment_id: appointmentId,
+          cabin_id: cabinId,
+          complaints: complaints.filter(c => c.complaint).map(c => ({
+            name: c.complaint,
+            severity: c.severity,
+            frequency: c.frequency,
+            duration: c.duration,
+            notes: c.notes
+          })),
+          diagnosis: diagnoses.filter(d => d.diagnosis).map(d => ({
+            name: d.diagnosis,
+            duration: d.duration,
+            notes: d.notes
+          })),
+          medicines: medications.filter(m => m.medicine).map(m => ({
+            name: m.medicine,
+            dose: m.dose,
+            when: m.timing,
+            frequency: m.frequency,
+            duration: m.duration,
+            notes: m.notes
+          })),
+          vitals: {
+            pulse_rate: prescription.vitals.heartRate,
+            blood_pressure: prescription.vitals.bloodPressure,
+            temperature: prescription.vitals.temperature,
+            spo2: prescription.vitals.spO2,
+            weight: prescription.vitals.weight || prescription.weight,
+            height: prescription.vitals.height,
+            blood_sugar: prescription.vitals.bloodSugar
+          },
+          // Send tests as a direct array without wrapping in object
+          tests: prescription.tests,
+          // Send advice as a direct string without wrapping in array of objects
+          advice: prescription.instructions || "",
+          signature: signature
+        };
+        
+        console.log("Saving prescription:", JSON.stringify(prescriptionPayload, null, 2));
+        
+        try {
+          const savedPrescription = await savePrescription(prescriptionPayload);
+          console.log("Prescription saved successfully:", savedPrescription);
+          showNotification("Prescription saved successfully", "success");
+          
+          // Clear the saved form state since submission was successful
+          localStorage.removeItem(PRESCRIPTION_FORM_STATE_KEY);
+        } catch (error) {
+          console.error("Error saving prescription:", error);
+          showNotification(`Failed to save prescription: ${error.message}`, "error");
+          return;
+        }
+      } else {
+        showNotification("No appointment ID. Cannot save prescription.", "error");
+        return;
+      }
+      
+      // Call the onSubmit function passed as prop if available
     if (onSubmit) {
       onSubmit(formData);
-      // Don't reset the form after submission
-      showNotification('Prescription saved successfully', 'success');
+      }
+    } catch (error) {
+      console.error("Error in submission process:", error);
+      showNotification(`Submission failed: ${error.message}`, "error");
     }
   };
 
@@ -1609,7 +1997,6 @@ console.log('initialData', initialData);
               bloodPressure: response.vitals?.blood_pressure || "",
               heartRate: response.vitals?.pulse_rate || "",
               temperature: response.vitals?.temperature || "",
-              respiratoryRate: "",
               spO2: response.vitals?.spo2 || "",
               weight: response.vitals?.weight || "",
               height: response.vitals?.height || "",
@@ -1891,6 +2278,201 @@ console.log('initialData', initialData);
     }
   };
 
+  // Handle mobile number input change
+  const handleMobileNumberChange = (e) => {
+    const value = e.target.value.replace(/\D/g, ''); // Only allow digits
+    setMobileNumber(value);
+    
+    // Clear previous search results when input changes
+    if (value.length < 10) {
+      setPatientSearchResults([]);
+    }
+    
+    // Clear error when input changes
+    if (searchError) {
+      setSearchError("");
+    }
+    
+    // When mobile number changes, reset the isPatientFromSearch flag
+    // so that name, age, gender fields become editable
+    setIsPatientFromSearch(false);
+    
+    // Auto-search when 10 digits are entered
+    if (value.length === 10) {
+      handleSearchPatient(value);
+    }
+  };
+  
+  // Search patient by mobile number
+  const handleSearchPatient = async (phoneNumber) => {
+    if (!phoneNumber || phoneNumber.length !== 10) {
+      setSearchError("Please enter a valid 10-digit mobile number");
+      return;
+    }
+    
+    setIsSearching(true);
+    setSearchError("");
+    
+    try {
+      const result = await getPatientProfile(phoneNumber);
+      
+      if (result && Array.isArray(result) && result.length > 0) {
+        setPatientSearchResults(result);
+      } else {
+        // Remove the error message as requested
+        // setSearchError("No patient found with this mobile number");
+        setPatientSearchResults([]);
+      }
+    } catch (error) {
+      console.error("Error searching patient:", error);
+      setSearchError("Failed to search patient. Please try again.");
+      setPatientSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Add the print handler function near the other handler functions
+  const handlePrint = () => {
+    // Format the data for printing
+    const prescriptionData = {
+      patientInfo: {
+        name: prescription.patientName,
+        id: patientInfo?.id || "",
+        age: prescription.age,
+        gender: prescription.gender,
+      },
+      appointmentInfo: {
+        date: new Date().toISOString(),
+        followUp: prescription.followUp,
+      },
+      vitals: {
+        bloodPressure: prescription.vitals.bloodPressure,
+        heartRate: prescription.vitals.heartRate,
+        temperature: prescription.vitals.temperature,
+        spO2: prescription.vitals.spO2,
+        weight: prescription.vitals.weight || prescription.weight,
+        height: prescription.vitals.height,
+        bloodSugar: prescription.vitals.bloodSugar,
+      },
+      complaints: prescription.complaints
+        .filter(c => c.complaint)
+        .map(c => ({
+          complaint: c.complaint,
+          duration: c.duration,
+          severity: c.severity,
+          frequency: c.frequency,
+          notes: c.notes,
+        })),
+      diagnoses: prescription.diagnoses
+        .filter(d => d.diagnosis)
+        .map(d => ({
+          diagnosis: d.diagnosis,
+          duration: d.duration,
+          notes: d.notes,
+        })),
+      medications: prescription.medications
+        .filter(m => m.medicine)
+        .map(m => ({
+          medicine: m.medicine,
+          dose: m.dose,
+          frequency: m.frequency,
+          duration: m.duration,
+          timing: m.timing,
+          notes: m.notes,
+        })),
+      tests: prescription.tests,
+      instructions: prescription.instructions,
+      signature: prescription.signature,
+    };
+
+    // Print the prescription using the utility function
+    printPrescription(prescriptionData);
+  };
+
+  // Add a function to reset the prescription form
+  const resetPrescription = () => {
+    // Reset all state to default values
+    setPrescription({
+      patientName: "",
+      age: "",
+      gender: "",
+      weight: "",
+      vitals: {
+        bloodPressure: "",
+        heartRate: "",
+        temperature: "",
+        spO2: "",
+        weight: "",
+        height: "",
+        bloodSugar: ""
+      },
+      medications: [
+        { medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false }
+      ],
+      complaints: [
+        { complaint: '', severity: '', frequency: '', duration: '', notes: '', isEditing: false }
+      ],
+      diagnoses: [
+        { diagnosis: '', duration: '', notes: '', isEditing: false }
+      ],
+      tests: [],
+      instructions: "",
+      followUp: null,
+      signature: ""
+    });
+    
+    // Reset all other state variables
+    setComplaints([{ complaint: '', severity: '', frequency: '', duration: '', notes: '', isEditing: false }]);
+    setDiagnoses([{ diagnosis: '', duration: '', notes: '', isEditing: false }]);
+    setMedications([{ medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false }]);
+    setSignature("");
+    setMobileNumber("");
+    setPatientSearchResults([]);
+    setSearchError("");
+    setIsPatientFromSearch(false);
+    setSelectedPatientDetails(null);
+    
+    // Clear localStorage
+    localStorage.removeItem(PRESCRIPTION_FORM_STATE_KEY);
+    
+    // Show notification
+    showNotification("Prescription form has been reset", "info");
+  };
+
+  // Add an effect to handle page reload warning
+  useEffect(() => {
+    // Only add the warning if there's saved form data and not in read-only mode
+    if (!readOnly) {
+      const handleBeforeUnload = (e) => {
+        const savedState = localStorage.getItem(PRESCRIPTION_FORM_STATE_KEY);
+        if (savedState) {
+          // Show a warning message
+          const message = "Are you sure you want to leave? Your prescription data will be reset.";
+          e.returnValue = message; // For older browsers
+          return message; // For modern browsers
+        }
+      };
+
+      // Function to handle when the page is actually about to be unloaded
+      const handleUnload = () => {
+        // Clear prescription data from localStorage when the page is actually unloaded
+        // This ensures if they come back via browser back or reload, the form will be reset
+        localStorage.removeItem(PRESCRIPTION_FORM_STATE_KEY);
+      };
+
+      // Add event listeners
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      window.addEventListener('unload', handleUnload);
+
+      // Cleanup function to remove event listeners
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+        window.removeEventListener('unload', handleUnload);
+      };
+    }
+  }, [readOnly]);
+
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <Container className="prescription-container" sx={{ 
@@ -1928,8 +2510,230 @@ console.log('initialData', initialData);
             {!hidePatientDetails && (
               <>
                 <Box sx={{ mb: 3 }}>
+                  {/* Patient details form with phone number first */}
           <Grid container spacing={1}>
-                  <Grid item xs={12} sm={5} md={6}>
+                    {/* Phone Number Field with Autocomplete */}
+                    <Grid item xs={12} sm={3} md={3}>
+                      <Autocomplete
+                        freeSolo
+                        options={patientSearchResults}
+                        getOptionLabel={(option) => 
+                          typeof option === 'string' ? option : option.phone_number || ""
+                        }
+                        renderOption={(props, option) => (
+                          <li {...props}>
+                            <div>
+                              <Typography variant="body1">{option.name}</Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {option.phone_number}
+                                {option.age && option.gender ? ` • ${option.age} yrs, ${option.gender === 'M' ? 'Male' : option.gender === 'F' ? 'Female' : option.gender}` : ''}
+                                {option.location ? ` • ${option.location}` : ''}
+                              </Typography>
+                            </div>
+                          </li>
+                        )}
+                        onChange={(_, selectedOption) => {
+                          if (selectedOption && typeof selectedOption !== 'string') {
+                            // When a patient is selected from dropdown
+                            setPrescription(prev => ({
+                              ...prev,
+                              patientName: selectedOption.name || "",
+                              age: selectedOption.age || "",
+                              gender: selectedOption.gender === 'M' ? 'Male' : 
+                                      selectedOption.gender === 'F' ? 'Female' : 
+                                      selectedOption.gender || ""
+                            }));
+                            
+                            // Set flag that patient is from search
+                            setIsPatientFromSearch(true);
+                            
+                            // Show success notification
+                            showNotification("Patient details loaded successfully", "success");
+                            
+                            // Get complete patient details including vitals and any existing prescription data
+                            (async () => {
+                              try {
+                                // Fetch additional patient details if patient_id is available
+                                if (selectedOption.patient_id) {
+                                  // Get patient vitals and details
+                                  const patientDetails = await getPatientDetails(selectedOption.patient_id);
+                                  
+                                  // Save the patient details in state for later use
+                                  setSelectedPatientDetails(patientDetails);
+                                  console.log("Saved complete patient details:", patientDetails);
+                                  
+                                  if (patientDetails && patientDetails.vitals) {
+                                    console.log("Patient details:", patientDetails.vitals);
+                                    
+                                    // Update both the general weight field and the vitals fields
+                                    setPrescription(prev => ({
+                                      ...prev,
+                                      weight: patientDetails.vitals.weight || "",
+                                      vitals: {
+                                        ...prev.vitals,
+                                        bloodPressure: patientDetails.vitals.blood_pressure || "",
+                                        heartRate: patientDetails.vitals.pulse_rate || "",
+                                        temperature: patientDetails.vitals.temperature || "",
+                                        spO2: patientDetails.vitals.spo2 || "",
+                                        weight: patientDetails.vitals.weight || "",
+                                        height: patientDetails.vitals.height || "",
+                                        bloodSugar: patientDetails.vitals.blood_sugar || ""
+                                      }
+                                    }));
+                                  }
+                                  
+                                  // Get any existing prescription data for this patient
+                                  try {
+                                    // If there are other appointments for this patient in the search result, use the latest one
+                                    const appointmentId = patientDetails?.current_appointment?.appointment_id || 
+                                                         (patientDetails?.other_appointments && patientDetails.other_appointments.length > 0 ? 
+                                                          patientDetails.other_appointments[0].appointment_id : null);
+                                    
+                                    if (appointmentId) {
+                                      const prescriptionData = await getCurrentPrescription(appointmentId);
+                                      console.log("Current prescription data:", prescriptionData);
+                                      
+                                      if (prescriptionData) {
+                                        // Prepare data for state updates
+                                        const mappedComplaints = prescriptionData.complaints?.length > 0 
+                                          ? [
+                                              ...prescriptionData.complaints.map(complaint => ({
+                                                complaint: complaint.name || "",
+                                                severity: complaint.severity || "",
+                                                frequency: complaint.frequency || "",
+                                                duration: complaint.duration || "",
+                                                notes: complaint.notes || "",
+                                                isEditing: false
+                                              })),
+                                              { complaint: '', severity: '', frequency: '', duration: '', notes: '', isEditing: false } // Empty row
+                                            ]
+                                          : [{ complaint: '', severity: '', frequency: '', duration: '', notes: '', isEditing: false }];
+                                              
+                                        const mappedDiagnoses = prescriptionData.diagnosis?.length > 0
+                                          ? [
+                                              ...prescriptionData.diagnosis.map(diag => ({
+                                                diagnosis: diag.name || "",
+                                                duration: diag.duration || "",
+                                                notes: diag.notes || "",
+                                                isEditing: false
+                                              })),
+                                              { diagnosis: '', duration: '', notes: '', isEditing: false } // Empty row
+                                            ]
+                                          : [{ diagnosis: '', duration: '', notes: '', isEditing: false }];
+                                        
+                                        const mappedMedications = prescriptionData.medicines?.length > 0
+                                          ? [
+                                              ...prescriptionData.medicines.map(med => ({
+                                                medicine: med.name || "",
+                                                dose: med.dose || "",
+                                                timing: med.when || "",
+                                                frequency: med.frequency || "",
+                                                duration: med.duration || "",
+                                                notes: med.notes || "",
+                                                isEditing: false
+                                              })),
+                                              { medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false } // Empty row
+                                            ]
+                                          : [{ medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false }];
+
+                                        // Update prescription state
+                                        setPrescription(prev => {
+                                          // First check if there are any vitals in the prescription data
+                                          const updatedVitals = prescriptionData.vitals && (
+                                            prescriptionData.vitals.temperature || 
+                                            prescriptionData.vitals.pulse_rate || 
+                                            prescriptionData.vitals.blood_pressure || 
+                                            prescriptionData.vitals.weight || 
+                                            prescriptionData.vitals.height || 
+                                            prescriptionData.vitals.spo2 || 
+                                            prescriptionData.vitals.blood_sugar
+                                          ) ? {
+                                            bloodPressure: prescriptionData.vitals.blood_pressure || prev.vitals.bloodPressure,
+                                            heartRate: prescriptionData.vitals.pulse_rate || prev.vitals.heartRate,
+                                            temperature: prescriptionData.vitals.temperature || prev.vitals.temperature,
+                                            spO2: prescriptionData.vitals.spo2 || prev.vitals.spO2,
+                                            weight: prescriptionData.vitals.weight || prev.vitals.weight,
+                                            height: prescriptionData.vitals.height || prev.vitals.height,
+                                            bloodSugar: prescriptionData.vitals.blood_sugar || prev.vitals.bloodSugar
+                                          } : prev.vitals;
+
+                                          return {
+                                            ...prev,
+                                            // If vitals contain weight, update the general weight field too
+                                            weight: prescriptionData.vitals?.weight || prev.weight,
+                                            vitals: updatedVitals,
+                                            complaints: mappedComplaints,
+                                            diagnoses: mappedDiagnoses,
+                                            medications: mappedMedications,
+                                            tests: prescriptionData.tests?.[0]?.testlist || [],
+                                            instructions: prescriptionData.advice?.[0]?.advice || ""
+                                          };
+                                        });
+                                        
+                                        // Update the separate state variables for tables
+                                        setComplaints(mappedComplaints);
+                                        setDiagnoses(mappedDiagnoses);
+                                        setMedications(mappedMedications);
+                                        
+                                        showNotification("Previous prescription data loaded", "success");
+                                      }
+                                    }
+                                  } catch (prescriptionError) {
+                                    console.error("Error loading prescription data:", prescriptionError);
+                                  }
+                                }
+                              } catch (error) {
+                                console.error("Error loading complete patient details:", error);
+                              }
+                            })();
+                          }
+                        }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Mobile"
+                            value={mobileNumber}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/\D/g, '');
+                              if (value.length <= 10) {
+                                setMobileNumber(value);
+                                
+                                // When typing a mobile number manually, reset isPatientFromSearch
+                                setIsPatientFromSearch(false);
+                                
+                                // Only search when we have exactly 10 digits
+                                if (value.length === 10) {
+                                  handleSearchPatient(value);
+                                } else {
+                                  setPatientSearchResults([]);
+                                }
+                              }
+                            }}
+                            placeholder="Enter 10-digit number"
+                            size="small"
+                            disabled={readOnly}
+                            error={!!searchError}
+                            helperText={searchError}
+                            InputProps={{
+                              ...params.InputProps,
+                              endAdornment: (
+                                <>
+                                  {isSearching ? <CircularProgress color="inherit" size={20} /> : null}
+                                  {params.InputProps.endAdornment}
+                                </>
+                              ),
+                            }}
+                            inputProps={{
+                              ...params.inputProps,
+                              maxLength: 10
+                            }}
+                          />
+                        )}
+                      />
+                    </Grid>
+                    
+                    {/* Patient Name Field */}
+                    <Grid item xs={12} sm={5} md={5}>
                     <TextField
                       fullWidth
                       label="Patient Name"
@@ -1938,9 +2742,10 @@ console.log('initialData', initialData);
                       onChange={handleChange}
                       required
                       size="small"
-                        disabled={readOnly}
+                        disabled={readOnly || isPatientFromSearch}
                     />
                   </Grid>
+                    
                   <Grid item xs={4} sm={2} md={2}>
                     <TextField
                       fullWidth
@@ -1951,6 +2756,7 @@ console.log('initialData', initialData);
                       onChange={handleChange}
                       required
                       size="small"
+                        disabled={isPatientFromSearch}
                     />
                   </Grid>
                   <Grid item xs={4} sm={2} md={2}>
@@ -1963,6 +2769,7 @@ console.log('initialData', initialData);
                       onChange={handleChange}
                       required
                       size="small"
+                        disabled={isPatientFromSearch}
                     >
                       <MenuItem value="Male">Male</MenuItem>
                       <MenuItem value="Female">Female</MenuItem>
@@ -2046,41 +2853,94 @@ console.log('initialData', initialData);
                   <Grid item xs={4} sm={2.4} md={2.4}>
                     <TextField
                       fullWidth
-                      label="RR (bpm)"
-                      name="respiratoryRate"
+                        label="SpO2 (%)"
+                        name="spO2"
                       type="number"
-                      value={prescription.vitals.respiratoryRate}
+                        value={prescription.vitals.spO2}
                       onChange={(e) =>
                         setPrescription({
                           ...prescription,
                           vitals: {
                             ...prescription.vitals,
-                            respiratoryRate: e.target.value,
+                              spO2: e.target.value,
                           },
                         })
                       }
+                        InputProps={{
+                          endAdornment: (
+                            <InputAdornment position="end">%</InputAdornment>
+                          ),
+                        }}
                       size="small"
                     />
                   </Grid>
                   <Grid item xs={4} sm={2.4} md={2.4}>
                     <TextField
                       fullWidth
-                      label="SpO2 (%)"
-                      name="spO2"
+                        label="Weight"
+                        name="weight"
                       type="number"
-                      value={prescription.vitals.spO2}
+                        value={prescription.vitals.weight}
                       onChange={(e) =>
                         setPrescription({
                           ...prescription,
                           vitals: {
                             ...prescription.vitals,
-                            spO2: e.target.value,
+                              weight: e.target.value,
                           },
                         })
                       }
                       InputProps={{
                         endAdornment: (
-                          <InputAdornment position="end">%</InputAdornment>
+                            <InputAdornment position="end">kg</InputAdornment>
+                          ),
+                        }}
+                        size="small"
+                      />
+                    </Grid>
+                    <Grid item xs={6} sm={2.4} md={2.4}>
+                      <TextField
+                        fullWidth
+                        label="Height"
+                        name="height"
+                        type="number"
+                        value={prescription.vitals.height}
+                        onChange={(e) =>
+                          setPrescription({
+                            ...prescription,
+                            vitals: {
+                              ...prescription.vitals,
+                              height: e.target.value,
+                            },
+                          })
+                        }
+                        InputProps={{
+                          endAdornment: (
+                            <InputAdornment position="end">cm</InputAdornment>
+                          ),
+                        }}
+                        size="small"
+                      />
+                    </Grid>
+                    <Grid item xs={6} sm={2.4} md={2.4}>
+                      <TextField
+                        fullWidth
+                        label="Blood Sugar"
+                        name="bloodSugar"
+                        type="number"
+                        value={prescription.vitals.bloodSugar}
+                        onChange={(e) =>
+                          setPrescription({
+                            ...prescription,
+                            vitals: {
+                              ...prescription.vitals,
+                              bloodSugar: e.target.value,
+                            },
+                          })
+                        }
+                        InputProps={{
+                          endAdornment: (
+                            <InputAdornment position="end">mg/dL</InputAdornment>
                         ),
                       }}
                       size="small"
@@ -3183,15 +4043,25 @@ console.log('initialData', initialData);
                   {readOnly ? "Save" : "Submit"}
                 </Button>
               )}
-              {showPrintButton && (
+              {showPrintButton && !readOnly && (
               <Button
-                variant="outlined"
-                color="primary"
-                size="small"
-                onClick={() => window.print()}
-                sx={{ px: 2, py: 0.5, ml: 1 }}
+                  variant="contained"
+                  startIcon={<Print />}
+                  onClick={handlePrint}
+                  sx={{ ml: 2 }}
               >
                 Print
+              </Button>
+              )}
+              {!readOnly && (
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  startIcon={<RestartAlt />}
+                  onClick={resetPrescription}
+                  sx={{ ml: 2 }}
+                >
+                  Reset
               </Button>
               )}
             </Grid>
@@ -4047,16 +4917,34 @@ const PrescriptionPage = () => {
     // or perform other actions specific to the page context
   };
 
-  // Provide an empty initialData object with required properties
+  // Provide an initialData object with all required properties and proper array initializations
   const initialData = {
+    patientName: "",
+    age: "",
+    gender: "",
+    weight: "",
     signature: "",
-    // Add other properties that might be expected by PrescriptionForm
-    vitals: {},
-    medications: [],
-    diagnoses: [],
+    vitals: {
+      bloodPressure: "",
+      heartRate: "",
+      temperature: "",
+      spO2: "",
+      weight: "",
+      height: "",
+      bloodSugar: ""
+    },
+    medications: [
+      { medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false }
+    ],
+    complaints: [
+      { complaint: '', severity: '', frequency: '', duration: '', notes: '', isEditing: false }
+    ],
+    diagnoses: [
+      { diagnosis: '', duration: '', notes: '', isEditing: false }
+    ],
     tests: [],
     instructions: "",
-    followUp: ""
+    followUp: null
   };
 
   return <PrescriptionForm initialData={initialData} onSubmit={handleFormSubmit} />;
