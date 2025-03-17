@@ -1385,8 +1385,8 @@ export const PrescriptionForm = forwardRef(({
 
     // Update the medications state
     setMedications(newMedications);
-    
-    // Show success notification
+        
+        // Show success notification
     showNotification('Medications copied successfully', 'success');
   };
 
@@ -1394,18 +1394,27 @@ export const PrescriptionForm = forwardRef(({
   const handleLoadTemplate = (template) => {
     let itemCount = 0;
     
+    console.log(`Loading template for ${currentTemplateType}:`, template);
+    
     switch (currentTemplateType) {
       case 'medications':
         // Transform API format to component format
-        const medicationsData = template.data.map(item => ({
-          medicine: item.medicine || item.name || '',
+        console.log('Template data for medications:', template.data);
+        
+        const medicationsData = template.data.map(item => {
+          console.log('Processing medication item:', item);
+          return {
+            medicine: item.medicine || item.name || '',
             dose: item.dose || '',
-          timing: item.timing || item.when || '',
+            timing: item.timing || item.when || '',
             frequency: item.frequency || '',
             duration: item.duration || '',
             notes: item.notes || '',
             isEditing: false
-        }));
+          };
+        });
+        
+        console.log('Transformed medications data:', medicationsData);
         
         itemCount = medicationsData.length;
         
@@ -1417,10 +1426,15 @@ export const PrescriptionForm = forwardRef(({
           frequency: '',
           duration: '',
           notes: '',
-            isEditing: false
-          });
+          isEditing: false
+        });
         
+        // Update both state variables
         setMedications(medicationsData);
+        setPrescription(prev => ({
+          ...prev,
+          medications: medicationsData
+        }));
         break;
 
       case 'diagnoses':
@@ -2115,9 +2129,40 @@ export const PrescriptionForm = forwardRef(({
         // For complaints, we can use the API response directly
         if (templateType === 'complaints') {
           setAvailableTemplates(apiTemplates);
+        } else if (templateType === 'medications') {
+          // Special handling for medications templates
+          const transformedTemplates = apiTemplates.map(template => ({
+            id: template.id,
+            name: template.name,
+            data: template.medicines?.map(medicine => ({
+              medicine: medicine.name || '',
+              dose: medicine.dose || '',
+              timing: medicine.when || '',
+              frequency: medicine.frequency || '',
+              duration: medicine.duration || '',
+              notes: medicine.notes || '',
+              isEditing: false
+            })) || []
+          }));
+          console.log('Transformed medication templates:', transformedTemplates);
+          setAvailableTemplates(transformedTemplates);
+        } else if (templateType === 'diagnoses') {
+          // Special handling for diagnoses templates
+          const transformedTemplates = apiTemplates.map(template => ({
+            id: template.id,
+            name: template.name,
+            data: template.diagnosis?.map(diagnosis => ({
+              diagnosis: diagnosis.name || '',
+              duration: diagnosis.duration || '',
+              notes: diagnosis.notes || '',
+              isEditing: false
+            })) || []
+          }));
+          console.log('Transformed diagnosis templates:', transformedTemplates);
+          setAvailableTemplates(transformedTemplates);
         } else {
-          // For other types, transform the data
-          const transformedTemplates = transformTemplates(apiTemplates, currentTemplateType);
+          // For other types, use the generic transform function
+          const transformedTemplates = transformTemplates(apiTemplates, templateType);
           console.log('Transformed templates:', transformedTemplates);
           setAvailableTemplates(transformedTemplates || []);
         }
@@ -2240,10 +2285,13 @@ export const PrescriptionForm = forwardRef(({
       return [];
     }
     
+    console.log(`Transforming templates for type: ${type}`, templates);
+    
     try {
+      let result;
       switch (type) {
         case 'complaints':
-          return templates.map(template => ({
+          result = templates.map(template => ({
             id: template.id,
             name: template.name,
             data: template.complaints?.map(complaint => ({
@@ -2255,9 +2303,10 @@ export const PrescriptionForm = forwardRef(({
               isEditing: false
             })) || []
           }));
+          break;
         
         case 'diagnoses':
-          return templates.map(template => ({
+          result = templates.map(template => ({
             id: template.id,
             name: template.name,
             data: template.diagnosis?.map(diagnosis => ({
@@ -2267,26 +2316,37 @@ export const PrescriptionForm = forwardRef(({
               isEditing: false
             })) || []
           }));
+          break;
         
         case 'medications':
-          return templates.map(template => ({
-            id: template.id,
-            name: template.name,
-            data: template.medicines?.map(medicine => ({
-              medicine: medicine.name || '',
-              dose: medicine.dose || '',
-              timing: medicine.when || '',
-              frequency: medicine.frequency || '',
-              duration: medicine.duration || '',
-              notes: medicine.notes || '',
-              isEditing: false
-            })) || []
-          }));
+          result = templates.map(template => {
+            console.log('Processing medication template:', template);
+            return {
+              id: template.id,
+              name: template.name,
+              data: template.medicines?.map(medicine => {
+                console.log('Processing medicine item:', medicine);
+                return {
+                  medicine: medicine.name || '',
+                  dose: medicine.dose || '',
+                  timing: medicine.when || '',
+                  frequency: medicine.frequency || '',
+                  duration: medicine.duration || '',
+                  notes: medicine.notes || '',
+                  isEditing: false
+                };
+              }) || []
+            };
+          });
+          break;
         
         default:
           console.warn('Unknown template type:', type);
-          return [];
+          result = [];
       }
+      
+      console.log(`Transformation result for ${type}:`, result);
+      return result;
     } catch (error) {
       console.error('Error transforming templates:', error);
       return [];
