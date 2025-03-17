@@ -301,7 +301,7 @@ export const saveTemplate = async (template_type, cabin_id, payload ) => {
 export const deleteTemplate = async (template_type, template_name, cabin_id) => {
   try {
     const response = await axiosInstance.delete(
-      `/templates/${template_type}/${template_name}/${cabin_id}/delete/`,
+      `/prescriptions/templates/${template_type}/${template_name}/${cabin_id}/delete/`,
       { withCredentials: true }
     );
     return response.data;
