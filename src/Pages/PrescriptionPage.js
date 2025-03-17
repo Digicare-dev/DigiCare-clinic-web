@@ -1664,18 +1664,10 @@ export const PrescriptionForm = forwardRef(({
     }
 
     try {
-      // If the name changed, we need to delete the old template first
-      if (templateName !== editingTemplate.name) {
-        try {
-          await deleteTemplate(templateType, editingTemplate.name, cabinId);
-          console.log(`Old template "${editingTemplate.name}" deleted from API`);
-          } catch (error) {
-          console.error(`Error deleting old template "${editingTemplate.name}":`, error);
-        }
-      }
+
 
       // Save the edited template
-      await editTemplate(templateType, templateName, cabinId, payload);
+      await editTemplate(templateType, editingTemplate.name, cabinId, payload);
         console.log(`Template "${templateName}" updated in API`);
       
       // Refresh the templates list
