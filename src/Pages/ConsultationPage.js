@@ -159,10 +159,10 @@ const ConsultationPage = () => {
     bloodPressure: '',
     heartRate: '',
     temperature: '',
-    respiratoryRate: '',
     spO2: '',
     height: '',
     weight: '',
+    bloodSugar: ''
   };
 
   const user = JSON.parse(localStorage.getItem("user"));
@@ -261,7 +261,6 @@ const ConsultationPage = () => {
       bloodPressure: currentPrescriptionDetails?.vitals?.blood_pressure || "",
       heartRate: currentPrescriptionDetails?.vitals?.pulse_rate || "",
       temperature: currentPrescriptionDetails?.vitals?.temperature || "",
-      respiratoryRate: "",
       spO2: currentPrescriptionDetails?.vitals?.spo2 || "",
       weight: currentPrescriptionDetails?.vitals?.weight || "",
       height: currentPrescriptionDetails?.vitals?.height || "",
@@ -864,10 +863,10 @@ const ConsultationPage = () => {
           bloodPressure: prescription.vitals?.blood_pressure || 'N/A',
           heartRate: prescription.vitals?.pulse_rate || 'N/A',
           temperature: prescription.vitals?.temperature || 'N/A',
-          respiratoryRate: 'N/A',
           spO2: prescription.vitals?.spo2 || 'N/A',
           weight: prescription.vitals?.weight || 'N/A',
-          height: prescription.vitals?.height || 'N/A'
+          height: prescription.vitals?.height || 'N/A',
+          bloodSugar: prescription.vitals?.blood_sugar || 'N/A'
         },
         complaints: prescription.complaints?.map(complaint => ({
           complaint: complaint.name,
@@ -990,10 +989,10 @@ const ConsultationPage = () => {
             bloodPressure: editedVitals.bloodPressure || 'N/A',
             heartRate: editedVitals.heartRate || 'N/A',
             temperature: editedVitals.temperature || 'N/A',
-            respiratoryRate: editedVitals.respiratoryRate || 'N/A',
             spO2: editedVitals.spO2 || 'N/A',
             height: editedVitals.height || 'N/A',
-            weight: editedVitals.weight || 'N/A'
+            weight: editedVitals.weight || 'N/A',
+            bloodSugar: editedVitals.bloodSugar || 'N/A'
           },
           complaints: prefilledPrescriptionData.complaints || [],
           medications: prefilledPrescriptionData.medications || [],
@@ -1012,10 +1011,10 @@ const ConsultationPage = () => {
             bloodPressure: editedVitals.bloodPressure || 'N/A',
             heartRate: editedVitals.heartRate || 'N/A',
             temperature: editedVitals.temperature || 'N/A',
-            respiratoryRate: editedVitals.respiratoryRate || 'N/A',
             spO2: editedVitals.spO2 || 'N/A',
             height: editedVitals.height || 'N/A',
-            weight: editedVitals.weight || 'N/A'
+            weight: editedVitals.weight || 'N/A',
+            bloodSugar: editedVitals.bloodSugar || 'N/A'
           },
           complaints: formData.complaints?.filter(complaint => complaint.complaint || complaint.duration || complaint.severity) || [],
           medications: formData.medications?.filter(med => med.medicine || med.dose || med.frequency || med.duration) || [],
@@ -1325,10 +1324,10 @@ const ConsultationPage = () => {
           bloodPressure: response.blood_pressure || '',
           heartRate: response.pulse_rate || '',
           temperature: response.temperature || '',
-          respiratoryRate: response.respiratory_rate || '',
           spO2: response.spo2 || '',
           height: response.height || '',
           weight: response.weight || '',
+          bloodSugar: response.blood_sugar || ''
         });
       }
     } catch (error) {
@@ -1359,11 +1358,10 @@ const ConsultationPage = () => {
           blood_pressure: editedVitals.bloodPressure,
           pulse_rate: editedVitals.heartRate,
           temperature: editedVitals.temperature,
-          respiratory_rate: editedVitals.respiratoryRate,
           spo2: editedVitals.spO2,
           height: editedVitals.height,
           weight: editedVitals.weight,
-          blood_sugar: ""
+          blood_sugar: editedVitals.bloodSugar
         }
       };
 
@@ -1609,21 +1607,6 @@ const ConsultationPage = () => {
                 </Grid>
                 <Grid item xs={6} sm={4} md={2}>
                   <TextField
-                    label="Respiratory Rate"
-                    value={editedVitals.respiratoryRate}
-                    variant="outlined"
-                    size="small"
-                    fullWidth
-                    disabled={!isEditingVitals}
-                    InputProps={{ 
-                      endAdornment: <Typography variant="caption">bpm</Typography>,
-                      sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
-                    }}
-                    onChange={(e) => handleVitalsChange('respiratoryRate', e.target.value)}
-                  />
-                </Grid>
-                <Grid item xs={6} sm={4} md={2}>
-                  <TextField
                     label="SpO2"
                     value={editedVitals.spO2}
                     variant="outlined"
@@ -1650,6 +1633,36 @@ const ConsultationPage = () => {
                       sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
                     }}
                     onChange={(e) => handleVitalsChange('weight', e.target.value)}
+                  />
+                </Grid>
+                <Grid item xs={6} sm={4} md={2}>
+                  <TextField
+                    label="Height"
+                    value={editedVitals.height}
+                    variant="outlined"
+                    size="small"
+                    fullWidth
+                    disabled={!isEditingVitals}
+                    InputProps={{ 
+                      endAdornment: <Typography variant="caption">cm</Typography>,
+                      sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
+                    }}
+                    onChange={(e) => handleVitalsChange('height', e.target.value)}
+                  />
+                </Grid>
+                <Grid item xs={6} sm={4} md={2}>
+                  <TextField
+                    label="Blood Sugar"
+                    value={editedVitals.bloodSugar}
+                    variant="outlined"
+                    size="small"
+                    fullWidth
+                    disabled={!isEditingVitals}
+                    InputProps={{ 
+                      endAdornment: <Typography variant="caption">mg/dL</Typography>,
+                      sx: { bgcolor: isEditingVitals ? 'background.paper' : 'transparent' }
+                    }}
+                    onChange={(e) => handleVitalsChange('bloodSugar', e.target.value)}
                   />
                 </Grid>
               </Grid>

@@ -128,10 +128,10 @@ const PatientInfoPage = () => {
     bloodPressure: '',
     heartRate: '',
     temperature: '',
-    respiratoryRate: '',
     spO2: '',
     height: '',
     weight: '',
+    bloodSugar: ''
   });
   const [editableVitals, setEditableVitals] = useState({});
   const [isEditingVitals, setIsEditingVitals] = useState(false);
@@ -179,10 +179,10 @@ const PatientInfoPage = () => {
     bloodPressure: '',
     heartRate: '',
     temperature: '',
-    respiratoryRate: '',
     spO2: '',
     height: '',
     weight: '',
+    bloodSugar: ''
   };
 
   // Get complaints data from location state or use empty array
@@ -264,10 +264,10 @@ const PatientInfoPage = () => {
             bloodPressure: response.vitals.blood_pressure || '',
             heartRate: response.vitals.pulse_rate || '',
             temperature: response.vitals.temperature || '',
-              respiratoryRate: response.vitals.respiratory_rate || '',
             spO2: response.vitals.spo2 || '',
             height: response.vitals.height || '',
             weight: response.vitals.weight || '',
+            bloodSugar: response.vitals.blood_sugar || ''
           });
         }
         
@@ -343,10 +343,10 @@ const PatientInfoPage = () => {
                   bloodPressure: vitalsResponse.blood_pressure || '',
                   heartRate: vitalsResponse.pulse_rate || '',
                   temperature: vitalsResponse.temperature || '',
-                  respiratoryRate: vitalsResponse.respiratory_rate || '',
                   spO2: vitalsResponse.spo2 || '',
                   height: vitalsResponse.height || '',
                   weight: vitalsResponse.weight || '',
+                  bloodSugar: vitalsResponse.blood_sugar || ''
                 });
               }
             } catch (vitalsError) {
@@ -393,10 +393,10 @@ const PatientInfoPage = () => {
         bloodPressure: '',
         heartRate: '',
         temperature: '',
-        respiratoryRate: '',
         spO2: '',
         height: '',
         weight: '',
+        bloodSugar: ''
       });
     }
     
@@ -427,8 +427,9 @@ const PatientInfoPage = () => {
           bloodPressure: vitals?.bloodPressure || '',
           heartRate: vitals?.heartRate || '',
           temperature: vitals?.temperature || '',
-          respiratoryRate: vitals?.respiratoryRate || '',
           spO2: vitals?.spO2 || '',
+          height: vitals?.height || '',
+          bloodSugar: vitals?.bloodSugar || '',
           allergies: patient?.allergies || '',
           chronicConditions: patient?.chronicConditions || '',
         },
@@ -543,16 +544,15 @@ const PatientInfoPage = () => {
 
       // Prepare the payload for the API
       const vitalsPayload = {
-        appointment_id: appointmentId,
+        appointment_id: selectedAppointment.id,
         vitals: {
           blood_pressure: vitals.bloodPressure,
           pulse_rate: vitals.heartRate,
           temperature: vitals.temperature,
-          respiratory_rate: vitals.respiratoryRate,
           spo2: vitals.spO2,
           height: vitals.height,
           weight: vitals.weight,
-          blood_sugar: ""
+          blood_sugar: vitals.bloodSugar
         }
       };
 
@@ -1354,10 +1354,10 @@ const PatientInfoPage = () => {
                                   {key === 'bloodPressure' ? 'mmHg' : 
                                    key === 'heartRate' ? 'bpm' : 
                                    key === 'temperature' ? '°C' : 
-                                   key === 'respiratoryRate' ? 'bpm' : 
                                    key === 'spO2' ? '%' : 
                                    key === 'weight' ? 'kg' :
-                                   key === 'height' ? 'cm' : ""}
+                                   key === 'height' ? 'cm' :
+                                   key === 'bloodSugar' ? 'mg/dL' : ""}
                                 </Typography>
                               ),
                             }}
@@ -1422,10 +1422,10 @@ const PatientInfoPage = () => {
                             {value} {key === 'bloodPressure' ? 'mmHg' : 
                                     key === 'heartRate' ? 'bpm' : 
                                     key === 'temperature' ? '°C' : 
-                                    key === 'respiratoryRate' ? 'bpm' : 
                                     key === 'spO2' ? '%' : 
-                                    key === 'weight' ? 'kg' : 
-                                    key === 'height' ? 'cm' : ""}
+                                    key === 'weight' ? 'kg' :
+                                    key === 'height' ? 'cm' :
+                                    key === 'bloodSugar' ? 'mg/dL' : ""}
                           </Typography>
                         </Box>
                       ))}
