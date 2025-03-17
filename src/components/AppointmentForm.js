@@ -70,7 +70,7 @@ const AppointmentForm = () => {
     checkin: false,
     paid: false,
     mode: "cash",
-    fees_paid: 250,
+    fees_paid: 0,
     status: "pending",
     disease: "",
     age: "",

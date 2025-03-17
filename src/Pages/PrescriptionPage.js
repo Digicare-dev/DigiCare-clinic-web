@@ -60,12 +60,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import ListItemSecondaryAction from '@mui/material/ListItemSecondaryAction';
 import SaveIcon from '@mui/icons-material/Save';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
-import { saveTemplate, getTemplates, deleteTemplate, resetToDefaultTemplates } from '../services/templateService';
 import { 
-  saveTemplate as saveTemplateApi, 
-  getTemplates as getTemplatesFromAPI,
-  deleteTemplate as deleteTemplateApi,
-  editTemplate as editTemplateApi,
+  saveTemplate,
+  getTemplates,
+  deleteTemplate,
+  editTemplate,
   getCurrentPrescription,
   suggestMedicine,
   suggestDiagnosis,
@@ -578,18 +577,34 @@ export const PrescriptionForm = forwardRef(({
   };
 
   // Initialize templates on component mount
-  useEffect(() => {
-    // Check if we have any templates, if not, initialize defaults
-    const medicationTemplates = getTemplates('medicines');
-    const diagnosisTemplates = getTemplates('diagnosis');
-    const complaintTemplates = getTemplates('complaints');
-    
-    if (medicationTemplates.length === 0 || 
-        diagnosisTemplates.length === 0 || 
-        complaintTemplates.length === 0) {
-      resetToDefaultTemplates();
-    }
-  }, []);
+  // useEffect(() => {
+  //   const initializeTemplates = async () => {
+  //     try {
+  //       // Get user and cabin info
+  //       const user = JSON.parse(localStorage.getItem("user"));
+  //       const { cabinId } = getCabinInfo(user);
+        
+  //       // Fetch templates for each type
+  //       const [medicationTemplates, diagnosisTemplates, complaintTemplates] = await Promise.all([
+  //         getTemplates('medicines', cabinId),
+  //         getTemplates('diagnosis', cabinId),
+  //         getTemplates('complaints', cabinId)
+  //       ]);
+        
+  //       // Log the fetched templates
+  //       console.log('Fetched templates:', {
+  //         medications: medicationTemplates,
+  //         diagnoses: diagnosisTemplates,
+  //         complaints: complaintTemplates
+  //       });
+  //     } catch (error) {
+  //       console.error('Error initializing templates:', error);
+  //       showNotification('Failed to load templates', 'error');
+  //     }
+  //   };
+
+  //   initializeTemplates();
+  // }, []);
 
   // Expose form data to parent component via ref
   useEffect(() => {
@@ -1110,33 +1125,38 @@ export const PrescriptionForm = forwardRef(({
 
   // Add these handler functions
   const handleDiagnosisChange = (index, field, value) => {
-    const updatedDiagnoses = [...diagnoses];
-    if (!updatedDiagnoses[index]) {
-      updatedDiagnoses[index] = { diagnosis: '', duration: '', notes: '', isEditing: false };
-    }
-    updatedDiagnoses[index][field] = value;
+    console.log('Diagnosis change:', { index, field, value });
+    // Set selection in progress first
+    handleSelectionStart();
     
-    // Check if all main fields in the current row have values
-    const currentRow = updatedDiagnoses[index];
-    const hasAllMainFields = currentRow.diagnosis && currentRow.duration;
-
-    // If all main fields are filled and this is the last row, add a new row
-    if (hasAllMainFields && index === diagnoses.length - 1) {
-      // Add a small delay to ensure the current row's state is updated
-      setTimeout(() => {
-        const newDiagnoses = [...updatedDiagnoses, {
-          diagnosis: '',
-          duration: '',
-          notes: '',
-          isEditing: false
-        }];
-        
-        setDiagnoses(newDiagnoses);
-      }, 10);
-    } else {
-      // Update the current row without adding a new one
-      setDiagnoses(updatedDiagnoses);
+    // Update the diagnosis
+    const updatedDiagnoses = [...diagnoses];
+    updatedDiagnoses[index] = {
+      ...updatedDiagnoses[index],
+      [field]: value
+    };
+    
+    // If we're updating the diagnosis field, set isEditing to false
+    if (field === 'diagnosis') {
+      updatedDiagnoses[index].isEditing = false;
     }
+    
+    // Delay clearing suggestions to ensure selection is processed
+      setTimeout(() => {
+      setSuggestedDiagnoses(prev => {
+        const newSuggestions = [...prev];
+        newSuggestions[index] = [];
+        return newSuggestions;
+      });
+      setDiagnosisSearchQuery('');
+      }, 10);
+    
+    // Update both state variables
+      setDiagnoses(updatedDiagnoses);
+    setPrescription(prev => ({
+      ...prev,
+      diagnoses: updatedDiagnoses
+    }));
   };
 
   const handleMedicationChange = (index, field, value) => {
@@ -1172,7 +1192,12 @@ export const PrescriptionForm = forwardRef(({
       setMedicineSearchQuery('');
     }, 100);
     
+    // Update both state variables
     setMedications(updatedMedications);
+    setPrescription(prev => ({
+      ...prev,
+      medications: updatedMedications
+    }));
     
      // Debug point 2: After medications state is updated
     console.log('Final medications state after update:', JSON.stringify(updatedMedications));
@@ -1185,27 +1210,46 @@ export const PrescriptionForm = forwardRef(({
       ...updatedMedications[index],
       isEditing: false
     };
+    
+    // Update both state variables
     setMedications(updatedMedications);
+    setPrescription(prev => ({
+      ...prev,
+      medications: updatedMedications
+    }));
     
     // Ensure we clear suggestions and search query
     setSuggestedMedicines([]);
     setMedicineSearchQuery('');
   };
 
-  // Modify addNewDiagnosisRow to prevent auto-opening dropdown
+  // Modify addNewDiagnosisRow to update both state variables
   const addNewDiagnosisRow = () => {
     if (readOnly) return;
     
-    // Use the standalone diagnoses state instead of prescription.diagnoses
+    // Use the standalone diagnoses state
     const updatedDiagnoses = [...diagnoses];
     // Add safety check to ensure the last element exists
     if (updatedDiagnoses.length > 0) {
       updatedDiagnoses[updatedDiagnoses.length - 1].isEditing = false; // Close the current row
     }
-    setDiagnoses(updatedDiagnoses); // Update state to close dropdown
+    
+    // Update diagnoses state to close dropdown
+    setDiagnoses(updatedDiagnoses);
 
     setTimeout(() => {
-        setDiagnoses(prev => [...prev, { diagnosis: '', duration: '', notes: '', isEditing: false }]);
+      // Create the new row
+      const newRow = { diagnosis: '', duration: '', notes: '', isEditing: false };
+      const finalDiagnoses = [...updatedDiagnoses, newRow];
+      
+      // Update both state variables
+      setDiagnoses(finalDiagnoses);
+      setPrescription(prev => ({
+        ...prev,
+        diagnoses: finalDiagnoses
+      }));
+      
+      // Focus the new row
         const newIndex = diagnoses.length;
         const element = document.querySelector(`#diagnosis-${newIndex}`);
         if (element && element.querySelector('input')) {
@@ -1214,14 +1258,18 @@ export const PrescriptionForm = forwardRef(({
     }, 200);
   };
 
-  // Modify addNewMedicationRow to prevent auto-opening dropdown
+  // Modify addNewMedicationRow to update both state variables
   const addNewMedicationRow = () => {
-    // Removed the validation check that prevented adding a new row
-    // Now users can add a new row regardless of whether the last row is filled out
-    setMedications([
-      ...medications,
-      { medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false }
-    ]);
+    // Create the new row
+    const newRow = { medicine: '', dose: '', timing: '', frequency: '', duration: '', notes: '', isEditing: false };
+    const updatedMedications = [...medications, newRow];
+    
+    // Update both state variables
+    setMedications(updatedMedications);
+    setPrescription(prev => ({
+      ...prev,
+      medications: updatedMedications
+    }));
   };
 
   // Add these click-away handlers
@@ -1231,6 +1279,12 @@ export const PrescriptionForm = forwardRef(({
     if (updatedDiagnoses[index]) {
       updatedDiagnoses[index].isEditing = false;
       setDiagnoses(updatedDiagnoses);
+      
+      // Also update the prescription state
+      setPrescription(prev => ({
+        ...prev,
+        diagnoses: updatedDiagnoses
+      }));
     }
   };
 
@@ -1297,7 +1351,6 @@ export const PrescriptionForm = forwardRef(({
   
   // Function to copy medications from a past prescription
   const copyMedicationsFromPast = (pastMedications) => {
-
     let templateData;
     switch (currentTemplateType) {
       case 'medications':
@@ -1318,17 +1371,10 @@ export const PrescriptionForm = forwardRef(({
       return;
     }
 
-    // Check if template with the same name already exists
-    const existingTemplates = getTemplates(currentTemplateType);
-    const existingTemplateIndex = existingTemplates.findIndex(t => t.name === templateName);
-    
-    let shouldSave = true;
-    
-    if (existingTemplateIndex >= 0) {
-      shouldSave = window.confirm(`A template named "${templateName}" already exists. Do you want to overwrite it?`);
-    }
-    
-    if (shouldSave) {
+    // Get user and cabin info
+    const user = JSON.parse(localStorage.getItem("user"));
+    const { cabinId } = getCabinInfo(user);
+
       let payload;
       let templateType;
       switch (currentTemplateType) {
@@ -1372,17 +1418,10 @@ export const PrescriptionForm = forwardRef(({
           break;
       }
 
-      // Get user and cabin info
-      const user = JSON.parse(localStorage.getItem("user"));
-      const { cabinId } = getCabinInfo(user);
-      
-      // Call the API to save the template
       try {
-        saveTemplateApi(templateType, cabinId, payload);
+      // Save template using the API
+      saveTemplate(templateType, cabinId, payload);
         console.log(`Template "${templateName}" saved successfully to API`);
-        
-        // Also save to local storage for now
-        saveTemplate(currentTemplateType, templateName, templateData);
         
         handleSaveTemplateClose();
         
@@ -1390,14 +1429,7 @@ export const PrescriptionForm = forwardRef(({
         showNotification(`Template "${templateName}" saved successfully`);
       } catch (error) {
         console.error('Error saving template to API:', error);
-        
-        // Still save to local storage as fallback
-        saveTemplate(currentTemplateType, templateName, templateData);
-        handleSaveTemplateClose();
-        
-        // Show error notification
-        showNotification(`Template saved locally, but there was an error with the server: ${error.message}`, 'error');
-      }
+      showNotification(`Failed to save template: ${error.message}`, 'error');
     }
   };
 
@@ -1407,159 +1439,84 @@ export const PrescriptionForm = forwardRef(({
     
     switch (currentTemplateType) {
       case 'medications':
-        // Ensure template data has the correct structure
-        const medicationsData = template.data.map(item => {
-          // If the item already has a 'medicine' field, it's in the right format
-          if (item.medicine) {
-            return {
-              ...item,
-              isEditing: false
-            };
-          }
-          
-          // Otherwise, transform from API format to expected format
-          return {
-            medicine: item.name || '',
+        // Transform API format to component format
+        const medicationsData = template.data.map(item => ({
+          medicine: item.medicine || item.name || '',
             dose: item.dose || '',
-            timing: item.when || '',
+          timing: item.timing || item.when || '',
             frequency: item.frequency || '',
             duration: item.duration || '',
             notes: item.notes || '',
             isEditing: false
-          };
-        });
+        }));
         
         itemCount = medicationsData.length;
         
-        const nonEmptyMedications = medications.filter(med => 
-          med.medicine && med.medicine.trim()
-        );
-        
-        const hasEmptyTable = nonEmptyMedications.length === 0;
-        
-        let updatedMedications = hasEmptyTable
-          ? medicationsData
-          : [...nonEmptyMedications, ...medicationsData];
-        
-        // Add empty row at the end if needed
-        if (updatedMedications.length === 0 || updatedMedications[updatedMedications.length - 1].medicine) {
-          updatedMedications.push({
-            medicine: "",
-            dose: "",
-            timing: "",
-            frequency: "",
-            duration: "",
-            notes: "",
+        // Add empty row at the end
+        medicationsData.push({
+          medicine: '',
+          dose: '',
+          timing: '',
+          frequency: '',
+          duration: '',
+          notes: '',
             isEditing: false
           });
-        }
         
-        setMedications(updatedMedications);
+        setMedications(medicationsData);
         break;
 
       case 'diagnoses':
-        // Ensure template data has the correct structure
-        const diagnosesData = template.data.map(item => {
-          // If the item already has a 'diagnosis' field, it's in the right format
-          if (item.diagnosis) {
-            return {
-              ...item,
-              isEditing: false
-            };
-          }
-          
-          // Otherwise, transform from API format to expected format
-          return {
-            diagnosis: item.name || '',
+        // Transform API format to component format
+        const diagnosesData = template.data.map(item => ({
+          diagnosis: item.diagnosis || item.name || '',
             duration: item.duration || '',
             notes: item.notes || '',
             isEditing: false
-          };
-        });
+        }));
         
         itemCount = diagnosesData.length;
         
-        const nonEmptyDiagnoses = diagnoses.filter(diag => 
-          diag.diagnosis && diag.diagnosis.trim()
-        );
-        
-        const hasEmptyDiagnosesTable = nonEmptyDiagnoses.length === 0;
-        
-        let updatedDiagnoses = hasEmptyDiagnosesTable
-          ? diagnosesData
-          : [...nonEmptyDiagnoses, ...diagnosesData];
-        
-        // Add empty row at the end if needed
-        if (updatedDiagnoses.length === 0 || updatedDiagnoses[updatedDiagnoses.length - 1].diagnosis) {
-          updatedDiagnoses.push({
-            diagnosis: "",
-            duration: "",
-            notes: "",
+        // Add empty row at the end
+        diagnosesData.push({
+          diagnosis: '',
+          duration: '',
+          notes: '',
             isEditing: false
           });
-        }
         
-        setDiagnoses(updatedDiagnoses);
+        setDiagnoses(diagnosesData);
         break;
 
       case 'complaints':
-        // Ensure template data has the correct structure
-        const complaintsData = template.data.map(item => {
-          // If the item already has a 'complaint' field, it's in the right format
-          if (item.complaint) {
-            return {
-              ...item,
-              isEditing: false
-            };
-          }
-          
-          // Transform from API format to expected format
-          return {
+        // Transform API format to component format
+        const complaintsData = template.complaints.map(item => ({
             complaint: item.name || '',
             severity: item.severity || '',
-            duration: item.duration || '',
             frequency: item.frequency || '',
+          duration: item.duration || '',
             notes: item.notes || '',
             isEditing: false
-          };
-        });
+        }));
         
         itemCount = complaintsData.length;
-        console.log('Transformed complaints data:', complaintsData);
         
-        // Check if there are non-empty complaints in the current state
-        const nonEmptyComplaints = prescription.complaints.filter(complaint => 
-          complaint.complaint && complaint.complaint.trim()
-        );
-        
-        const hasEmptyComplaintsTable = nonEmptyComplaints.length === 0;
-        
-        // If table is empty, replace it; otherwise append the template data
-        let updatedComplaints = hasEmptyComplaintsTable
-          ? complaintsData
-          : [...nonEmptyComplaints, ...complaintsData];
-        
-        // Add empty row at the end if needed
-        if (updatedComplaints.length === 0 || updatedComplaints[updatedComplaints.length - 1].complaint) {
-          updatedComplaints.push({
+        // Add empty row at the end
+        complaintsData.push({
             complaint: '',
             severity: '',
-            duration: '',
             frequency: '',
+          duration: '',
             notes: '',
             isEditing: false
           });
-        }
         
-        console.log('Setting complaints to:', updatedComplaints);
-        
-        // Update both state variables
-        setComplaints(updatedComplaints);
+        // Update both states
+        setComplaints(complaintsData);
         setPrescription(prev => ({
           ...prev,
-          complaints: updatedComplaints
+          complaints: complaintsData
         }));
-        
         break;
     }
     
@@ -1575,41 +1532,35 @@ export const PrescriptionForm = forwardRef(({
         const user = JSON.parse(localStorage.getItem("user"));
         const { cabinId } = getCabinInfo(user);
         
-        // Determine the API template type based on currentTemplateType
-        let apiTemplateType;
+        // Determine the API template type
+        let templateType;
         switch (currentTemplateType) {
           case 'medications':
-            apiTemplateType = 'medicines';
+            templateType = 'medicines';
             break;
           case 'diagnoses':
-            apiTemplateType = 'diagnosis';
+            templateType = 'diagnosis';
             break;
           case 'complaints':
-            apiTemplateType = 'complaints';
+            templateType = 'complaints';
             break;
           default:
-            apiTemplateType = currentTemplateType;
+            templateType = currentTemplateType;
         }
         
-        // Call the API to delete the template
-        await deleteTemplateApi(apiTemplateType, templateName, cabinId);
+        // Delete the template using the API
+        await deleteTemplate(templateType, templateName, cabinId);
         console.log(`Template "${templateName}" deleted successfully from API`);
         
-        // Also delete from local storage for now
-        const updatedTemplates = deleteTemplate(currentTemplateType, templateName);
-        setAvailableTemplates(updatedTemplates);
+        // Refresh the templates list
+        const updatedTemplates = await getTemplates(templateType, cabinId);
+        setAvailableTemplates(transformTemplates(updatedTemplates, currentTemplateType));
         
         // Show success notification
         showNotification(`Template "${templateName}" deleted successfully`);
       } catch (error) {
-        console.error('Error deleting template from API:', error);
-        
-        // Still delete from local storage as fallback
-        const updatedTemplates = deleteTemplate(currentTemplateType, templateName);
-        setAvailableTemplates(updatedTemplates);
-        
-        // Show error notification
-        showNotification(`Template deleted from local storage, but there was an error with the server: ${error.message}`, 'error');
+        console.error('Error deleting template:', error);
+        showNotification(`Failed to delete template: ${error.message}`, 'error');
       }
     }
   };
@@ -1681,25 +1632,25 @@ export const PrescriptionForm = forwardRef(({
       return;
     }
 
-    // Determine the API template type
-    let apiTemplateType;
-    switch (currentTemplateType) {
-      case 'medications':
-        apiTemplateType = 'medicines';
-        break;
-      case 'diagnoses':
-        apiTemplateType = 'diagnosis';
-        break;
-      case 'complaints':
-        apiTemplateType = 'complaints';
-        break;
-      default:
-        apiTemplateType = currentTemplateType;
-    }
-
     // Get user and cabin info
     const user = JSON.parse(localStorage.getItem("user"));
     const { cabinId } = getCabinInfo(user);
+
+    // Determine the API template type
+    let templateType;
+    switch (currentTemplateType) {
+      case 'medications':
+        templateType = 'medicines';
+        break;
+      case 'diagnoses':
+        templateType = 'diagnosis';
+        break;
+      case 'complaints':
+        templateType = 'complaints';
+        break;
+      default:
+        templateType = currentTemplateType;
+    }
 
     // Prepare the payload based on template type
     let payload;
@@ -1742,135 +1693,30 @@ export const PrescriptionForm = forwardRef(({
     }
 
     try {
-      // Handle name change if needed
+      // If the name changed, we need to delete the old template first
       if (templateName !== editingTemplate.name) {
-        // If the name changed, check if it would conflict with an existing template
-        const existingTemplates = getTemplates(currentTemplateType);
-        const existingTemplateIndex = existingTemplates.findIndex(t => t.name === templateName);
-        
-        if (existingTemplateIndex >= 0) {
-          if (!window.confirm(`A template named "${templateName}" already exists. Do you want to overwrite it?`)) {
-            return;
-          }
-          
-          // Delete the template with the conflicting name from local storage
-          deleteTemplate(currentTemplateType, templateName);
-          
-          // Delete from API as well
-          try {
-            await deleteTemplateApi(apiTemplateType, templateName, cabinId);
-            console.log(`Template "${templateName}" deleted from API due to name conflict`);
+        try {
+          await deleteTemplate(templateType, editingTemplate.name, cabinId);
+          console.log(`Old template "${editingTemplate.name}" deleted from API`);
           } catch (error) {
-            console.error(`Error deleting template "${templateName}" from API:`, error);
-          }
+          console.error(`Error deleting old template "${editingTemplate.name}":`, error);
         }
-        
-        // Call the API to edit the template (which will handle the rename)
-        await editTemplateApi(apiTemplateType, editingTemplate.name, cabinId, payload);
-        console.log(`Template "${editingTemplate.name}" edited and renamed to "${templateName}" in API`);
-        
-        // Delete the old template from local storage
-        deleteTemplate(currentTemplateType, editingTemplate.name);
-      } else {
-        // Same name, just update the template
-        await editTemplateApi(apiTemplateType, templateName, cabinId, payload);
-        console.log(`Template "${templateName}" updated in API`);
-        
-        // Update in local storage as well
-        deleteTemplate(currentTemplateType, templateName);
       }
-      
-      // Save with the new data to local storage
-      saveTemplate(currentTemplateType, templateName, updatedData);
+
+      // Save the edited template
+      await editTemplate(templateType, templateName, cabinId, payload);
+        console.log(`Template "${templateName}" updated in API`);
       
       // Refresh the templates list
-      try {
-        const apiTemplates = await getTemplatesFromAPI(apiTemplateType, cabinId);
-        console.log(`Templates refreshed from API for ${currentTemplateType}:`, apiTemplates);
-        
-        if (apiTemplates && apiTemplates.length > 0) {
-          // Transform API templates to match the expected format
-          let transformedTemplates = [];
-          
-          switch (currentTemplateType) {
-            case 'complaints':
-              transformedTemplates = apiTemplates.map(template => ({
-                name: template.name,
-                timestamp: new Date().toISOString(),
-                data: template.complaints.map(complaint => ({
-                  complaint: complaint.name,
-                  severity: complaint.severity || '',
-                  duration: complaint.duration || '',
-                  frequency: complaint.frequency || '',
-                  notes: complaint.notes || '',
-                  isEditing: false
-                }))
-              }));
-              break;
-              
-            case 'diagnoses':
-              transformedTemplates = apiTemplates.map(template => ({
-                name: template.name,
-                timestamp: new Date().toISOString(),
-                data: template.diagnosis.map(diagnosis => ({
-                  diagnosis: diagnosis.name,
-                  duration: diagnosis.duration || '',
-                  notes: diagnosis.notes || '',
-                  isEditing: false
-                }))
-              }));
-              break;
-              
-            case 'medications':
-              transformedTemplates = apiTemplates.map(template => ({
-                name: template.name,
-                timestamp: new Date().toISOString(),
-                data: template.medicines.map(medicine => ({
-                  medicine: medicine.name,
-                  dose: medicine.dose || '',
-                  timing: medicine.when || '',
-                  frequency: medicine.frequency || '',
-                  duration: medicine.duration || '',
-                  notes: medicine.notes || '',
-                  isEditing: false
-                }))
-              }));
-              break;
-          }
-          
-          setAvailableTemplates(transformedTemplates);
-        } else {
-          // If no API data, use local templates
-          const localTemplates = getTemplates(currentTemplateType);
-          setAvailableTemplates(localTemplates);
-        }
-      } catch (error) {
-        console.error(`Error refreshing templates from API:`, error);
-        // Fallback to local templates
-        const localTemplates = getTemplates(currentTemplateType);
-        setAvailableTemplates(localTemplates);
-      }
+      const apiTemplates = await getTemplates(templateType, cabinId);
+      setAvailableTemplates(transformTemplates(apiTemplates, currentTemplateType));
       
       // Close the edit dialog and show notification
       handleEditTemplateClose();
       showNotification(`Template "${templateName}" has been updated successfully!`);
     } catch (error) {
-      console.error(`Error editing template in API:`, error);
-      
-      // Still update in local storage as fallback
-      if (templateName !== editingTemplate.name) {
-        deleteTemplate(currentTemplateType, editingTemplate.name);
-      }
-      deleteTemplate(currentTemplateType, templateName);
-      saveTemplate(currentTemplateType, templateName, updatedData);
-      
-      // Update the templates list from local storage
-      const localTemplates = getTemplates(currentTemplateType);
-      setAvailableTemplates(localTemplates);
-      
-      // Close the edit dialog and show notification
-      handleEditTemplateClose();
-      showNotification(`Template updated locally, but there was an error with the server: ${error.message}`, 'error');
+      console.error(`Error editing template:`, error);
+      showNotification(`Failed to update template: ${error.message}`, 'error');
     }
   };
 
@@ -2271,15 +2117,64 @@ export const PrescriptionForm = forwardRef(({
   // Function to reset templates to defaults
   const handleResetTemplates = () => {
     if (window.confirm('This will reset all templates to defaults. Continue?')) {
-      const templates = resetToDefaultTemplates();
-      setAvailableTemplates(templates[currentTemplateType] || []);
+      // Instead of using resetToDefaultTemplates, we'll just refresh from the API
+      handleLoadTemplateOpen(currentTemplateType);
     }
   };
 
   // Function to handle opening the load template dialog
-  const handleLoadTemplateOpen = (templateType) => {
+  const handleLoadTemplateOpen = async (templateType) => {
     setCurrentTemplateType(templateType);
     setLoadTemplateOpen(true);
+    setLoadingTemplateType(templateType); // Set which button is loading
+    
+    try {
+      // Get user and cabin info
+      const user = JSON.parse(localStorage.getItem("user"));
+      const { cabinId } = getCabinInfo(user);
+      
+      // Determine the API template type
+      let apiTemplateType;
+      switch (templateType) {
+        case 'medications':
+          apiTemplateType = 'medicines';
+          break;
+        case 'diagnoses':
+          apiTemplateType = 'diagnosis';
+          break;
+        case 'complaints':
+          apiTemplateType = 'complaints';
+          break;
+        default:
+          apiTemplateType = templateType;
+      }
+
+      // Fetch templates from API
+      const apiTemplates = await getTemplates(apiTemplateType, cabinId);
+      console.log(`Templates fetched from API for ${templateType}:`, apiTemplates);
+      
+      // Only proceed if we have valid data
+      if (apiTemplates && Array.isArray(apiTemplates)) {
+        // For complaints, we can use the API response directly
+        if (templateType === 'complaints') {
+          setAvailableTemplates(apiTemplates);
+        } else {
+          // For other types, transform the data
+          const transformedTemplates = transformTemplates(apiTemplates, currentTemplateType);
+          console.log('Transformed templates:', transformedTemplates);
+          setAvailableTemplates(transformedTemplates || []);
+        }
+      } else {
+        console.warn('Invalid template data received:', apiTemplates);
+        setAvailableTemplates([]);
+      }
+    } catch (error) {
+      console.error(`Error fetching templates from API:`, error);
+      showNotification(`Failed to load templates: ${error.message}`, 'error');
+      setAvailableTemplates([]);
+    } finally {
+      setLoadingTemplateType(null); // Clear loading state
+    }
   };
 
   // Function to handle closing the load template dialog
@@ -2288,10 +2183,156 @@ export const PrescriptionForm = forwardRef(({
   };
 
   // Function to save a template
-  const handleSaveTemplate = () => {
+  const handleSaveTemplate = async () => {
     if (!templateName.trim()) {
       showNotification('Please enter a template name', 'error');
       return;
+    }
+
+    let templateData;
+    switch (currentTemplateType) {
+      case 'medications':
+        templateData = medications.filter(m => m.medicine && m.medicine.trim());
+        break;
+      case 'diagnoses':
+        templateData = diagnoses.filter(d => d.diagnosis && d.diagnosis.trim());
+        break;
+      case 'complaints':
+        templateData = complaints.filter(c => c.complaint && c.complaint.trim());
+        break;
+      default:
+        templateData = [];
+    }
+
+    if (templateData.length === 0) {
+      showNotification('No data to save as template', 'error');
+      return;
+    }
+
+    // Get user and cabin info
+    const user = JSON.parse(localStorage.getItem("user"));
+    const { cabinId } = getCabinInfo(user);
+
+    // Prepare the payload based on template type
+    let payload;
+    let templateType;
+    switch (currentTemplateType) {
+      case 'medications':
+        payload = {
+          name: templateName,
+          items: templateData.map(med => ({
+            name: med.medicine,
+            dose: med.dose,
+            when: med.timing,
+            frequency: med.frequency,
+            duration: med.duration,
+            notes: med.notes
+          }))
+        };
+        templateType = 'medicines';
+        break;
+      case 'diagnoses':
+        payload = {
+          name: templateName,
+          items: templateData.map(diag => ({
+            name: diag.diagnosis,
+            duration: diag.duration,
+            notes: diag.notes
+          }))
+        };
+        templateType = 'diagnosis';
+        break;
+      case 'complaints':
+        payload = {
+          name: templateName,
+          items: templateData.map(complaint => ({
+            name: complaint.complaint,
+            severity: complaint.severity,
+            frequency: complaint.frequency,
+            duration: complaint.duration,
+            notes: complaint.notes
+          }))
+        };
+        templateType = 'complaints';
+        break;
+    }
+
+    try {
+      // Save template using the API
+      await saveTemplate(templateType, cabinId, payload);
+      console.log(`Template "${templateName}" saved successfully to API`);
+      
+      // Close the dialog and show success notification
+      handleSaveTemplateClose();
+      showNotification(`Template "${templateName}" saved successfully`);
+      
+      // Refresh the templates list
+      const updatedTemplates = await getTemplates(templateType, cabinId);
+      setAvailableTemplates(transformTemplates(updatedTemplates, currentTemplateType));
+    } catch (error) {
+      console.error('Error saving template:', error);
+      showNotification(`Failed to save template: ${error.message}`, 'error');
+    }
+  };
+
+  // Update the transformTemplates function to handle null/undefined input
+  const transformTemplates = (templates, type) => {
+    // Add safety check for templates
+    if (!templates || !Array.isArray(templates)) {
+      console.warn('Invalid templates data received in transformTemplates:', templates);
+      return [];
+    }
+    
+    try {
+      switch (type) {
+        case 'complaints':
+          return templates.map(template => ({
+            id: template.id,
+            name: template.name,
+            data: template.complaints?.map(complaint => ({
+              complaint: complaint.name || '',
+              severity: complaint.severity || '',
+              duration: complaint.duration || '',
+              frequency: complaint.frequency || '',
+              notes: complaint.notes || '',
+              isEditing: false
+            })) || []
+          }));
+        
+        case 'diagnoses':
+          return templates.map(template => ({
+            id: template.id,
+            name: template.name,
+            data: template.diagnosis?.map(diagnosis => ({
+              diagnosis: diagnosis.name || '',
+              duration: diagnosis.duration || '',
+              notes: diagnosis.notes || '',
+              isEditing: false
+            })) || []
+          }));
+        
+        case 'medications':
+          return templates.map(template => ({
+            id: template.id,
+            name: template.name,
+            data: template.medicines?.map(medicine => ({
+              medicine: medicine.name || '',
+              dose: medicine.dose || '',
+              timing: medicine.when || '',
+              frequency: medicine.frequency || '',
+              duration: medicine.duration || '',
+              notes: medicine.notes || '',
+              isEditing: false
+            })) || []
+          }));
+        
+        default:
+          console.warn('Unknown template type:', type);
+          return [];
+      }
+    } catch (error) {
+      console.error('Error transforming templates:', error);
+      return [];
     }
   };
 
@@ -2299,6 +2340,8 @@ export const PrescriptionForm = forwardRef(({
   const handleMobileNumberChange = (e) => {
     const value = e.target.value.replace(/\D/g, ''); // Only allow digits
     setMobileNumber(value);
+    
+    
     
     // Clear previous search results when input changes
     if (value.length < 10) {
@@ -2489,6 +2532,10 @@ export const PrescriptionForm = forwardRef(({
       };
     }
   }, [readOnly]);
+
+  // Add isLoadingTemplates state
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
+  const [loadingTemplateType, setLoadingTemplateType] = useState(null);
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -2731,7 +2778,10 @@ export const PrescriptionForm = forwardRef(({
                               const value = e.target.value.replace(/\D/g, '');
                               if (value.length <= 10) {
                                 setMobileNumber(value);
-                                
+                                // Reset prescription state on every keystroke
+                                resetPrescription();
+                                setSelectedPatientDetails(null);
+                                localStorage.removeItem(PRESCRIPTION_FORM_STATE_KEY);
                                 // When typing a mobile number manually, reset isPatientFromSearch
                                 setIsPatientFromSearch(false);
                                 
@@ -3006,10 +3056,11 @@ export const PrescriptionForm = forwardRef(({
                     <Button
                       variant="outlined"
                       size="small"
-                      startIcon={<FolderOpenIcon />}
+                      startIcon={loadingTemplateType === 'complaints' ? <CircularProgress size={20} /> : <FolderOpenIcon />}
                       onClick={() => handleLoadTemplateOpen('complaints')}
+                      disabled={loadingTemplateType === 'complaints'}
                     >
-                      Load Template
+                      {loadingTemplateType === 'complaints' ? "Loading Templates..." : "Load Template"}
                     </Button>
                   </Box>
                 )}
@@ -3239,6 +3290,8 @@ export const PrescriptionForm = forwardRef(({
                                 e.stopPropagation();
                                 const updatedComplaints = prescription.complaints.filter((_, i) => i !== index);
                                 setPrescription({ ...prescription, complaints: updatedComplaints });
+                                // Also update the complaints state to keep them in sync
+                                setComplaints(updatedComplaints);
                               }}
                             >
                               <RemoveCircleOutline fontSize="small" color="error" />
@@ -3291,10 +3344,11 @@ export const PrescriptionForm = forwardRef(({
                     <Button
                       variant="outlined"
                       size="small"
-                      startIcon={<FolderOpenIcon />}
+                      startIcon={loadingTemplateType === 'diagnoses' ? <CircularProgress size={20} /> : <FolderOpenIcon />}
                       onClick={() => handleLoadTemplateOpen('diagnoses')}
+                      disabled={loadingTemplateType === 'diagnoses'}
                     >
-                      Load Template
+                      {loadingTemplateType === 'diagnoses' ? "Loading Templates..." : "Load Template"}
                     </Button>
                   </Box>
                 )}
@@ -3472,7 +3526,13 @@ export const PrescriptionForm = forwardRef(({
                               size="small"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setDiagnoses(diagnoses.filter((_, i) => i !== index));
+                                const updatedDiagnoses = diagnoses.filter((_, i) => i !== index);
+                                setDiagnoses(updatedDiagnoses);
+                                // Also update the prescription state to keep them in sync
+                                setPrescription(prev => ({
+                                  ...prev,
+                                  diagnoses: updatedDiagnoses
+                                }));
                               }}
                             >
                               <RemoveCircleOutline fontSize="small" color="error" />
@@ -3525,11 +3585,12 @@ export const PrescriptionForm = forwardRef(({
                     <Button
                       variant="outlined"
                       size="small"
-                      startIcon={<FolderOpenIcon />}
+                      startIcon={loadingTemplateType === 'medications' ? <CircularProgress size={20} /> : <FolderOpenIcon />}
                       onClick={() => handleLoadTemplateOpen('medications')}
+                      disabled={loadingTemplateType === 'medications'}
                       sx={{ mr: 1 }}
                     >
-                      Load Template
+                      {loadingTemplateType === 'medications' ? "Loading Templates..." : "Load Template"}
                     </Button>
                     {patientInfo && patientInfo.id && (
                       <Button
@@ -3964,7 +4025,13 @@ export const PrescriptionForm = forwardRef(({
                               size="small"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setMedications(medications.filter((_, i) => i !== index));
+                                const updatedMedications = medications.filter((_, i) => i !== index);
+                                setMedications(updatedMedications);
+                                // Also update the prescription state to keep them in sync
+                                setPrescription(prev => ({
+                                  ...prev,
+                                  medications: updatedMedications
+                                }));
                               }}
                               style={{ visibility: (medications.length >= 1 ) ? 'visible' : 'hidden' }}
                             >
@@ -4300,17 +4367,14 @@ export const PrescriptionForm = forwardRef(({
            'Load Complaint Template'}
         </DialogTitle>
         <DialogContent>
-          {availableTemplates.length === 0 ? (
+          {loadingTemplateType === currentTemplateType ? (
+            <Box display="flex" justifyContent="center" alignItems="center" p={3}>
+              <CircularProgress size={40} />
+              <Typography variant="h6" sx={{ ml: 2 }}>Loading templates...</Typography>
+            </Box>
+          ) : availableTemplates.length === 0 ? (
             <Box p={2} textAlign="center">
               <Typography variant="body1">No saved templates found.</Typography>
-              <Button 
-                onClick={handleResetTemplates}
-                variant="outlined"
-                color="primary"
-                sx={{ mt: 2 }}
-              >
-                Load Default Templates
-              </Button>
             </Box>
           ) : (
             <>
@@ -4347,7 +4411,7 @@ export const PrescriptionForm = forwardRef(({
                   )
                   .map((template, index) => (
                     <Accordion 
-                      key={index} 
+                      key={template.id || index} 
                       sx={{ 
                         mb: 1,
                         borderLeft: '4px solid',
@@ -4357,6 +4421,7 @@ export const PrescriptionForm = forwardRef(({
                           'success.main',
                       }}
                     >
+                      {/* Rest of the Accordion content remains the same */}
                       <AccordionSummary
                         expandIcon={<ExpandMoreIcon />}
                         sx={{ 
@@ -4407,14 +4472,13 @@ export const PrescriptionForm = forwardRef(({
                           </Box>
                         </Box>
                       </AccordionSummary>
-                      <AccordionDetails sx={{ pt: 0 }}>
-                        <Box>
-                          <Box sx={{ mt: 1, mb: 1 }}>
+                      <AccordionDetails>
+                        {/* Template content display based on type */}
                             {currentTemplateType === 'medications' && (
-                              <TableContainer component={Paper} sx={{ mb: 2 }}>
+                          <TableContainer component={Paper}>
                                 <Table size="small">
                                   <TableHead>
-                                    <TableRow sx={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
+                                <TableRow>
                                       <TableCell>Medicine</TableCell>
                                       <TableCell>Dose</TableCell>
                                       <TableCell>Timing</TableCell>
@@ -4423,64 +4487,48 @@ export const PrescriptionForm = forwardRef(({
                                     </TableRow>
                                   </TableHead>
                                   <TableBody>
-                                    {template.data.map((med, idx) => {
-                                      // Handle both formats (API and local)
-                                      const medicineName = med.medicine || med.name || '';
-                                      const doseText = med.dose || '';
-                                      const timingText = med.timing || med.when || '';
-                                      const frequencyText = med.frequency || '';
-                                      const durationText = med.duration || '';
-                                      
-                                      return (
+                                {template.data.map((med, idx) => (
                                         <TableRow key={idx}>
-                                          <TableCell>{medicineName}</TableCell>
-                                          <TableCell>{doseText}</TableCell>
-                                          <TableCell>{timingText}</TableCell>
-                                          <TableCell>{frequencyText}</TableCell>
-                                          <TableCell>{durationText}</TableCell>
+                                    <TableCell>{med.medicine || med.name}</TableCell>
+                                    <TableCell>{med.dose}</TableCell>
+                                    <TableCell>{med.timing || med.when}</TableCell>
+                                    <TableCell>{med.frequency}</TableCell>
+                                    <TableCell>{med.duration}</TableCell>
                                         </TableRow>
-                                      );
-                                    })}
+                                ))}
                                   </TableBody>
                                 </Table>
                               </TableContainer>
                             )}
                             
                             {currentTemplateType === 'diagnoses' && (
-                              <TableContainer component={Paper} sx={{ mb: 1 }}>
+                          <TableContainer component={Paper}>
                                 <Table size="small">
                                   <TableHead>
-                                    <TableRow sx={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
+                                <TableRow>
                                       <TableCell>Diagnosis</TableCell>
                                       <TableCell>Duration</TableCell>
                                       <TableCell>Notes</TableCell>
                                     </TableRow>
                                   </TableHead>
                                   <TableBody>
-                                    {template.data.map((diag, idx) => {
-                                      // Handle both formats (API and local)
-                                      const diagnosisText = diag.diagnosis || diag.name || '';
-                                      const durationText = diag.duration || '';
-                                      const notesText = diag.notes || '';
-                                      
-                                      return (
+                                {template.data.map((diag, idx) => (
                                         <TableRow key={idx}>
-                                          <TableCell>{diagnosisText}</TableCell>
-                                          <TableCell>{durationText}</TableCell>
-                                          <TableCell>{notesText}</TableCell>
+                                    <TableCell>{diag.diagnosis || diag.name}</TableCell>
+                                    <TableCell>{diag.duration}</TableCell>
+                                    <TableCell>{diag.notes}</TableCell>
                                         </TableRow>
-                                      );
-                                    })}
+                                ))}
                                   </TableBody>
                                 </Table>
                               </TableContainer>
                             )}
                             
                             {currentTemplateType === 'complaints' && (
-                              <TableContainer component={Paper} sx={{ mb: 1 }}>
+                          <TableContainer component={Paper}>
                                 <Table size="small">
                                   <TableHead>
-                                    <TableRow sx={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
+                                <TableRow>
                                       <TableCell>Complaint</TableCell>
                                       <TableCell>Severity</TableCell>
                                       <TableCell>Frequency</TableCell>
@@ -4489,32 +4537,19 @@ export const PrescriptionForm = forwardRef(({
                                     </TableRow>
                                   </TableHead>
                                   <TableBody>
-                                    {template.data.map((comp, idx) => {
-                                      // Handle both formats (API and local)
-                                      const complaintText = comp.complaint || comp.name || '';
-                                      const severityText = comp.severity || '';
-                                      const frequencyText = comp.frequency || '';
-                                      const durationText = comp.duration || '';
-                                      const notesText = comp.notes || '';
-                                      
-                                      return (
+                                {template.complaints?.map((comp, idx) => (
                                         <TableRow key={idx}>
-                                          <TableCell>{complaintText}</TableCell>
-                                          <TableCell>{severityText}</TableCell>
-                                          <TableCell>{frequencyText}</TableCell>
-                                          <TableCell>{durationText}</TableCell>
-                                          <TableCell>{notesText}</TableCell>
+                                    <TableCell>{comp.name}</TableCell>
+                                    <TableCell>{comp.severity}</TableCell>
+                                    <TableCell>{comp.frequency}</TableCell>
+                                    <TableCell>{comp.duration}</TableCell>
+                                    <TableCell>{comp.notes}</TableCell>
                                         </TableRow>
-                                      );
-                                    })}
+                                ))}
                                   </TableBody>
                                 </Table>
                               </TableContainer>
                             )}
-                          </Box>
-                          
-                          {/* Removing the bottom load template button */}
-                        </Box>
                       </AccordionDetails>
                     </Accordion>
                   ))}

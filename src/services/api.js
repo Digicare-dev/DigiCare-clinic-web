@@ -269,6 +269,8 @@ export const getTemplates = async (template_type, cabin_id) => {
     case 'complaints':
       templateType = 'complaints';
       break;
+    default:
+      templateType = template_type;
   }
   try {
     const response = await axiosInstance.get(

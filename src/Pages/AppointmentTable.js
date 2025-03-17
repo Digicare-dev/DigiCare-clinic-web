@@ -167,7 +167,6 @@ export default function AppointmentTable() {
   const totalCollection = React.useMemo(
     () =>
       rows
-        .filter((row) => row.paid)
         .reduce((sum, row) => sum + (row.fees_paid || 0), 0),
     [rows]
   );
@@ -484,7 +483,7 @@ export default function AppointmentTable() {
             appointment_type: item.appointment_type 
               ? item.appointment_type.charAt(0).toUpperCase() + item.appointment_type.slice(1).toLowerCase()
               : "",
-            mode: item.mode || "N/A",
+            mode: item.mode || "",
             fees_paid: item.fees_paid || 0,
             date: item.date || new Date().toISOString().split('T')[0],
             isPlaceholder: false,
@@ -573,7 +572,7 @@ export default function AppointmentTable() {
         params.row.isPlaceholder ? (
           <span style={{ color: "#666", fontStyle: "italic" }}>Empty Slot</span>
         ) : (
-          <span>{params.value || "N/A"}</span>
+          <span>{params.value || ""}</span>
         ),
     },
     {
@@ -585,7 +584,7 @@ export default function AppointmentTable() {
         params.row.isPlaceholder ? (
           <span style={{ color: "#666", fontStyle: "italic" }}>Empty Slot</span>
         ) : (
-          <span>{params.value || "N/A"}</span>
+          <span>{params.value || ""}</span>
         ),
     },
     {
@@ -595,7 +594,7 @@ export default function AppointmentTable() {
       editable: false,
       renderCell: (params) =>
         params.row.isPlaceholder ? (
-          <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
+          <span style={{ color: "#999", fontStyle: "italic" }}></span>
         ) : (
           params.value
         ),
@@ -607,7 +606,7 @@ export default function AppointmentTable() {
       editable: false,
       renderCell: (params) =>
         params.row.isPlaceholder ? (
-          <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
+          <span style={{ color: "#999", fontStyle: "italic" }}></span>
         ) : (
           params.value
         ),
@@ -619,7 +618,7 @@ export default function AppointmentTable() {
       editable: false,
       renderCell: (params) =>
         params.row.isPlaceholder ? (
-          <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
+          <span style={{ color: "#999", fontStyle: "italic" }}></span>
         ) : (
           params.value
         ),
@@ -631,7 +630,7 @@ export default function AppointmentTable() {
       editable: false,
       renderCell: (params) =>
         params.row.isPlaceholder ? (
-          <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
+          <span style={{ color: "#999", fontStyle: "italic" }}></span>
         ) : (
           params.value
         ),
@@ -644,7 +643,7 @@ export default function AppointmentTable() {
       editable: false,
       renderCell: (params) =>
         params.row.isPlaceholder ? (
-          <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
+          <span style={{ color: "#999", fontStyle: "italic" }}></span>
         ) : (
           <Checkbox checked={params?.value} disabled />
         ),
@@ -657,7 +656,7 @@ export default function AppointmentTable() {
       editable: false,
       renderCell: (params) =>
         params.row.isPlaceholder ? (
-          <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
+          <span style={{ color: "#999", fontStyle: "italic" }}></span>
         ) : (
           <Checkbox checked={params?.value} disabled />
         ),
@@ -669,7 +668,7 @@ export default function AppointmentTable() {
       editable: false,
       renderCell: (params) =>
         params.row.isPlaceholder ? (
-          <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
+          <span style={{ color: "#999", fontStyle: "italic" }}></span>
         ) : (
           <span style={{ textTransform: "capitalize" }}>{params.value}</span>
         ),
@@ -680,7 +679,7 @@ export default function AppointmentTable() {
       width: 80,
       editable: false,
       type: "number",
-      renderCell: (params) => (params.row.isPlaceholder ? "N/A" : params.value),
+      renderCell: (params) => (params.row.isPlaceholder ? "" : params.value),
     },
     {
       field: "actions",
@@ -689,7 +688,7 @@ export default function AppointmentTable() {
       sortable: false,
       renderCell: (params) => 
         params.row.isPlaceholder ? (
-          <span style={{ color: "#999", fontStyle: "italic" }}>N/A</span>
+          <span style={{ color: "#999", fontStyle: "italic" }}></span>
         ) : (
           <Button
             color="primary"
