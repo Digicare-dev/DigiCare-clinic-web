@@ -488,7 +488,7 @@ export default function AddAppointmentMobile({ patients }) {
         autoHideDuration={3000}
         onClose={() => setOpenSnackbar(false)}
         message="Appointment added successfully!"
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
       />
 
       {/* Fixed Submit Button */}

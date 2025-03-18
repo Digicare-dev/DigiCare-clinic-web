@@ -28,7 +28,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Autocomplete,
-  Alert
+  Alert,
 } from "@mui/material";
 import {
   fetchAppointments,
@@ -210,33 +210,140 @@ const MobileAppointmentTable = () => {
         location: selectedAppointment.location || "",
       };
 
-      console.log("Sending update payload:", payload);
       const response = await updateAppointmentDetails(payload);
       console.log("Update response:", response);
 
-      // Refresh appointments data to get updated data from the server
+      // Refresh appointments data to ensure everything is in sync with the backend
       await fetchAppointmentsData();
       
       handleEditModalClose();
     } catch (error) {
       console.error("Failed to update appointment:", error);
-      setError("Failed to update appointment. Please try again.");
+      
+      // Add better error handling
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.error("Server error:", error.response.data);
+        setError(`Update failed: ${error.response.data.message || 'Server error'}`);
+      } else if (error.request) {
+        // The request was made but no response was received
+        console.error("No response received:", error.request);
+        setError("Update failed: No response from server");
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        console.error("Error message:", error.message);
+        setError(`Update failed: ${error.message}`);
+      }
     } finally {
       setIsUpdating(false);
     }
   };
 
-  const handleCancelAppointment = () => {
-    // Implement the logic to cancel the appointment
-    console.log("Cancel appointment");
-    setIsCanceling(false);
-    setRowToCancel(null);
+  const handleCancelAppointment = async () => {
+    if (!rowToCancel) return;
+    
+    setIsCanceling(true);
+    try {
+      await removeAppointment({
+        appointment_id: rowToCancel.appointment_id,
+      });
+
+      setAppointments((prev) =>
+        prev.filter((apt) => apt.token !== rowToCancel.token)
+      );
+
+      setCancelConfirmationOpen(false);
+      handleEditModalClose();
+      
+      // Refresh appointments data to ensure everything is in sync
+      await fetchAppointmentsData();
+    } catch (error) {
+      console.error("Failed to cancel appointment:", error);
+      
+      // Enhanced error handling
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.error("Server error:", error.response.data);
+        setError(`Cancellation failed: ${error.response.data.message || 'Server error'}`);
+      } else if (error.request) {
+        // The request was made but no response was received
+        console.error("No response received:", error.request);
+        setError("Cancellation failed: No response from server");
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        console.error("Error message:", error.message);
+        setError(`Cancellation failed: ${error.message}`);
+      }
+      
+      // Keep the modal open so the user can see the error
+      setCancelConfirmationOpen(false);
+    } finally {
+      setIsCanceling(false);
+      setRowToCancel(null);
+    }
   };
 
-  const handleFetchAppointmentsData = async () => {
-    // Implement the logic to fetch appointments data
-    console.log("Fetching appointments data");
+  const fetchAppointmentsData = async () => {
+    try {
+      setLoading(true);
+      let data;
+              // Use the real API for production mode
+        data = await fetchAppointments(cabinId, selectedSlot);
+      
+      if (data && data.length > 0) {
+        console.log("Received appointment data:", data);
+        
+        // Debug log for diagnosing paid status
+        data.forEach(item => {
+          console.log(`Appointment ${item.token} - ${item.name} - Paid: ${item.paid} - Status: ${item.status}`);
+        });
+        
+        const formatted = data.map((item) => ({
+          id: item.token,
+          token: item.token,
+          patientName: item.name || '',
+          checkin: item.status === "done_checkup" ? true : item.checkin || false,
+          // Only force paid = true if status is done_checkup AND paid is true in the API response
+          paid: item.paid === true,
+          status: item.status || "pending",
+          guardian: item?.patient?.guardian || "N/A",
+          isPlaceholder: false,
+          appointment_id: item.appointment_id,
+          mode: item.mode || "cash",
+          fees_paid: item.fees_paid || 0,
+          disease: item.disease || null,
+          appointment_type: item.appointment_type || "New",
+          phone_number: item?.patient?.phone_number || "",
+          age: item?.patient?.age || "",
+          sex: item?.patient?.gender || "",
+          location: item?.patient?.location || "",
+        }));
+
+        // Debug log for diagnosing formatted appointments
+        formatted.forEach(item => {
+          console.log(`Formatted ${item.token} - ${item.patientName} - Paid: ${item.paid}`);
+        });
+
+        setAppointments(formatted);
+      } else {
+        console.log("No appointment data received or empty data array");
+        setAppointments([]);
+      }
+    } catch (err) {
+      console.error("Failed to load appointments:", err);
+      setError("Failed to load appointments");
+      setAppointments([]);
+    } finally {
+      setLoading(false);
+    }
   };
+
+
+  useEffect(() => {
+    fetchAppointmentsData();
+  }, [cabinId, selectedSlot]);
 
   // Render functions
   const renderEditModal = () => (
@@ -271,15 +378,6 @@ const MobileAppointmentTable = () => {
         </IconButton>
       </DialogTitle>
       <DialogContent sx={{ p: 0, pt: 1 }}>
-        {error && (
-          <Alert 
-            severity="error" 
-            sx={{ mb: 2, fontSize: '0.85rem' }}
-            onClose={() => setError("")}
-          >
-            {error}
-          </Alert>
-        )}
         {selectedAppointment && (
           <div
             style={{
@@ -320,28 +418,68 @@ const MobileAppointmentTable = () => {
                   setSelectedAppointment(prev => ({
                     ...prev,
                     phone_number: newValue || ""
-                  }))
+                  }));
                 }
               }}
-              inputProps={{
-                ...params.inputProps,
-                maxLength: 10,
-                value: selectedAppointment.phone_number || "",
-                style: { fontSize: '0.85rem' }
-              }}
-              InputLabelProps={{ 
-                style: { fontSize: '0.85rem' } 
-              }}
-              InputProps={{
-                ...params.InputProps,
-                style: { fontSize: '0.85rem' },
-                endAdornment: (
-                  <>
-                    {isEditSearching ? <CircularProgress color="inherit" size={16} /> : null}
-                    {params.InputProps.endAdornment}
-                  </>
-                ),
-              }}
+              freeSolo={true}
+              size="small"
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Mobile"
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSelectedAppointment(prev => ({
+                      ...prev,
+                      phone_number: value
+                    }));
+                    handleEditMobileSearch(value);
+                  }}
+                  inputProps={{
+                    ...params.inputProps,
+                    maxLength: 10,
+                    value: selectedAppointment.phone_number || "",
+                    style: { fontSize: '0.85rem' }
+                  }}
+                  InputLabelProps={{ 
+                    style: { fontSize: '0.85rem' } 
+                  }}
+                  InputProps={{
+                    ...params.InputProps,
+                    style: { fontSize: '0.85rem' },
+                    endAdornment: (
+                      <>
+                        {isEditSearching ? <CircularProgress color="inherit" size={16} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                  size="small"
+                />
+              )}
+              renderOption={(props, option) => (
+                <li {...props} style={{ fontSize: '0.85rem' }}>
+                  <div>
+                    <Typography variant="body2" style={{ fontSize: '0.85rem' }}>{option.name}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {option.phone_number}
+                    </Typography>
+                  </div>
+                </li>
+              )}
+            />
+            <TextField
+              fullWidth
+              label="First Name"
+              value={selectedAppointment.firstName || ""}
+              onChange={(e) =>
+                setSelectedAppointment((prev) => ({
+                  ...prev,
+                  firstName: e.target.value,
+                }))
+              }
+              InputProps={{ style: { fontSize: '0.85rem' } }}
+              InputLabelProps={{ style: { fontSize: '0.85rem' } }}
               size="small"
             />
             <TextField
@@ -380,7 +518,7 @@ const MobileAppointmentTable = () => {
                     fontSize: '0.85rem'
                   }}
                 >
-                  Present
+                  {selectedAppointment.checkin ? "Present" : "Absent"}
                 </Typography>
               }
             />
