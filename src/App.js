@@ -404,6 +404,7 @@ const App = () => {
                             };
                             fetchData();
                           }}
+                          loading={loading}
                         />
                       </PrivateRoute>
                     }
