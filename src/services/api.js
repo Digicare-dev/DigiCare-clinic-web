@@ -452,6 +452,32 @@ export const suggestDiagnosis = async(query) => {
   }
 }
 
+export const suggestTests = async(query) => {
+  try {
+    const response = await axiosInstance.get(
+      `prescriptions/tests/suggest/${query}`,
+      {withCredentials:true}
+    );
+    return response.data;
+  } catch(error) {
+    console.error("Error suggesting tests:", error);
+    throw error;
+  }
+} 
+
+export const suggestAdvice = async(query) => {
+  try {
+    const response = await axiosInstance.get(
+      `prescriptions/advice/suggest/${query}`,
+      {withCredentials:true}
+    );
+    return response.data; 
+  } catch(error) {
+    console.error("Error suggesting advice:", error);
+    throw error;
+  }
+}
+
 export const getMaxTokenNumber = async(cabinId, slot) => {
   try {
     // First fetch all appointments for the slot
