@@ -304,17 +304,17 @@ const MobileAppointmentTable = () => {
           id: item.token,
           token: item.token,
           patientName: item.name || '',
-          checkin: item.status === "done_checkup" ? true : item.checkin || false,
+          checkin: item.checkin,
           // Only force paid = true if status is done_checkup AND paid is true in the API response
           paid: item.paid === true,
-          status: item.status || "pending",
-          guardian: item?.patient?.guardian || "N/A",
+          status: item.status,
+          guardian: item?.patient?.guardian || "",
           isPlaceholder: false,
           appointment_id: item.appointment_id,
           mode: item.mode || "cash",
           fees_paid: item.fees_paid || 0,
           disease: item.disease || null,
-          appointment_type: item.appointment_type || "New",
+          appointment_type: item.appointment_type,
           phone_number: item?.patient?.phone_number || "",
           age: item?.patient?.age || "",
           sex: item?.patient?.gender || "",
@@ -351,25 +351,33 @@ const MobileAppointmentTable = () => {
       open={editModalOpen}
       onClose={handleEditModalClose}
       fullWidth
-      maxWidth="md"
+      maxWidth="lg"
       PaperProps={{
         sx: {
-          width: "95vw",
-          maxWidth: "95vw",
+          width: { xs: "98vw", sm: "95vw" },
+          maxWidth: { xs: "98vw", sm: "95vw" },
           borderRadius: 2,
-          p: 2,
+          p: { xs: 1.5, sm: 2 },
+          m: 0,
+          overflowY: "auto"
         }
       }}
     >
-      <DialogTitle sx={{ position: "relative", pr: 6, p: 0, mb: 2 }}>
-        <Typography variant="h6" sx={{ fontSize: '1.1rem' }}>Edit Appointment</Typography>
+      <DialogTitle sx={{ 
+        position: "relative", 
+        p: 0, 
+        pb: 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between"
+      }}>
+        <Typography variant="h6" sx={{ fontSize: '1.1rem', fontWeight: 600 }}>
+          Edit Appointment
+        </Typography>
         <IconButton
           aria-label="close"
           onClick={handleEditModalClose}
           sx={{
-            position: "absolute",
-            right: 0,
-            top: 0,
             color: (theme) => theme.palette.grey[500],
             padding: '4px',
           }}
@@ -379,181 +387,208 @@ const MobileAppointmentTable = () => {
       </DialogTitle>
       <DialogContent sx={{ p: 0, pt: 1 }}>
         {selectedAppointment && (
-          <div
-            style={{
+          <Box
+            sx={{
               display: "grid",
-              gap: "12px",
-              gridTemplateColumns: "1fr 1fr",
-              paddingTop: "8px"
+              gap: { xs: "8px", sm: "12px" },
+              gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+              width: "100%"
             }}
           >
-            <TextField
-              fullWidth
-              label="Token Number"
-              type="number"
-              disabled={true}
-              value={selectedAppointment.token}
-              InputProps={{ 
-                readOnly: true,
-                style: { fontSize: '0.85rem' } 
-              }}
-              InputLabelProps={{ 
-                style: { fontSize: '0.85rem' } 
-              }}
-              size="small"
-            />
-            <Autocomplete
-              fullWidth
-              options={editMobileSearchResults}
-              getOptionLabel={(option) => {
-                // Handle both objects from dropdown and direct string input
-                return typeof option === 'object' ? option?.phone_number || "" : option || "";
-              }}
-              loading={isEditSearching}
-              value={selectedAppointment.phone_number || ""}
-              onChange={(_, newValue) => {
-                if (typeof newValue === 'object') {
-                  handleEditPatientSelect(newValue);
-                } else {
-                  setSelectedAppointment(prev => ({
-                    ...prev,
-                    phone_number: newValue || ""
-                  }));
-                }
-              }}
-              freeSolo={true}
-              size="small"
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Mobile"
-                  onChange={(e) => {
-                    const value = e.target.value;
+            <Box sx={{ 
+              display: "grid", 
+              gridTemplateColumns: { xs: "1fr 1fr", sm: "1fr" },
+              gap: { xs: "8px", sm: "12px" }
+            }}>
+              <TextField
+                fullWidth
+                label="Token Number"
+                type="number"
+                disabled={true}
+                value={selectedAppointment.token}
+                InputProps={{ 
+                  readOnly: true,
+                  style: { fontSize: '0.85rem' } 
+                }}
+                InputLabelProps={{ 
+                  style: { fontSize: '0.85rem' } 
+                }}
+                size="small"
+              />
+              <Autocomplete
+                fullWidth
+                options={editMobileSearchResults}
+                getOptionLabel={(option) => {
+                  // Handle both objects from dropdown and direct string input
+                  return typeof option === 'object' ? option?.phone_number || "" : option || "";
+                }}
+                loading={isEditSearching}
+                value={selectedAppointment.phone_number || ""}
+                onChange={(_, newValue) => {
+                  if (typeof newValue === 'object') {
+                    handleEditPatientSelect(newValue);
+                  } else {
                     setSelectedAppointment(prev => ({
                       ...prev,
-                      phone_number: value
+                      phone_number: newValue || ""
                     }));
-                    handleEditMobileSearch(value);
-                  }}
-                  inputProps={{
-                    ...params.inputProps,
-                    maxLength: 10,
-                    value: selectedAppointment.phone_number || "",
-                    style: { fontSize: '0.85rem' }
-                  }}
-                  InputLabelProps={{ 
-                    style: { fontSize: '0.85rem' } 
-                  }}
-                  InputProps={{
-                    ...params.InputProps,
-                    style: { fontSize: '0.85rem' },
-                    endAdornment: (
-                      <>
-                        {isEditSearching ? <CircularProgress color="inherit" size={16} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
-                  }}
-                  size="small"
-                />
-              )}
-              renderOption={(props, option) => (
-                <li {...props} style={{ fontSize: '0.85rem' }}>
-                  <div>
-                    <Typography variant="body2" style={{ fontSize: '0.85rem' }}>{option.name}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {option.phone_number}
-                    </Typography>
-                  </div>
-                </li>
-              )}
-            />
-            <TextField
-              fullWidth
-              label="First Name"
-              value={selectedAppointment.firstName || ""}
-              onChange={(e) =>
-                setSelectedAppointment((prev) => ({
-                  ...prev,
-                  firstName: e.target.value,
-                }))
-              }
-              InputProps={{ style: { fontSize: '0.85rem' } }}
-              InputLabelProps={{ style: { fontSize: '0.85rem' } }}
-              size="small"
-            />
-            <TextField
-              fullWidth
-              label="Last Name"
-              value={selectedAppointment.lastName || ""}
-              onChange={(e) =>
-                setSelectedAppointment((prev) => ({
-                  ...prev,
-                  lastName: e.target.value,
-                }))
-              }
-              InputProps={{ style: { fontSize: '0.85rem' } }}
-              InputLabelProps={{ style: { fontSize: '0.85rem' } }}
-              size="small"
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={selectedAppointment.checkin}
-                  onChange={(e) =>
-                    setSelectedAppointment((prev) => ({
-                      ...prev,
-                      checkin: e.target.checked,
-                    }))
                   }
-                  size="small"
-                />
-              }
-              label={
-                <Typography 
-                  variant="body2" 
-                  sx={{ 
-                    fontWeight: selectedAppointment.checkin ? 'bold' : 'normal',
-                    color: selectedAppointment.checkin ? 'primary.main' : 'text.primary',
-                    fontSize: '0.85rem'
-                  }}
-                >
-                  {selectedAppointment.checkin ? "Present" : "Absent"}
-                </Typography>
-              }
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={selectedAppointment.paid}
-                  onChange={(e) =>
-                    setSelectedAppointment((prev) => ({
-                      ...prev,
-                      paid: e.target.checked,
-                      mode: e.target.checked ? prev.mode || "cash" : "",
-                      fees_paid: e.target.checked ? prev.fees_paid || 250 : 0,
-                    }))
-                  }
-                  size="small"
-                />
-              }
-              label={
-                <Typography 
-                  variant="body2" 
-                  sx={{ 
-                    fontWeight: selectedAppointment.paid ? 'bold' : 'normal',
-                    color: selectedAppointment.paid ? 'primary.main' : 'text.primary',
-                    fontSize: '0.85rem'
-                  }}
-                >
-                  Payment Done
-                </Typography>
-              }
-            />
+                }}
+                freeSolo={true}
+                size="small"
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Mobile"
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSelectedAppointment(prev => ({
+                        ...prev,
+                        phone_number: value
+                      }));
+                      handleEditMobileSearch(value);
+                    }}
+                    inputProps={{
+                      ...params.inputProps,
+                      maxLength: 10,
+                      value: selectedAppointment.phone_number || "",
+                      style: { fontSize: '0.85rem' }
+                    }}
+                    InputLabelProps={{ 
+                      style: { fontSize: '0.85rem' } 
+                    }}
+                    InputProps={{
+                      ...params.InputProps,
+                      style: { fontSize: '0.85rem' },
+                      endAdornment: (
+                        <>
+                          {isEditSearching ? <CircularProgress color="inherit" size={16} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                    size="small"
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <li {...props} style={{ fontSize: '0.85rem' }}>
+                    <div>
+                      <Typography variant="body2" style={{ fontSize: '0.85rem' }}>{option.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {option.phone_number}
+                      </Typography>
+                    </div>
+                  </li>
+                )}
+              />
+            </Box>
+
+            <Box sx={{ 
+              display: "grid", 
+              gridTemplateColumns: { xs: "1fr 1fr", sm: "1fr" },
+              gap: { xs: "8px", sm: "12px" }
+            }}>
+              <TextField
+                fullWidth
+                label="First Name"
+                value={selectedAppointment.firstName || ""}
+                onChange={(e) =>
+                  setSelectedAppointment((prev) => ({
+                    ...prev,
+                    firstName: e.target.value,
+                  }))
+                }
+                InputProps={{ style: { fontSize: '0.85rem' } }}
+                InputLabelProps={{ style: { fontSize: '0.85rem' } }}
+                size="small"
+              />
+              <TextField
+                fullWidth
+                label="Last Name"
+                value={selectedAppointment.lastName || ""}
+                onChange={(e) =>
+                  setSelectedAppointment((prev) => ({
+                    ...prev,
+                    lastName: e.target.value,
+                  }))
+                }
+                InputProps={{ style: { fontSize: '0.85rem' } }}
+                InputLabelProps={{ style: { fontSize: '0.85rem' } }}
+                size="small"
+              />
+            </Box>
+
+            <Box sx={{ 
+              display: "grid", 
+              gridTemplateColumns: "1fr 1fr",
+              gap: { xs: "8px", sm: "12px" },
+              gridColumn: { xs: "1", sm: "span 2" }
+            }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={selectedAppointment.checkin}
+                    onChange={(e) =>
+                      setSelectedAppointment((prev) => ({
+                        ...prev,
+                        checkin: e.target.checked,
+                      }))
+                    }
+                    size="small"
+                  />
+                }
+                label={
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      fontWeight: selectedAppointment.checkin ? 'bold' : 'normal',
+                      color: selectedAppointment.checkin ? 'primary.main' : 'text.primary',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    Present
+                  </Typography>
+                }
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={selectedAppointment.paid}
+                    onChange={(e) =>
+                      setSelectedAppointment((prev) => ({
+                        ...prev,
+                        paid: e.target.checked,
+                        mode: e.target.checked ? prev.mode || "cash" : "",
+                        fees_paid: e.target.checked ? prev.fees_paid || 250 : 0,
+                      }))
+                    }
+                    size="small"
+                  />
+                }
+                label={
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      fontWeight: selectedAppointment.paid ? 'bold' : 'normal',
+                      color: selectedAppointment.paid ? 'primary.main' : 'text.primary',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    Payment
+                  </Typography>
+                }
+              />
+            </Box>
+
             {selectedAppointment.paid && (
-              <>
+              <Box sx={{ 
+                display: "grid", 
+                gridTemplateColumns: "1fr 1fr",
+                gap: { xs: "8px", sm: "12px" },
+                gridColumn: { xs: "1", sm: "span 2" }
+              }}>
                 <FormControl fullWidth size="small">
-                  <InputLabel sx={{ fontSize: '0.85rem' }}>Payment Mode</InputLabel>
+                  <InputLabel sx={{ fontSize: '0.85rem' }}>Mode</InputLabel>
                   <Select
                     value={selectedAppointment.mode || "cash"}
                     onChange={(e) =>
@@ -584,114 +619,143 @@ const MobileAppointmentTable = () => {
                   InputLabelProps={{ style: { fontSize: '0.85rem' } }}
                   size="small"
                 />
-              </>
+              </Box>
             )}
-            <TextField
-              fullWidth
-              label="Age"
-              type="number"
-              value={selectedAppointment.age || ""}
-              onChange={(e) =>
-                setSelectedAppointment((prev) => ({
-                  ...prev,
-                  age: e.target.value,
-                }))
-              }
-              InputProps={{ style: { fontSize: '0.85rem' } }}
-              InputLabelProps={{ style: { fontSize: '0.85rem' } }}
-              size="small"
-            />
-            <FormControl component="fieldset">
-              <ToggleButtonGroup
-                value={selectedAppointment.sex || ""}
-                exclusive
-                onChange={(_, newValue) =>
-                  setSelectedAppointment((prev) => ({
-                    ...prev,
-                    sex: newValue || "",
-                  }))
-                }
-                color="primary"
-                size="small"
-                sx={{ height: '36px' }}
-              >
-                <ToggleButton value="M" color="primary" sx={{ fontSize: '0.75rem', py: 0 }}>
-                  Male
-                </ToggleButton>
-                <ToggleButton value="F" color="secondary" sx={{ fontSize: '0.75rem', py: 0 }}>
-                  Female
-                </ToggleButton>
-                <ToggleButton value="O" sx={{ fontSize: '0.75rem', py: 0 }}>
-                  Other
-                </ToggleButton>
-              </ToggleButtonGroup>
-            </FormControl>
-            <TextField
-              fullWidth
-              label="Guardian"
-              value={selectedAppointment.guardian || ""}
-              onChange={(e) =>
-                setSelectedAppointment((prev) => ({
-                  ...prev,
-                  guardian: e.target.value,
-                }))
-              }
-              InputProps={{ style: { fontSize: '0.85rem' } }}
-              InputLabelProps={{ style: { fontSize: '0.85rem' } }}
-              size="small"
-            />
-            <TextField
-              fullWidth
-              label="Place"
-              value={selectedAppointment.location || ""}
-              onChange={(e) =>
-                setSelectedAppointment((prev) => ({
-                  ...prev,
-                  location: e.target.value,
-                }))
-              }
-              InputProps={{ style: { fontSize: '0.85rem' } }}
-              InputLabelProps={{ style: { fontSize: '0.85rem' } }}
-              size="small"
-            />
-            <FormControl fullWidth size="small">
-              <InputLabel sx={{ fontSize: '0.85rem' }}>Appointment Type</InputLabel>
-              <Select
-                value={selectedAppointment.appointment_type || "New"}
+
+            <Box sx={{ 
+              display: "grid", 
+              gridTemplateColumns: "1fr 1fr",
+              gap: { xs: "8px", sm: "12px" },
+              gridColumn: { xs: "1", sm: "span 2" }
+            }}>
+              <TextField
+                fullWidth
+                label="Age"
+                type="number"
+                value={selectedAppointment.age || ""}
                 onChange={(e) =>
                   setSelectedAppointment((prev) => ({
                     ...prev,
-                    appointment_type: e.target.value,
+                    age: e.target.value,
                   }))
                 }
-                label="Appointment Type"
-                sx={{ fontSize: '0.85rem' }}
-              >
-                <MenuItem value="New" sx={{ fontSize: '0.85rem' }}>New</MenuItem>
-                <MenuItem value="Follow-up" sx={{ fontSize: '0.85rem' }}>Follow-up</MenuItem>
-                <MenuItem value="Emergency" sx={{ fontSize: '0.85rem' }}>Emergency</MenuItem>
-                <MenuItem value="Routine" sx={{ fontSize: '0.85rem' }}>Routine</MenuItem>
-                <MenuItem value="Cancelled" sx={{ fontSize: '0.85rem' }}>Cancelled</MenuItem>
-              </Select>
-            </FormControl>
-            <TextField
-              fullWidth
-              label="Complaint"
-              value={selectedAppointment.disease || ""}
-              onChange={(e) =>
-                setSelectedAppointment((prev) => ({
-                  ...prev,
-                  disease: e.target.value,
-                }))
-              }
-              InputProps={{ style: { fontSize: '0.85rem' } }}
-              InputLabelProps={{ style: { fontSize: '0.85rem' } }}
-              size="small"
-            />
-          </div>
+                InputProps={{ style: { fontSize: '0.85rem' } }}
+                InputLabelProps={{ style: { fontSize: '0.85rem' } }}
+                size="small"
+              />
+              <FormControl component="fieldset">
+                <ToggleButtonGroup
+                  value={selectedAppointment.sex || ""}
+                  exclusive
+                  onChange={(_, newValue) =>
+                    setSelectedAppointment((prev) => ({
+                      ...prev,
+                      sex: newValue || "",
+                    }))
+                  }
+                  color="primary"
+                  size="small"
+                  sx={{ height: '36px' }}
+                >
+                  <ToggleButton value="M" color="primary" sx={{ fontSize: '0.75rem', py: 0 }}>
+                    Male
+                  </ToggleButton>
+                  <ToggleButton value="F" color="secondary" sx={{ fontSize: '0.75rem', py: 0 }}>
+                    Female
+                  </ToggleButton>
+                  <ToggleButton value="O" sx={{ fontSize: '0.75rem', py: 0 }}>
+                    Other
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </FormControl>
+            </Box>
+
+            <Box sx={{ 
+              display: "grid", 
+              gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+              gap: { xs: "8px", sm: "12px" },
+              gridColumn: { xs: "1", sm: "span 2" }
+            }}>
+              <TextField
+                fullWidth
+                label="Guardian"
+                value={selectedAppointment.guardian || ""}
+                onChange={(e) =>
+                  setSelectedAppointment((prev) => ({
+                    ...prev,
+                    guardian: e.target.value,
+                  }))
+                }
+                InputProps={{ style: { fontSize: '0.85rem' } }}
+                InputLabelProps={{ style: { fontSize: '0.85rem' } }}
+                size="small"
+              />
+              <TextField
+                fullWidth
+                label="Place"
+                value={selectedAppointment.location || ""}
+                onChange={(e) =>
+                  setSelectedAppointment((prev) => ({
+                    ...prev,
+                    location: e.target.value,
+                  }))
+                }
+                InputProps={{ style: { fontSize: '0.85rem' } }}
+                InputLabelProps={{ style: { fontSize: '0.85rem' } }}
+                size="small"
+              />
+            </Box>
+
+            <Box sx={{ 
+              display: "grid", 
+              gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+              gap: { xs: "8px", sm: "12px" },
+              gridColumn: { xs: "1", sm: "span 2" }
+            }}>
+              <FormControl fullWidth size="small">
+                <InputLabel sx={{ fontSize: '0.85rem' }}>Appointment Type</InputLabel>
+                <Select
+                  value={selectedAppointment.appointment_type || "New"}
+                  onChange={(e) =>
+                    setSelectedAppointment((prev) => ({
+                      ...prev,
+                      appointment_type: e.target.value,
+                    }))
+                  }
+                  label="Appointment Type"
+                  sx={{ fontSize: '0.85rem' }}
+                >
+                  <MenuItem value="New" sx={{ fontSize: '0.85rem' }}>New</MenuItem>
+                  <MenuItem value="Follow-up" sx={{ fontSize: '0.85rem' }}>Follow-up</MenuItem>
+                  <MenuItem value="Emergency" sx={{ fontSize: '0.85rem' }}>Emergency</MenuItem>
+                  <MenuItem value="Routine" sx={{ fontSize: '0.85rem' }}>Routine</MenuItem>
+                  <MenuItem value="Cancelled" sx={{ fontSize: '0.85rem' }}>Cancelled</MenuItem>
+                </Select>
+              </FormControl>
+              <TextField
+                fullWidth
+                label="Complaint"
+                value={selectedAppointment.disease || ""}
+                onChange={(e) =>
+                  setSelectedAppointment((prev) => ({
+                    ...prev,
+                    disease: e.target.value,
+                  }))
+                }
+                InputProps={{ style: { fontSize: '0.85rem' } }}
+                InputLabelProps={{ style: { fontSize: '0.85rem' } }}
+                size="small"
+              />
+            </Box>
+          </Box>
         )}
       </DialogContent>
-      <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
+      <Box sx={{ 
+        mt: 2, 
+        display: "flex", 
+        justifyContent: "space-between",
+        px: { xs: 0.5, sm: 1 }
+      }}>
         <Button
           onClick={() => {
             setRowToCancel(selectedAppointment);
@@ -700,11 +764,11 @@ const MobileAppointmentTable = () => {
           color="error"
           variant="outlined"
           sx={{ 
-            mr: 2,
             borderWidth: "1px",
             fontSize: '0.75rem',
             py: 0.5,
-            px: 1.5,
+            px: 1,
+            minWidth: '36px',
             '&:hover': {
               borderWidth: "1px"
             }
@@ -712,7 +776,7 @@ const MobileAppointmentTable = () => {
           disabled={isCanceling}
           size="small"
         >
-          {isCanceling ? <CircularProgress size={16} /> : "Cancel Appointment"}
+          {isCanceling ? <CircularProgress size={16} /> : "Cancel"}
         </Button>
         <Button
           variant="contained"
@@ -721,7 +785,8 @@ const MobileAppointmentTable = () => {
           sx={{ 
             fontSize: '0.75rem',
             py: 0.5,
-            px: 1.5
+            px: 1.5,
+            minWidth: '40px'
           }}
           size="small"
         >
@@ -738,8 +803,8 @@ const MobileAppointmentTable = () => {
       onClose={() => setCancelConfirmationOpen(false)}
       PaperProps={{
         sx: {
-          width: "85vw",
-          maxWidth: "85vw",
+          width: { xs: "90vw", sm: "85vw" },
+          maxWidth: { xs: "90vw", sm: "85vw" },
           borderRadius: 2,
         }
       }}
@@ -754,7 +819,7 @@ const MobileAppointmentTable = () => {
         <Button 
           onClick={() => setCancelConfirmationOpen(false)} 
           size="small"
-          sx={{ fontSize: '0.75rem' }}
+          sx={{ fontSize: '0.75rem', minWidth: '36px', px: 1 }}
         >
           No
         </Button>
@@ -763,9 +828,9 @@ const MobileAppointmentTable = () => {
           color="error" 
           autoFocus 
           size="small"
-          sx={{ fontSize: '0.75rem' }}
+          sx={{ fontSize: '0.75rem', minWidth: '36px', px: 1 }}
         >
-          Yes, Cancel
+          Yes
         </Button>
       </DialogActions>
     </Dialog>
@@ -773,14 +838,11 @@ const MobileAppointmentTable = () => {
 
   return (
     <Box sx={{ 
-      padding: { xs: '16px 0px 72px 0px', sm: 2 },
+      padding: { xs: '6px 0px 80px 0px', sm: 2 },
       width: '100%',
       maxWidth: '100%',
       overflowX: 'hidden'
     }}>
-      <Typography variant="h5" sx={{ px: { xs: 1.5, sm: 0 } }} gutterBottom>
-        Appointments
-      </Typography>
 
       <TextField
         fullWidth
@@ -790,7 +852,7 @@ const MobileAppointmentTable = () => {
         onChange={(e) => setSearchQuery(e.target.value)}
         margin="normal"
         size="small"
-        sx={{ px: { xs: 1.5, sm: 0 } }}
+        sx={{ px: { xs: 1.5, sm: 0 }, m: 0, width: "95%", height: "1rem", mt: 0 }}
         InputProps={{
           startAdornment: (
             <InputAdornment position="start">
@@ -834,9 +896,9 @@ const MobileAppointmentTable = () => {
           <Table size="small" className="mobile-table">
             <TableHead>
               <TableRow>
-                <TableCell sx={{ py: 1, px: { xs: 1, sm: 2 }, width: '15%' }}>Token</TableCell>
-                <TableCell sx={{ py: 1, px: { xs: 1, sm: 2 }, width: '45%' }}>Patient</TableCell>
-                <TableCell sx={{ py: 1, px: { xs: 1, sm: 2 }, width: '40%' }}>Status</TableCell>
+                <TableCell sx={{ py: 1, px: { xs: 1, sm: 2 }, width: '20%' }}>Token</TableCell>
+                <TableCell sx={{ py: 1, px: { xs: 1, sm: 2 }, width: '50%' }}>Patient</TableCell>
+                <TableCell sx={{ py: 1, px: { xs: 1, sm: 2 }, width: '30%' }}>Status</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -850,7 +912,7 @@ const MobileAppointmentTable = () => {
                     backgroundColor: appointment.isPlaceholder ? '#f9f9f9' : 'inherit'
                   }}
                 >
-                  <TableCell sx={{ py: 1, px: { xs: 1, sm: 2 } }}>{appointment.token}</TableCell>
+                  <TableCell sx={{ py: 1, px: { xs: 1, sm: 2 } }}>#{appointment.token}</TableCell>
                   <TableCell sx={{ py: 1, px: { xs: 1, sm: 2 } }}>
                     {appointment.isPlaceholder ? (
                       <Typography variant="body2" sx={{ color: '#999', fontStyle: 'italic' }}>

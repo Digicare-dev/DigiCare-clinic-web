@@ -7,7 +7,8 @@ import {
   CircularProgress,
   Divider,
   IconButton,
-  Tooltip
+  Tooltip,
+  Paper
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import QueueContainer from "../components/QueueContainer";
@@ -117,6 +118,13 @@ const MobileQueuePage = ({ patientsData, currentPositionData, onDataChange }) =>
     }
   };
 
+  // Calculate queue summary stats
+  const queueStats = {
+    total: patients.length,
+    pending: patients.filter(p => p.status === "pending").length,
+    checkedIn: patients.filter(p=> p.status === "pending").filter(p => p.checkin).length,
+  };
+
   // If not mobile, display a message suggesting to use desktop view
   if (!isMobile) {
     return (
@@ -140,52 +148,67 @@ const MobileQueuePage = ({ patientsData, currentPositionData, onDataChange }) =>
 
   return (
     <Box sx={{ pb: 6, width: '100%', maxWidth: '100%' }} className="mobile-queue-page">
-      {/* Mobile-specific Header */}
-      {/* <Box sx={{ 
-        p: 2, 
-        backgroundColor: "#f5f5f5", 
-        position: "sticky", 
-        top: 0, 
-        zIndex: 10,
-        boxShadow: "0px 2px 4px rgba(0, 0, 0, 0.1)",
+      {/* Queue Summary Section */}
+      <Paper elevation={0} sx={{ 
+        p: 1.5, 
+        m: 1, 
+        mb: 0.5, 
+        borderRadius: 2,
+        background: "transparent",
         display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        width: '100%'
-      }}>
-        <Box>
-          <Typography variant="h6" sx={{ fontWeight: "bold", fontSize: '1rem' }}>
-            Patient Queue
+        flexDirection: 'column',
+      }} className="queue-summary">
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "#475569" }}>
+            Queue Summary
           </Typography>
-          {currentPosition !== null && (
-            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-              Current Position: {currentPosition}
-            </Typography>
-          )}
+
         </Box>
         
-        <Tooltip title="Refresh Queue">
-          <IconButton 
-            onClick={onDataChange}
-            color="primary"
-            disabled={loading}
-            size="small"
-          >
-            <RefreshIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      </Box> */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+          <Box sx={{ textAlign: 'center', px: 1 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+              Total Today
+            </Typography>
+            <Typography variant="body1" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+              {queueStats.total}
+            </Typography>
+          </Box>
+          
+          <Divider orientation="vertical" flexItem />
+          
+          <Box sx={{ textAlign: 'center', px: 1 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+              Pending
+            </Typography>
+            <Typography variant="body1" color="primary" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+              {queueStats.pending}
+            </Typography>
+          </Box>
+          
+          <Divider orientation="vertical" flexItem />
+          
+          <Box sx={{ textAlign: 'center', px: 1 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+              Present
+            </Typography>
+            <Typography variant="body1" color="info.main" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+              {queueStats.checkedIn}
+            </Typography>
+          </Box>
+          
+          <Divider orientation="vertical" flexItem />
+        </Box>
+      </Paper>
       
-      <Divider />
-
       <Container 
         maxWidth={false} 
         disableGutters
         sx={{ 
-          pt: 1, 
-          height: "calc(100vh - 110px)",
-          px: 1,
+          pt: 0.5,
+          height: "calc(100vh - 140px)",
           width: '100%',
+          overflow: 'hidden',
         }}
         className="mobile-container"
       >

@@ -209,7 +209,6 @@ export default function AddAppointmentMobile({ patients }) {
       style={{
         padding: "16px",
         height: "100vh",
-        overflowY: "auto",
         display: "flex",
         flexDirection: "column",
         position: "relative",
@@ -227,7 +226,7 @@ export default function AddAppointmentMobile({ patients }) {
         }}
       >
         {error && (
-          <Typography color="error" sx={{ mb: 2 }}>
+          <Typography color="error" sx={{ mb: 1 }}>
             {error}
           </Typography>
         )}
@@ -240,13 +239,13 @@ export default function AddAppointmentMobile({ patients }) {
           value={formData.token}
           onChange={handleInputChange}
           required
-          sx={{ mb: 2 }}
-          helperText={`Suggested token: ${suggestedToken}`}
+          sx={{ mb: 1 }}
+          // helperText={`Suggested token: ${suggestedToken}`}
           InputProps={{ inputProps: { min: 1 } }}
         />
 
         {/* Name Row */}
-        <Box sx={{ mb: 2 }}>
+        <Box sx={{ mb: 1 }}>
           <Autocomplete
             fullWidth
             options={mobileSearchResults}
@@ -296,7 +295,7 @@ export default function AddAppointmentMobile({ patients }) {
                     </>
                   ),
                 }}
-                sx={{ mb: 2 }}
+                sx={{ mb: 1 }}
               />
             )}
             renderOption={(props, option) => {
@@ -316,7 +315,7 @@ export default function AddAppointmentMobile({ patients }) {
           />
         </Box>
 
-        <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+        <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
           <TextField
             fullWidth
             label="First Name"
@@ -336,7 +335,7 @@ export default function AddAppointmentMobile({ patients }) {
         </Box>
 
         {/* Check-in/Payment Row */}
-        <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+        <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
           <FormControlLabel
             control={
               <Checkbox
@@ -383,7 +382,7 @@ export default function AddAppointmentMobile({ patients }) {
         </Box>
 
         {formData.paid && (
-          <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+          <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
             <FormControl fullWidth>
               <InputLabel>Payment Mode</InputLabel>
               <Select
@@ -409,7 +408,7 @@ export default function AddAppointmentMobile({ patients }) {
         )}
 
         {/* Age & Gender Row */}
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mb: 2 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mb: 1 }}>
           <TextField
             fullWidth
             label="Age"
@@ -440,7 +439,7 @@ export default function AddAppointmentMobile({ patients }) {
         </Box>
 
         {/* Guardian & Location Row */}
-        <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+        <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
           <TextField
             fullWidth
             label="Guardian"
@@ -464,10 +463,10 @@ export default function AddAppointmentMobile({ patients }) {
           name="disease"
           value={formData.disease}
           onChange={handleInputChange}
-          sx={{ mb: 2 }}
+          sx={{ mb: 1 }}
         />
 
-        <FormControl fullWidth sx={{ mb: 2 }}>
+        <FormControl fullWidth sx={{ mb: 1 }}>
           <InputLabel>Appointment Type *</InputLabel>
           <Select
             name="appointment_type"
@@ -498,9 +497,8 @@ export default function AddAppointmentMobile({ patients }) {
           bottom: "56px", // Adjust based on your BottomNavigator height
           left: 0,
           right: 0,
-          backgroundColor: "white",
+          backgroundColor: "transparent",
           padding: "16px",
-          borderTop: "1px solid #eee",
           zIndex: 2,
         }}
       >
