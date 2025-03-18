@@ -27,7 +27,7 @@ const CompactBottomNavigationAction = styled(BottomNavigationAction)(({ theme })
 }));
 
 export default function BottomNavigator() {
-  const navigate = useNavigate();a
+  const navigate = useNavigate();
   const location = useLocation();
 
   // Map paths to their respective indices
