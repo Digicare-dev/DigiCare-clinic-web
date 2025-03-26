@@ -3,7 +3,7 @@ import { handleAutoLogout } from "./authUtils";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 const REFRESH_TOKEN_URL = process.env.REACT_APP_REFRESH_TOKEN_URL;
-const REQUEST_TIMEOUT = 15000; // 15 seconds
+const REQUEST_TIMEOUT = 30000; // 15 seconds
 
 // Track active requests
 const activeRequests = new Set();
