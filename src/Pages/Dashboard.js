@@ -112,6 +112,7 @@ const Dashboard = ({
 
   return (
     <Layout>
+      {/* Commented out dashboard header and slot selector
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
         <PageHeader title="Dashboard" />
         <SlotSelector 
@@ -120,6 +121,7 @@ const Dashboard = ({
           onSlotChange={setCurrentCabinSlot}
         />
       </Box>
+      */}
 
       {loading ? (
         <LinearProgress />
@@ -165,15 +167,16 @@ const Dashboard = ({
           </Grid>
 
           <Grid container spacing={3}>
-            <Grid item xs={12} md={8}>
+            <Grid item xs={12} md={12}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" sx={{ mb: 2 }}>
                     Queue Manager
                   </Typography>
                   <div style={{ 
-                    height: 'calc(100vh - 350px)',
-                    marginTop: '20px'
+                    height: 'calc(100vh - 250px)',
+                    marginTop: '20px',
+                    paddingBottom: '30px'
                   }}>
                     <QueueContainer 
                       loading={loading}
@@ -189,6 +192,7 @@ const Dashboard = ({
               </Card>
             </Grid>
 
+            {/* Commented out Today's Schedule and Alerts section
             <Grid item xs={12} md={4}>
               <Card>
                 <CardContent>
@@ -226,6 +230,7 @@ const Dashboard = ({
                 </CardContent>
               </Card>
             </Grid>
+            */}
           </Grid>
         </>
       )}

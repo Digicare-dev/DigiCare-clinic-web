@@ -299,15 +299,16 @@ const App = () => {
                         {isMobile ? (
                           <Navigate to="/mobile-queue" replace />
                         ) : (
-                          <Dashboard 
-                            patients={patients}
-                            setPatients={setPatients}
-                            currentPosition={currentPosition}
-                            loading={loading}
-                            handleNextPatient={handleNextPatient}
-                            handleLatePatient={handleLatePatient}
-                            shufflePosition={shufflePosition}
-                          />
+                          // <Dashboard 
+                          //   patients={patients}
+                          //   setPatients={setPatients}
+                          //   currentPosition={currentPosition}
+                          //   loading={loading}
+                          //   handleNextPatient={handleNextPatient}
+                          //   handleLatePatient={handleLatePatient}
+                          //   shufflePosition={shufflePosition}
+                          // />
+                          <Navigate to="/queue" replace />
                         )}
                       </PrivateRoute>
                     }
