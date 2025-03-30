@@ -386,24 +386,6 @@ const App = () => {
                         <MobileQueuePage 
                           patientsData={patients} 
                           currentPositionData={currentPosition} 
-                          onDataChange={() => {
-                            // Reuse existing function to fetch data
-                            const fetchData = async () => {
-                              setLoading(true);
-                              try {        
-                                const patientsData = await fetchPatients(cabinId, selectedSlot);
-                                setPatients(patientsData);
-                                
-                                const currentPositionData = await fetchCurrentPosition(cabinId, selectedSlot);
-                                setCurrentPosition(currentPositionData.current_number || currentPositionData.position);
-                              } catch (error) {
-                                console.error("Error loading data:", error);
-                              } finally {
-                                setLoading(false);
-                              }
-                            };
-                            fetchData();
-                          }}
                           loading={loading}
                         />
                       </PrivateRoute>

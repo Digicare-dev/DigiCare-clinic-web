@@ -101,8 +101,10 @@ const MobileAppointmentTable = () => {
   const [rowToCancel, setRowToCancel] = useState(null);
   const [editMobileSearchResults, setEditMobileSearchResults] = useState([]);
   const [isEditSearching, setIsEditSearching] = useState(false);
+  const [eventSource, setEventSource] = useState(null);
 
-  const { cabinId, selectedSlot } = getCabinInfo(user);
+  // Memoize cabin info to prevent unnecessary recalculations
+  const { cabinId, selectedSlot } = useMemo(() => getCabinInfo(user), [user]);
 
   // Use generateDisplayRows to include empty slots
   const displayRows = useMemo(() => {
@@ -213,8 +215,6 @@ const MobileAppointmentTable = () => {
       const response = await updateAppointmentDetails(payload);
       console.log("Update response:", response);
 
-      // Refresh appointments data to ensure everything is in sync with the backend
-      await fetchAppointmentsData();
       
       handleEditModalClose();
     } catch (error) {
@@ -256,8 +256,6 @@ const MobileAppointmentTable = () => {
       setCancelConfirmationOpen(false);
       handleEditModalClose();
       
-      // Refresh appointments data to ensure everything is in sync
-      await fetchAppointmentsData();
     } catch (error) {
       console.error("Failed to cancel appointment:", error);
       
@@ -340,10 +338,96 @@ const MobileAppointmentTable = () => {
     }
   };
 
+  // Add SSE for real-time appointment updates
+  useEffect(() => {
+    if (!cabinId || !selectedSlot) return;
+
+    // Create formatted date for the SSE URL
+    const date = new Date(selectedSlot);
+    const formattedDate = date
+      .toISOString()
+      .replace(".000", "")
+      .replace("T", " ")
+      .replace("Z", "+00:00");
+    const encodedDate = encodeURIComponent(formattedDate);
+    const sseUrl = `${API_BASE_URL}/doctorinfo/queue_updates/${cabinId}/${formattedDate}`;
+
+    // Close existing connection if any
+    if (eventSource) {
+      eventSource.close();
+    }
+
+    // Create new connection
+    const newEventSource = new EventSource(sseUrl, { withCredentials: true });
+    setEventSource(newEventSource);
+
+    // Handle incoming messages
+    newEventSource.onmessage = async (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log("SSE Update received:", data);
+
+        if (data.appointment) {
+          setAppointments(prevAppointments => {
+            const updatedAppointment = {
+              id: data.appointment.token,
+              token: data.appointment.token,
+              patientName: data.appointment.name || '',
+              checkin: data.appointment.checkin,
+              paid: data.appointment.paid === true,
+              status: data.appointment.status,
+              guardian: data.appointment?.patient?.guardian || "",
+              isPlaceholder: false,
+              appointment_id: data.appointment.appointment_id,
+              mode: data.appointment.mode || "cash",
+              fees_paid: data.appointment.fees_paid || 0,
+              disease: data.appointment.disease || null,
+              appointment_type: data.appointment.appointment_type,
+              phone_number: data.appointment?.patient?.phone_number || "",
+              age: data.appointment?.patient?.age || "",
+              sex: data.appointment?.patient?.gender || "",
+              location: data.appointment?.patient?.location || "",
+            };
+
+            // Find if this appointment already exists
+            const existingIndex = prevAppointments.findIndex(
+              apt => apt.appointment_id === updatedAppointment.appointment_id
+            );
+
+            if (existingIndex !== -1) {
+              // Update existing appointment
+              const newAppointments = [...prevAppointments];
+              newAppointments[existingIndex] = updatedAppointment;
+              return newAppointments;
+            } else {
+              // Add new appointment
+              return [...prevAppointments, updatedAppointment]
+                .sort((a, b) => Number(a.token) - Number(b.token));
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Error processing SSE update:", error);
+      }
+    };
+
+    // Handle connection errors
+    newEventSource.onerror = (error) => {
+      console.error("SSE connection error:", error);
+      newEventSource.close();
+    };
+
+    // Cleanup on unmount
+    return () => {
+      if (newEventSource) {
+        newEventSource.close();
+      }
+    };
+  }, [cabinId, selectedSlot]);
 
   useEffect(() => {
     fetchAppointmentsData();
-  }, [cabinId, selectedSlot]);
+  }, []);
 
   // Render functions
   const renderEditModal = () => (
