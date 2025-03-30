@@ -29,6 +29,7 @@ import {
   ToggleButtonGroup,
   Autocomplete,
   Alert,
+  Skeleton,
 } from "@mui/material";
 import {
   fetchAppointments,
@@ -582,7 +583,7 @@ const MobileAppointmentTable = () => {
                       style: { fontSize: '0.85rem' },
                       endAdornment: (
                         <>
-                          {isEditSearching ? <CircularProgress color="inherit" size={16} /> : null}
+                          {isEditSearching ? "Searching..." : null}
                           {params.InputProps.endAdornment}
                         </>
                       ),
@@ -984,15 +985,59 @@ const MobileAppointmentTable = () => {
       />
 
       {loading ? (
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            height: "200px",
-          }}
-        >
-          <CircularProgress />
+        <Box sx={{ px: { xs: 1.5, sm: 0 }, mt: 2 }}>
+          {/* Table-like skeleton structure that matches the real content */}
+          <Paper sx={{ borderRadius: { xs: 0, sm: '4px' }, boxShadow: { xs: 'none', sm: 1 }, overflow: 'hidden' }}>
+            {/* Table header skeleton */}
+            <Box sx={{ 
+              display: 'flex', 
+              backgroundColor: '#f5f5f5', 
+              borderBottom: '1px solid #e0e0e0',
+              py: 1
+            }}>
+              <Box sx={{ width: '20%', px: { xs: 1, sm: 2 } }}>
+                <Skeleton variant="text" width="70%" height={24} />
+              </Box>
+              <Box sx={{ width: '50%', px: { xs: 1, sm: 2 } }}>
+                <Skeleton variant="text" width="60%" height={24} />
+              </Box>
+              <Box sx={{ width: '30%', px: { xs: 1, sm: 2 } }}>
+                <Skeleton variant="text" width="80%" height={24} />
+              </Box>
+            </Box>
+
+            {/* Table rows skeletons */}
+            {[...Array(10)].map((_, index) => (
+              <Box 
+                key={index}
+                sx={{ 
+                  display: 'flex',
+                  py: 1,
+                  borderBottom: '1px solid #f0f0f0',
+                  backgroundColor: index % 2 === 0 ? '#ffffff' : '#fafafa'
+                }}
+              >
+                {/* Token number cell */}
+                <Box sx={{ width: '20%', px: { xs: 1, sm: 2 } }}>
+                  <Skeleton variant="text" width="40%" height={24} />
+                </Box>
+                
+                {/* Patient name cell */}
+                <Box sx={{ width: '50%', px: { xs: 1, sm: 2 } }}>
+                  <Skeleton variant="text" width="85%" height={24} />
+                </Box>
+                
+                {/* Status cell with multiple status indicators */}
+                <Box sx={{ width: '30%', px: { xs: 1, sm: 2 }, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Skeleton variant="rectangular" width="70%" height={18} sx={{ borderRadius: '4px' }} />
+                  <Skeleton variant="rectangular" width="60%" height={18} sx={{ borderRadius: '4px' }} />
+                  {index % 3 === 0 && (
+                    <Skeleton variant="rectangular" width="75%" height={18} sx={{ borderRadius: '4px' }} />
+                  )}
+                </Box>
+              </Box>
+            ))}
+          </Paper>
         </Box>
       ) : error ? (
         <Typography color="error" align="center" sx={{ mt: 2 }}>

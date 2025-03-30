@@ -106,9 +106,60 @@ const QueueContainer = ({
       {loading ? (
         <div className="skeleton-container">
           {[...Array(5)].map((_, index) => (
-            <div key={index} className="skeleton-item">
-              <Skeleton variant="rectangular" height={100} />
-            </div>
+            <Box 
+              key={index} 
+              className="skeleton-item" 
+              sx={{ 
+                display: 'flex',
+                flexDirection: 'column',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                backgroundColor: '#fff',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                padding: { xs: '8px 8px 0 8px', sm: '12px 12px 0 12px' }
+              }}
+            >
+              <Box sx={{ display: 'flex', width: '100%', mb: 1.5 }}>
+                {/* Token badge skeleton */}
+                <Box sx={{ mr: 1.5 }}>
+                  <Skeleton variant="rectangular" width={60} height={30} sx={{ borderRadius: '20px' }} />
+                </Box>
+                
+                {/* Patient details skeleton */}
+                <Box sx={{ flex: 1 }}>
+                  {/* Name */}
+                  <Skeleton variant="text" width="70%" height={24} sx={{ mb: 1 }} />
+                  
+                  {/* Status tags */}
+                  <Box sx={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                    <Skeleton variant="rectangular" width={60} height={20} sx={{ borderRadius: '20px' }} />
+                    <Skeleton variant="rectangular" width={70} height={20} sx={{ borderRadius: '20px' }} />
+                    {index % 2 === 0 && (
+                      <Skeleton variant="rectangular" width={65} height={20} sx={{ borderRadius: '20px' }} />
+                    )}
+                  </Box>
+                </Box>
+              </Box>
+              
+              {/* Action buttons skeleton */}
+              <Box 
+                sx={{ 
+                  display: 'flex', 
+                  width: '100%', 
+                  justifyContent: 'space-evenly',
+                  p: '4px 8px',
+                  gap: '8px',
+                  backgroundColor: '#f9f9f9',
+                  borderTop: '1px solid #eee',
+                  borderRadius: '0 0 8px 8px',
+                  mt: 1
+                }}
+              >
+                <Skeleton variant="rectangular" width="30%" height={30} sx={{ borderRadius: '4px' }} />
+                <Skeleton variant="rectangular" width="30%" height={30} sx={{ borderRadius: '4px' }} />
+                <Skeleton variant="rectangular" width="30%" height={30} sx={{ borderRadius: '4px' }} />
+              </Box>
+            </Box>
           ))}
         </div>
       ) : mergedGroup.length === 0 ? (

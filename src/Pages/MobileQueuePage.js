@@ -8,7 +8,8 @@ import {
   Divider,
   IconButton,
   Tooltip,
-  Paper
+  Paper,
+  Skeleton
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import QueueContainer from "../components/QueueContainer";
@@ -204,11 +205,64 @@ const MobileQueuePage = ({ patientsData, currentPositionData, onDataChange, load
         className="mobile-container"
       >
         {showLoader ? (
-          <Box className="loader-container">
-            <CircularProgress size={40} />
-            <Typography className="loader-text" variant="body1">
-              Loading patient queue...
-            </Typography>
+          <Box sx={{ px: 1, pt: 1 }}>
+            {/* Queue items skeletons */}
+            {[...Array(5)].map((_, index) => (
+              <Box 
+                key={index}
+                sx={{ 
+                  display: 'flex',
+                  flexDirection: 'column',
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                  backgroundColor: '#fff',
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                  padding: '8px 8px 0 8px',
+                  mb: 1.5
+                }}
+              >
+                <Box sx={{ display: 'flex', width: '100%', mb: 1.5 }}>
+                  {/* Token badge skeleton */}
+                  <Box sx={{ mr: 1.5 }}>
+                    <Skeleton variant="rectangular" width={60} height={30} sx={{ borderRadius: '20px' }} />
+                  </Box>
+                  
+                  {/* Patient details skeleton */}
+                  <Box sx={{ flex: 1 }}>
+                    {/* Name */}
+                    <Skeleton variant="text" width="70%" height={24} sx={{ mb: 1 }} />
+                    
+                    {/* Status tags */}
+                    <Box sx={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                      <Skeleton variant="rectangular" width={60} height={20} sx={{ borderRadius: '20px' }} />
+                      <Skeleton variant="rectangular" width={70} height={20} sx={{ borderRadius: '20px' }} />
+                      {index % 2 === 0 && (
+                        <Skeleton variant="rectangular" width={65} height={20} sx={{ borderRadius: '20px' }} />
+                      )}
+                    </Box>
+                  </Box>
+                </Box>
+                
+                {/* Action buttons skeleton */}
+                <Box 
+                  sx={{ 
+                    display: 'flex', 
+                    width: '100%', 
+                    justifyContent: 'space-evenly',
+                    p: '4px 8px',
+                    gap: '8px',
+                    backgroundColor: '#f9f9f9',
+                    borderTop: '1px solid #eee',
+                    borderRadius: '0 0 8px 8px',
+                    mt: 1
+                  }}
+                >
+                  <Skeleton variant="rectangular" width="30%" height={30} sx={{ borderRadius: '4px' }} />
+                  <Skeleton variant="rectangular" width="30%" height={30} sx={{ borderRadius: '4px' }} />
+                  <Skeleton variant="rectangular" width="30%" height={30} sx={{ borderRadius: '4px' }} />
+                </Box>
+              </Box>
+            ))}
           </Box>
         ) : (
           <QueueContainer
