@@ -342,86 +342,122 @@ const MobileAppointmentTable = () => {
   useEffect(() => {
     if (!cabinId || !selectedSlot) return;
 
-    // Create formatted date for the SSE URL
-    const date = new Date(selectedSlot);
-    const formattedDate = date
-      .toISOString()
-      .replace(".000", "")
-      .replace("T", " ")
-      .replace("Z", "+00:00");
-    const encodedDate = encodeURIComponent(formattedDate);
-    const sseUrl = `${API_BASE_URL}/doctorinfo/queue_updates/${cabinId}/${formattedDate}`;
+    let reconnectAttempt = 0;
+    let reconnectTimer = null;
 
-    // Close existing connection if any
-    if (eventSource) {
-      eventSource.close();
-    }
+    const connectEventSource = () => {
+      // Create formatted date for the SSE URL
+      const date = new Date(selectedSlot);
+      const formattedDate = date
+        .toISOString()
+        .replace(".000", "")
+        .replace("T", " ")
+        .replace("Z", "+00:00");
+      const sseUrl = `${API_BASE_URL}/doctorinfo/queue_updates/${cabinId}/${formattedDate}`;
 
-    // Create new connection
-    const newEventSource = new EventSource(sseUrl, { withCredentials: true });
-    setEventSource(newEventSource);
+      // Close existing connection if any
+      if (eventSource) {
+        eventSource.close();
+      }
 
-    // Handle incoming messages
-    newEventSource.onmessage = async (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log("SSE Update received:", data);
+      // Create new connection
+      const newEventSource = new EventSource(sseUrl, { withCredentials: true });
+      setEventSource(newEventSource);
 
-        if (data.appointment) {
-          setAppointments(prevAppointments => {
-            const updatedAppointment = {
-              id: data.appointment.token,
-              token: data.appointment.token,
-              patientName: data.appointment.name || '',
-              checkin: data.appointment.checkin,
-              paid: data.appointment.paid === true,
-              status: data.appointment.status,
-              guardian: data.appointment?.patient?.guardian || "",
-              isPlaceholder: false,
-              appointment_id: data.appointment.appointment_id,
-              mode: data.appointment.mode || "cash",
-              fees_paid: data.appointment.fees_paid || 0,
-              disease: data.appointment.disease || null,
-              appointment_type: data.appointment.appointment_type,
-              phone_number: data.appointment?.patient?.phone_number || "",
-              age: data.appointment?.patient?.age || "",
-              sex: data.appointment?.patient?.gender || "",
-              location: data.appointment?.patient?.location || "",
-            };
+      // Handle incoming messages
+      newEventSource.onmessage = async (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log("SSE Update received:", data);
 
-            // Find if this appointment already exists
-            const existingIndex = prevAppointments.findIndex(
-              apt => apt.appointment_id === updatedAppointment.appointment_id
-            );
+          if (data.appointment) {
+            setAppointments(prevAppointments => {
+              const updatedAppointment = {
+                id: data.appointment.token,
+                token: data.appointment.token,
+                patientName: data.appointment.name || '',
+                checkin: data.appointment.checkin,
+                paid: data.appointment.paid === true,
+                status: data.appointment.status,
+                guardian: data.appointment?.patient?.guardian || "",
+                isPlaceholder: false,
+                appointment_id: data.appointment.appointment_id,
+                mode: data.appointment.mode || "cash",
+                fees_paid: data.appointment.fees_paid || 0,
+                disease: data.appointment.disease || null,
+                appointment_type: data.appointment.appointment_type,
+                phone_number: data.appointment?.patient?.phone_number || "",
+                age: data.appointment?.patient?.age || "",
+                sex: data.appointment?.patient?.gender || "",
+                location: data.appointment?.patient?.location || "",
+              };
 
-            if (existingIndex !== -1) {
-              // Update existing appointment
-              const newAppointments = [...prevAppointments];
-              newAppointments[existingIndex] = updatedAppointment;
-              return newAppointments;
-            } else {
-              // Add new appointment
-              return [...prevAppointments, updatedAppointment]
-                .sort((a, b) => Number(a.token) - Number(b.token));
-            }
-          });
+              // Find if this appointment already exists
+              const existingIndex = prevAppointments.findIndex(
+                apt => apt.appointment_id === updatedAppointment.appointment_id
+              );
+
+              if (existingIndex !== -1) {
+                // Update existing appointment
+                const newAppointments = [...prevAppointments];
+                newAppointments[existingIndex] = updatedAppointment;
+                return newAppointments;
+              } else {
+                // Add new appointment
+                return [...prevAppointments, updatedAppointment]
+                  .sort((a, b) => Number(a.token) - Number(b.token));
+              }
+            });
+          }
+        } catch (error) {
+          console.error("Error processing SSE update:", error);
         }
-      } catch (error) {
-        console.error("Error processing SSE update:", error);
+      };
+
+      // Handle connection errors with reconnection logic
+      newEventSource.onerror = (error) => {
+        console.error("SSE connection error:", error);
+        newEventSource.close();
+        
+        // Calculate delay with exponential backoff, capped at 30 seconds
+        const delay = Math.min(1000 * (2 ** reconnectAttempt), 30000);
+        reconnectAttempt++;
+        
+        console.log(`Attempting to reconnect in ${delay/1000} seconds...`);
+        reconnectTimer = setTimeout(() => {
+          console.log('Reconnecting to SSE...');
+          connectEventSource();
+        }, delay);
+      };
+
+      return newEventSource;
+    };
+
+    // Initial connection
+    const newEventSource = connectEventSource();
+
+    // Handle visibility changes
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('Tab is now visible, re-establishing SSE connection');
+        reconnectAttempt = 0; // Reset reconnection attempt counter
+        connectEventSource();
       }
     };
 
-    // Handle connection errors
-    newEventSource.onerror = (error) => {
-      console.error("SSE connection error:", error);
-      newEventSource.close();
-    };
+    // Listen for visibility change events
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Cleanup on unmount
     return () => {
       if (newEventSource) {
         newEventSource.close();
+        console.log("SSE connection closed");
       }
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [cabinId, selectedSlot]);
 

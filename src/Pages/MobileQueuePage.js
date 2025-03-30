@@ -81,40 +81,34 @@ const MobileQueuePage = ({ patientsData, currentPositionData, onDataChange, load
 
   const handleNextPatient = async (id) => {
     try {
-      setLocalLoading(true);
+      // Don't set localLoading here since PatientItem has its own loading state
       await markPatientAsDone(id);
       // Notify parent component to refresh data
       if (onDataChange) onDataChange();
     } catch (error) {
       console.error("Error marking patient as done:", error);
-    } finally {
-      setLocalLoading(false);
     }
   };
 
   const handleLatePatient = async (id) => {
     try {
-      setLocalLoading(true);
+      // Don't set localLoading here since PatientItem has its own loading state
       await markPatientAsLate(id);
       // Notify parent component to refresh data
       if (onDataChange) onDataChange();
     } catch (error) {
       console.error("Error marking patient as late:", error);
-    } finally {
-      setLocalLoading(false);
     }
   };
 
   const shufflePosition = async (payload) => {
     try {
-      setLocalLoading(true);
+      // Don't set localLoading here since QueueContainer handles its own loading state
       await shufflePatientPosition(payload);
       // Notify parent component to refresh data
       if (onDataChange) onDataChange();
     } catch (error) {
       console.error("Error shuffling position:", error);
-    } finally {
-      setLocalLoading(false);
     }
   };
 
@@ -144,7 +138,7 @@ const MobileQueuePage = ({ patientsData, currentPositionData, onDataChange, load
   }
 
   // Combine prop loading state with local loading state
-  const showLoader = loading || localLoading;
+  const showLoader = loading; // Only show full-screen loader for initial page load
 
   return (
     <Box sx={{ pb: 6, width: '100%', maxWidth: '100%' }} className="mobile-queue-page">

@@ -115,6 +115,7 @@ const App = () => {
 
     let reconnectAttempt = 0;
     let reconnectTimer = null;
+    let eventSource = null;
     
     const connectEventSource = () => {
       // Close existing connection if any
@@ -158,19 +159,44 @@ const App = () => {
             setCurrentPosition(parsedData.cabinslot.current_number);
           }
         } catch (error) {
-          // console.error("Error parsing SSE data:", error);
+          console.error("Error processing SSE data:", error);
         }
       };
 
       eventSource.onerror = (error) => {
-        // console.error("EventSource failed:", error);
+        console.error("SSE connection error:", error);
         eventSource.close();
+        
+        // Calculate delay with exponential backoff, capped at 30 seconds
+        const delay = Math.min(1000 * (2 ** reconnectAttempt), 30000);
+        reconnectAttempt++;
+        
+        console.log(`Attempting to reconnect in ${delay/1000} seconds...`);
+        reconnectTimer = setTimeout(() => {
+          console.log('Reconnecting to SSE...');
+          connectEventSource();
+        }, delay);
       };
+
+      return eventSource;
     };
     
     // Initial connection
-    connectEventSource();
+    eventSource = connectEventSource();
 
+    // Handle visibility changes
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('Tab is now visible, re-establishing SSE connection');
+        reconnectAttempt = 0; // Reset reconnection attempt counter
+        eventSource = connectEventSource();
+      }
+    };
+
+    // Listen for visibility change events
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Cleanup on unmount
     return () => {
       if (eventSource) {
         eventSource.close();
@@ -181,6 +207,7 @@ const App = () => {
       if (reconnectTimer) {
         clearTimeout(reconnectTimer);
       }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [cabinId, selectedSlot, currentUser]);
 
