@@ -29,6 +29,7 @@ import {
   ToggleButtonGroup,
   Autocomplete,
   Alert,
+  Skeleton,
 } from "@mui/material";
 import {
   fetchAppointments,
@@ -101,8 +102,10 @@ const MobileAppointmentTable = () => {
   const [rowToCancel, setRowToCancel] = useState(null);
   const [editMobileSearchResults, setEditMobileSearchResults] = useState([]);
   const [isEditSearching, setIsEditSearching] = useState(false);
+  const [eventSource, setEventSource] = useState(null);
 
-  const { cabinId, selectedSlot } = getCabinInfo(user);
+  // Memoize cabin info to prevent unnecessary recalculations
+  const { cabinId, selectedSlot } = useMemo(() => getCabinInfo(user), [user]);
 
   // Use generateDisplayRows to include empty slots
   const displayRows = useMemo(() => {
@@ -213,8 +216,6 @@ const MobileAppointmentTable = () => {
       const response = await updateAppointmentDetails(payload);
       console.log("Update response:", response);
 
-      // Refresh appointments data to ensure everything is in sync with the backend
-      await fetchAppointmentsData();
       
       handleEditModalClose();
     } catch (error) {
@@ -256,8 +257,6 @@ const MobileAppointmentTable = () => {
       setCancelConfirmationOpen(false);
       handleEditModalClose();
       
-      // Refresh appointments data to ensure everything is in sync
-      await fetchAppointmentsData();
     } catch (error) {
       console.error("Failed to cancel appointment:", error);
       
@@ -340,10 +339,132 @@ const MobileAppointmentTable = () => {
     }
   };
 
+  // Add SSE for real-time appointment updates
+  useEffect(() => {
+    if (!cabinId || !selectedSlot) return;
+
+    let reconnectAttempt = 0;
+    let reconnectTimer = null;
+
+    const connectEventSource = () => {
+      // Create formatted date for the SSE URL
+      const date = new Date(selectedSlot);
+      const formattedDate = date
+        .toISOString()
+        .replace(".000", "")
+        .replace("T", " ")
+        .replace("Z", "+00:00");
+      const sseUrl = `${API_BASE_URL}/doctorinfo/queue_updates/${cabinId}/${formattedDate}`;
+
+      // Close existing connection if any
+      if (eventSource) {
+        eventSource.close();
+      }
+
+      // Create new connection
+      const newEventSource = new EventSource(sseUrl, { withCredentials: true });
+      setEventSource(newEventSource);
+
+      // Handle incoming messages
+      newEventSource.onmessage = async (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log("SSE Update received:", data);
+
+          if (data.appointment) {
+            setAppointments(prevAppointments => {
+              const updatedAppointment = {
+                id: data.appointment.token,
+                token: data.appointment.token,
+                patientName: data.appointment.name || '',
+                checkin: data.appointment.checkin,
+                paid: data.appointment.paid === true,
+                status: data.appointment.status,
+                guardian: data.appointment?.patient?.guardian || "",
+                isPlaceholder: false,
+                appointment_id: data.appointment.appointment_id,
+                mode: data.appointment.mode || "cash",
+                fees_paid: data.appointment.fees_paid || 0,
+                disease: data.appointment.disease || null,
+                appointment_type: data.appointment.appointment_type,
+                phone_number: data.appointment?.patient?.phone_number || "",
+                age: data.appointment?.patient?.age || "",
+                sex: data.appointment?.patient?.gender || "",
+                location: data.appointment?.patient?.location || "",
+              };
+
+              // Find if this appointment already exists
+              const existingIndex = prevAppointments.findIndex(
+                apt => apt.appointment_id === updatedAppointment.appointment_id
+              );
+
+              if (existingIndex !== -1) {
+                // Update existing appointment
+                const newAppointments = [...prevAppointments];
+                newAppointments[existingIndex] = updatedAppointment;
+                return newAppointments;
+              } else {
+                // Add new appointment
+                return [...prevAppointments, updatedAppointment]
+                  .sort((a, b) => Number(a.token) - Number(b.token));
+              }
+            });
+          }
+        } catch (error) {
+          console.error("Error processing SSE update:", error);
+        }
+      };
+
+      // Handle connection errors with reconnection logic
+      newEventSource.onerror = (error) => {
+        console.error("SSE connection error:", error);
+        newEventSource.close();
+        
+        // Calculate delay with exponential backoff, capped at 30 seconds
+        const delay = Math.min(1000 * (2 ** reconnectAttempt), 30000);
+        reconnectAttempt++;
+        
+        console.log(`Attempting to reconnect in ${delay/1000} seconds...`);
+        reconnectTimer = setTimeout(() => {
+          console.log('Reconnecting to SSE...');
+          connectEventSource();
+        }, delay);
+      };
+
+      return newEventSource;
+    };
+
+    // Initial connection
+    const newEventSource = connectEventSource();
+
+    // Handle visibility changes
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('Tab is now visible, re-establishing SSE connection');
+        reconnectAttempt = 0; // Reset reconnection attempt counter
+        connectEventSource();
+      }
+    };
+
+    // Listen for visibility change events
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Cleanup on unmount
+    return () => {
+      if (newEventSource) {
+        newEventSource.close();
+        console.log("SSE connection closed");
+      }
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [cabinId, selectedSlot]);
 
   useEffect(() => {
     fetchAppointmentsData();
-  }, [cabinId, selectedSlot]);
+  }, []);
 
   // Render functions
   const renderEditModal = () => (
@@ -462,7 +583,7 @@ const MobileAppointmentTable = () => {
                       style: { fontSize: '0.85rem' },
                       endAdornment: (
                         <>
-                          {isEditSearching ? <CircularProgress color="inherit" size={16} /> : null}
+                          {isEditSearching ? "Searching..." : null}
                           {params.InputProps.endAdornment}
                         </>
                       ),
@@ -864,15 +985,59 @@ const MobileAppointmentTable = () => {
       />
 
       {loading ? (
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            height: "200px",
-          }}
-        >
-          <CircularProgress />
+        <Box sx={{ px: { xs: 1.5, sm: 0 }, mt: 2 }}>
+          {/* Table-like skeleton structure that matches the real content */}
+          <Paper sx={{ borderRadius: { xs: 0, sm: '4px' }, boxShadow: { xs: 'none', sm: 1 }, overflow: 'hidden' }}>
+            {/* Table header skeleton */}
+            <Box sx={{ 
+              display: 'flex', 
+              backgroundColor: '#f5f5f5', 
+              borderBottom: '1px solid #e0e0e0',
+              py: 1
+            }}>
+              <Box sx={{ width: '20%', px: { xs: 1, sm: 2 } }}>
+                <Skeleton variant="text" width="70%" height={24} />
+              </Box>
+              <Box sx={{ width: '50%', px: { xs: 1, sm: 2 } }}>
+                <Skeleton variant="text" width="60%" height={24} />
+              </Box>
+              <Box sx={{ width: '30%', px: { xs: 1, sm: 2 } }}>
+                <Skeleton variant="text" width="80%" height={24} />
+              </Box>
+            </Box>
+
+            {/* Table rows skeletons */}
+            {[...Array(10)].map((_, index) => (
+              <Box 
+                key={index}
+                sx={{ 
+                  display: 'flex',
+                  py: 1,
+                  borderBottom: '1px solid #f0f0f0',
+                  backgroundColor: index % 2 === 0 ? '#ffffff' : '#fafafa'
+                }}
+              >
+                {/* Token number cell */}
+                <Box sx={{ width: '20%', px: { xs: 1, sm: 2 } }}>
+                  <Skeleton variant="text" width="40%" height={24} />
+                </Box>
+                
+                {/* Patient name cell */}
+                <Box sx={{ width: '50%', px: { xs: 1, sm: 2 } }}>
+                  <Skeleton variant="text" width="85%" height={24} />
+                </Box>
+                
+                {/* Status cell with multiple status indicators */}
+                <Box sx={{ width: '30%', px: { xs: 1, sm: 2 }, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Skeleton variant="rectangular" width="70%" height={18} sx={{ borderRadius: '4px' }} />
+                  <Skeleton variant="rectangular" width="60%" height={18} sx={{ borderRadius: '4px' }} />
+                  {index % 3 === 0 && (
+                    <Skeleton variant="rectangular" width="75%" height={18} sx={{ borderRadius: '4px' }} />
+                  )}
+                </Box>
+              </Box>
+            ))}
+          </Paper>
         </Box>
       ) : error ? (
         <Typography color="error" align="center" sx={{ mt: 2 }}>
