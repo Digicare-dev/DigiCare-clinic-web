@@ -1,5 +1,5 @@
 import React from "react";
-import { Snackbar, Alert, Box, Typography, AlertTitle } from "@mui/material";
+import { Snackbar, Alert, Box, AlertTitle } from "@mui/material";
 import { useNotification } from "../context/NotificationContext";
 
 const GlobalSnackbar = () => {

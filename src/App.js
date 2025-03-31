@@ -78,7 +78,7 @@ const App = () => {
         const { current_number } = await fetchCurrentPosition(cabinId, selectedSlot);
         setCurrentPosition(current_number);
       } catch (error) {
-        console.error("Error loading dummy data:", error);
+        console.error("Error loading initial data:", error);
       } finally {
         setLoading(false);
       }

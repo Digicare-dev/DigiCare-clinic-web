@@ -33,7 +33,6 @@ import CloseIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
-// Import dummy data service instead of API
 import {
   fetchAppointments,
   addAppointment,
@@ -439,7 +438,7 @@ export default function AppointmentTable() {
       const data = await fetchAppointments(cabinId, selectedSlot);
       
       if (data && data.length !== 0) {
-        console.log("Received dummy data:", data); // Debug log
+        console.log("Received data:", data); // Debug log
         
         const formattedData = data.map((item) => {
           // Handle different data structures
@@ -744,9 +743,6 @@ export default function AppointmentTable() {
     setIsAdding(true);
     console.log(newEntry);
     try {
-      // Import dummy data service dynamically
-      const { dummyAddAppointment, dummyPatients } = await import('../services/dummyDataService');
-      // Add new appointment using dummy service with complete patient information
       const result = await addAppointment({
         cabinId: cabinId,
         slot: selectedSlot,
@@ -794,9 +790,8 @@ export default function AppointmentTable() {
         if (newEntry.phone_number) {
           showSuccessSnackbar("Appointment added successfully and patient profile created with past prescriptions. Patient added to queue with token " + newEntry.token);
           
-          // Update the global patients state in App.js
-          // This will refresh the queue display
-          window.dispatchEvent(new CustomEvent('refreshQueue', { detail: { patients: dummyPatients } }));
+
+          window.dispatchEvent(new CustomEvent('refreshQueue'));
         } else {
           showSuccessSnackbar("Appointment added successfully");
         }
