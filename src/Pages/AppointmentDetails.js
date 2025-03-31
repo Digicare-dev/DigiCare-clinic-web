@@ -61,7 +61,6 @@ import {
 import ArrowRightIcon from '@mui/icons-material/ArrowRight';
 import { Layout } from '../components/Layout';
 import { PageHeader } from '../components/common/PageHeader';
-import ReportLink from '../components/ReportLink';
 import dayjs from 'dayjs';
 import { getAppointmentDetails, updateAppointmentDetails, removeAppointment, getPatientDetails } from '../services/api';
 import { printPrescription } from '../utils/prescriptionUtils';

@@ -784,7 +784,7 @@ export const PrescriptionForm = forwardRef(({
             return;
           }
         }
-      } else {debugger;
+      } else {
         console.log("Current appointment is NULL, creating new appointment with addAppointment API");
           
         if (prescription.patientName && mobileNumber) {

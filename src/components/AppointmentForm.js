@@ -37,7 +37,6 @@ const modalStyle = {
 
 const AppointmentForm = () => {
   const { isOpen, closeAppointmentForm, initialData, updateMaxToken, getMaxToken } = useAppointmentForm();
-  const [suggestedToken, setSuggestedToken] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   const [error, setError] = useState("");

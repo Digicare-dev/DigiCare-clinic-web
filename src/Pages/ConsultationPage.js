@@ -88,7 +88,6 @@ import {
   Healing,
 } from '@mui/icons-material';
 
-import ReportLink from '../components/ReportLink';
 import { PageHeader } from '../components/common/PageHeader';
 
 import {getAttachments, uploadAttachment, deleteAttachment, getPatientDetails, getPrescriptions, savePrescription, manageVitals, saveTemplate, getVitals, getCurrentPrescription, getPastPrescriptions, getAppointmentDetails, markPatientAsDone} from '../services/api';
@@ -977,7 +976,6 @@ const ConsultationPage = () => {
     console.log("Form data retrieved for printing:", formData);
     
     // If form data couldn't be retrieved, use the prefilledPrescriptionData
-    debugger;
     const currentPrescriptionData = (!formData || Object.keys(formData).length === 0) 
       ? {
           patientInfo: patientInfo,

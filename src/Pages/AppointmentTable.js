@@ -435,10 +435,7 @@ export default function AppointmentTable() {
   const getAppointments = async () => {
     setLoading(true);
     try {
-      // Import dummy data service dynamically
-      const { fetchDummyAppointmentTable } = await import('../services/dummyDataService');
       
-      // Fetch dummy appointment data
       const data = await fetchAppointments(cabinId, selectedSlot);
       
       if (data && data.length !== 0) {

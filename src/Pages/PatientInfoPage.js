@@ -76,7 +76,6 @@ import {
   History,
   Info as InfoIcon,
 } from '@mui/icons-material';
-import ReportLink from '../components/ReportLink';
 import dayjs from 'dayjs';
 import { PrescriptionForm } from './PrescriptionPage';
 import { PageHeader } from '../components/common/PageHeader';
