@@ -65,6 +65,7 @@ import ReportLink from '../components/ReportLink';
 import dayjs from 'dayjs';
 import { getAppointmentDetails, updateAppointmentDetails, removeAppointment, getPatientDetails } from '../services/api';
 import { printPrescription } from '../utils/prescriptionUtils';
+import { useNotification } from "../context/NotificationContext";
 
 const AppointmentDetails = () => {
   const user = JSON.parse(localStorage.getItem('user'));
@@ -83,12 +84,10 @@ const AppointmentDetails = () => {
   const [isCanceling, setIsCanceling] = useState(false);
   const [cancelConfirmationOpen, setCancelConfirmationOpen] = useState(false);
   
-  // Add snackbar state
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: '',
-    severity: 'success'
-  });
+  // Replace snackbar state with the compatibility hook
+  const { showSuccessSnackbar, showErrorSnackbar } = useNotification();
+  
+  const [loading, setLoading] = useState(true);
   
   const fetchAppointmentDetails = async (appointmentId) => {
     try {
@@ -166,11 +165,13 @@ const AppointmentDetails = () => {
       } else {
         console.error('Empty response when fetching appointment details');
         // Set default values or show an error message
-        handleOpenSnackbar('Failed to fetch appointment details', 'error');
+        showErrorSnackbar('Failed to fetch appointment details');
       }
     } catch (error) {
       console.error('Error fetching appointment details:', error);
-      handleOpenSnackbar('Failed to fetch appointment details: ' + error.message, 'error');
+      showErrorSnackbar('Failed to fetch appointment details: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -232,7 +233,7 @@ const AppointmentDetails = () => {
   }, [location]);
 
   // If we don't have appointment data yet, show a loading state
-  if (!appointmentInfo) {
+  if (loading) {
     
     return (
       <Layout>
@@ -636,14 +637,6 @@ const AppointmentDetails = () => {
     }
   };
 
-  // Snackbar handlers
-  const handleOpenSnackbar = (message, severity = "success") => {
-    setSnackbar({ open: true, message, severity });
-  };
-
-  const handleCloseSnackbar = () => {
-    setSnackbar({ ...snackbar, open: false });
-  };
 
   const handleCancelAppointment = async () => {
     setIsCanceling(true);
@@ -654,7 +647,7 @@ const AppointmentDetails = () => {
       });
       
       // Show success message
-      handleOpenSnackbar("Appointment cancelled successfully");
+      showSuccessSnackbar("Appointment cancelled successfully");
       
       // Close the dialogs
       setCancelConfirmationOpen(false);
@@ -665,7 +658,7 @@ const AppointmentDetails = () => {
     } catch (error) {
       console.error("Error cancelling appointment:", error);
       // Show error message
-      handleOpenSnackbar("Failed to cancel appointment", "error");
+      showErrorSnackbar("Failed to cancel appointment");
     } finally {
       setIsCanceling(false);
     }
@@ -1414,18 +1407,6 @@ const AppointmentDetails = () => {
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* Add Snackbar for notifications */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </Layout>
   );
 };

@@ -2,7 +2,6 @@ import React from "react";
 import { Card, CardContent, Typography, Box, ListItem } from "@mui/material";
 import { useState, useEffect } from "react";
 import Skeleton from "@mui/material/Skeleton";
-import "./StatisticCard.css";
 
 export default function StatisticsCard({ patients, currentPatient, loading }) {
   const [stats, setStats] = useState({

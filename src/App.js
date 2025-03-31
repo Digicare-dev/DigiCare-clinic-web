@@ -3,12 +3,12 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Box } from "@mui/material";
 import { AuthContext } from "./context/AuthContext";
 import { AppointmentFormProvider } from "./context/AppointmentFormContext";
+import NotificationProvider from "./context/NotificationContext";
+import GlobalSnackbar from "./components/GlobalSnackbar";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
 import BottomNavigator from "./components/BottomNavigator";
 import Home from "./Pages/Home";
-import AddAppointment from "./Pages/AddAppointment";
-import PatientDetails from "./Pages/PatientDetails";
 import Login from "./Pages/Login";
 import PrivateRoute from "./components/PrivateRoute";
 import Help from "./Pages/Help";
@@ -22,9 +22,6 @@ import MobileQueuePage from "./Pages/MobileQueuePage";
 import PastAppointmentsPage from "./Pages/PastAppointments";
 import { Navigate } from "react-router-dom";
 import AppointmentForm from "./components/AppointmentForm";
-
-import PrescriptionTablePage from "./Pages/Prescriptiondemo";
-
 import AppointmentDetails from "./Pages/AppointmentDetails";
 
 import {
@@ -254,192 +251,194 @@ const App = () => {
 
   return (
     <AppointmentFormProvider>
-      <ThemeProvider theme={theme}>
-        <Router>
-          <AppointmentForm />
-          <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-            {currentUser !== null && (
-              <Header 
-                patients={patients || []} 
-                closeEventSource={() => {}} 
-              />
-            )}
-            <Box
-              sx={{
-                display: "flex",
-                flex: 1,
-                overflow: "hidden",
-              }}
-            >
-              {!isMobile && currentUser !== null && <Sidebar />}
+      <NotificationProvider>
+        <ThemeProvider theme={theme}>
+          <Router>
+            <AppointmentForm />
+            <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+              {currentUser !== null && (
+                <Header 
+                  patients={patients || []} 
+                  closeEventSource={() => {}} 
+                />
+              )}
               <Box
-                component="main"
                 sx={{
-                  flexGrow: 1,
-                  padding: "6px",
-                  height: "100%",
-                  width: "100%",
-                  overflowY: "auto",
-                  marginBottom: "200px",
+                  display: "flex",
+                  flex: 1,
+                  overflow: "hidden",
                 }}
               >
-                <Routes>
-                  <Route
-                    path="/login"
-                    element={currentUser ? (
-                      isMobile ? 
-                        <Navigate to="/mobile-queue" replace /> : 
-                        <Navigate to="/" replace />
-                    ) : <Login />}
-                  />
-                  <Route
-                    path="/"
-                    element={
-                      <PrivateRoute>
-                        {isMobile ? (
-                          <Navigate to="/mobile-queue" replace />
-                        ) : (
-                          // <Dashboard 
-                          //   patients={patients}
-                          //   setPatients={setPatients}
-                          //   currentPosition={currentPosition}
-                          //   loading={loading}
-                          //   handleNextPatient={handleNextPatient}
-                          //   handleLatePatient={handleLatePatient}
-                          //   shufflePosition={shufflePosition}
-                          // />
-                          <Navigate to="/queue" replace />
-                        )}
-                      </PrivateRoute>
-                    }
-                  />
-                  <Route
-                    path="/appointments"
-                    element={
-                      <PrivateRoute>
-                        <AppointmentTable 
-                          currentCabinSlot={currentCabinSlot}
-                        />
-                      </PrivateRoute>
-                    }
-                  />
-                  <Route
-                    path="/past-appointments"
-                    element={
-                      <PrivateRoute>{<PastAppointmentsPage />}</PrivateRoute>
-                    }
-                  />
-                  <Route
-                    path="/prescription"
-                    element={
-                      <PrivateRoute>
-                        {/* <PrescriptionTablePage /> */}
-                        <PrescriptionPage />
-                      </PrivateRoute>
-                    }
-                  />
+                {!isMobile && currentUser !== null && <Sidebar />}
+                <Box
+                  component="main"
+                  sx={{
+                    flexGrow: 1,
+                    padding: "6px",
+                    height: "100%",
+                    width: "100%",
+                    overflowY: "auto",
+                    marginBottom: "200px",
+                  }}
+                >
+                  <Routes>
+                    <Route
+                      path="/login"
+                      element={currentUser ? (
+                        isMobile ? 
+                          <Navigate to="/mobile-queue" replace /> : 
+                          <Navigate to="/" replace />
+                      ) : <Login />}
+                    />
+                    <Route
+                      path="/"
+                      element={
+                        <PrivateRoute>
+                          {isMobile ? (
+                            <Navigate to="/mobile-queue" replace />
+                          ) : (
+                            // <Dashboard 
+                            //   patients={patients}
+                            //   setPatients={setPatients}
+                            //   currentPosition={currentPosition}
+                            //   loading={loading}
+                            //   handleNextPatient={handleNextPatient}
+                            //   handleLatePatient={handleLatePatient}
+                            //   shufflePosition={shufflePosition}
+                            // />
+                            <Navigate to="/queue" replace />
+                          )}
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/appointments"
+                      element={
+                        <PrivateRoute>
+                          <AppointmentTable 
+                            currentCabinSlot={currentCabinSlot}
+                          />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/past-appointments"
+                      element={
+                        <PrivateRoute>{<PastAppointmentsPage />}</PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/prescription"
+                      element={
+                        <PrivateRoute>
+                          <PrescriptionPage />
+                        </PrivateRoute>
+                      }
+                    />
 
-                  <Route
-                    path="/patient-info"
-                    element={
-                      <PrivateRoute>
-                        <PatientInfoPage />
-                      </PrivateRoute>
-                    }
-                  />
+                    <Route
+                      path="/patient-info"
+                      element={
+                        <PrivateRoute>
+                          <PatientInfoPage />
+                        </PrivateRoute>
+                      }
+                    />
 
-                  <Route
-                    path="/appointment-details"
-                    element={
-                      <PrivateRoute>
-                        <AppointmentDetails />
-                      </PrivateRoute>
-                    }
-                  />
+                    <Route
+                      path="/appointment-details"
+                      element={
+                        <PrivateRoute>
+                          <AppointmentDetails />
+                        </PrivateRoute>
+                      }
+                    />
 
-                  <Route
-                    path="/help"
-                    element={
-                      <PrivateRoute>
-                        <Help />
-                      </PrivateRoute>
-                    }
-                  />
+                    <Route
+                      path="/help"
+                      element={
+                        <PrivateRoute>
+                          <Help />
+                        </PrivateRoute>
+                      }
+                    />
 
-                  <Route
-                    path="/add-appointment"
-                    element={
-                      <PrivateRoute>
-                        <AddAppointmentMobile patients={patients} />
-                      </PrivateRoute>
-                    }
-                  />
-                  <Route
-                    path="/mobile-appointments"
-                    element={
-                      <PrivateRoute>
-                        <MobileAppointmentTable />
-                      </PrivateRoute>
-                    }
-                  />
-                  <Route
-                    path="/queue"
-                    element={
-                      <PrivateRoute>
-                        <Home
-                          currentPosition={currentPosition}
-                          setCurrentPosition={setCurrentPosition}
-                          patients={patients}
-                          setPatients={(patients) => setPatients(patients)}
-                          handleNextPatient={handleNextPatient}
-                          handleLatePatient={(id, pos) => handleLatePatient(id, pos)}
-                          shufflePosition={(payload) => shufflePosition(payload)}
-                          loading={loading}
-                        />
-                      </PrivateRoute>
-                    }
-                  />
-                  <Route
-                    path="/consultation"
-                    element={
-                      <PrivateRoute>
-                        <ConsultationPage />
-                      </PrivateRoute>
-                    }
-                  />
-                  <Route
-                    path="/mobile-queue"
-                    element={
-                      <PrivateRoute>
-                        <MobileQueuePage 
-                          patientsData={patients} 
-                          currentPositionData={currentPosition} 
-                          loading={loading}
-                        />
-                      </PrivateRoute>
-                    }
-                  />
-                  
-                  <Route path="*" element={<Navigate to="/login" replace />} />
-                </Routes>
+                    <Route
+                      path="/add-appointment"
+                      element={
+                        <PrivateRoute>
+                          <AddAppointmentMobile patients={patients} />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/mobile-appointments"
+                      element={
+                        <PrivateRoute>
+                          <MobileAppointmentTable />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/queue"
+                      element={
+                        <PrivateRoute>
+                          <Home
+                            currentPosition={currentPosition}
+                            setCurrentPosition={setCurrentPosition}
+                            patients={patients}
+                            setPatients={(patients) => setPatients(patients)}
+                            handleNextPatient={handleNextPatient}
+                            handleLatePatient={(id, pos) => handleLatePatient(id, pos)}
+                            shufflePosition={(payload) => shufflePosition(payload)}
+                            loading={loading}
+                          />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/consultation"
+                      element={
+                        <PrivateRoute>
+                          <ConsultationPage />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/mobile-queue"
+                      element={
+                        <PrivateRoute>
+                          <MobileQueuePage 
+                            patientsData={patients} 
+                            currentPositionData={currentPosition} 
+                            loading={loading}
+                          />
+                        </PrivateRoute>
+                      }
+                    />
+                    
+                    <Route path="*" element={<Navigate to="/login" replace />} />
+                  </Routes>
+                </Box>
               </Box>
+              {currentUser !== null && isMobile && <BottomNavigator />}
+              
+              {/* Global appointment form - available from anywhere */}
+              <AppointmentForm />
+              
+              {/* PDF Viewer for reports/prescriptions */}
+              {pdfViewerState.isOpen && (
+                <PDFViewer
+                  url={pdfViewerState.pdfUrl}
+                  onClose={closePdfViewer}
+                  title={pdfViewerState.title}
+                />
+              )}
             </Box>
-            {currentUser !== null && isMobile && <BottomNavigator />}
-            
-            {/* Global appointment form - available from anywhere */}
-            <AppointmentForm />
-            
-            {/* PDF Viewer for reports/prescriptions */}
-            {pdfViewerState.isOpen && (
-              <PDFViewer
-                url={pdfViewerState.pdfUrl}
-                onClose={closePdfViewer}
-                title={pdfViewerState.title}
-              />
-            )}
-          </Box>
-        </Router>
-      </ThemeProvider>
+            <GlobalSnackbar />
+          </Router>
+        </ThemeProvider>
+      </NotificationProvider>
     </AppointmentFormProvider>
   );
 };

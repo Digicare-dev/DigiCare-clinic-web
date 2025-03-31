@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import "./AppointmentTable.css";
 import { DataGrid, GridToolbar, GridToolbarContainer, GridToolbarQuickFilter } from "@mui/x-data-grid";
 import {
@@ -42,7 +42,7 @@ import {
   getPatientProfile,
   createSlot
 } from "../services/api";
-import CustomSnackbar from "../components/CustomSnackbar";
+import { useNotification } from "../context/NotificationContext";
 import { getCabinInfo } from '../utils/dateUtils';
 import { useNavigate, useLocation } from "react-router-dom";
 import { EventSource } from "eventsource";
@@ -171,10 +171,7 @@ export default function AppointmentTable() {
     [rows]
   );
 
-  const totalPatients = React.useMemo(
-    () => rows.filter((row) => !row.isPlaceholder).length,
-    [rows]
-  );
+  const [totalPatients, setTotalPatients] = useState(0);
 
   const totalCheckedIn = React.useMemo(
     () => rows.filter((row) => row.checkin && !row.isPlaceholder).length,
@@ -233,25 +230,13 @@ export default function AppointmentTable() {
     pageSize: 50,
   });
 
-  const [snackbar, setSnackbar] = React.useState({
-    open: false,
-    message: "",
-    severity: "success",
-  });
+  const { showSuccessSnackbar, showErrorSnackbar } = useNotification();
 
   const [mobileSearchResults, setMobileSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
 
   const location = useLocation();
   const { openAppointmentForm } = useAppointmentForm();
-
-  const handleOpenSnackbar = (message, severity = "success") => {
-    setSnackbar({ open: true, message, severity });
-  };
-
-  const handleCloseSnackbar = () => {
-    setSnackbar((prev) => ({ ...prev, open: false }));
-  };
 
   const [editModalOpen, setEditModalOpen] = React.useState(false);
   const [selectedAppointment, setSelectedAppointment] = React.useState(null);
@@ -810,13 +795,13 @@ export default function AppointmentTable() {
         
         // Show appropriate success message
         if (newEntry.phone_number) {
-          handleOpenSnackbar("Appointment added successfully and patient profile created with past prescriptions. Patient added to queue with token " + newEntry.token);
+          showSuccessSnackbar("Appointment added successfully and patient profile created with past prescriptions. Patient added to queue with token " + newEntry.token);
           
           // Update the global patients state in App.js
           // This will refresh the queue display
           window.dispatchEvent(new CustomEvent('refreshQueue', { detail: { patients: dummyPatients } }));
         } else {
-          handleOpenSnackbar("Appointment added successfully");
+          showSuccessSnackbar("Appointment added successfully");
         }
         
         handleClose();
@@ -836,7 +821,7 @@ export default function AppointmentTable() {
     try {
       await updateAppointmentDetails(newData);      
       
-      handleOpenSnackbar("Appointment updated successfully");
+      showSuccessSnackbar("Appointment updated successfully");
       setEditModalOpen(false);
       return { success: true };
     } catch (error) {
@@ -949,7 +934,7 @@ export default function AppointmentTable() {
         appointment_id: rowToCancel.appointment_id
       });      
       
-      handleOpenSnackbar("Appointment cancelled successfully");
+      showSuccessSnackbar("Appointment cancelled successfully");
       setCancelConfirmationOpen(false);
       setEditModalOpen(false);
     } catch (error) {
@@ -1498,14 +1483,14 @@ export default function AppointmentTable() {
         localStorage.setItem("user", JSON.stringify(user));
       }
       
-      handleOpenSnackbar("Slot ended successfully and new slot created");
+      showSuccessSnackbar("Slot ended successfully and new slot created");
       handleEndSlotClose();
       
       // Refresh the page to reflect the new slot
       window.location.reload();
     } catch (error) {
       console.error("Error ending slot:", error);
-      handleOpenSnackbar("Failed to end slot: " + error.message, "error");
+      showErrorSnackbar("Failed to end slot: " + error.message, "error");
     } finally {
       setIsCreatingSlot(false);
     }
@@ -2007,13 +1992,6 @@ export default function AppointmentTable() {
           </Box>
         </Box>
       </Modal>
-
-      <CustomSnackbar
-        open={snackbar.open}
-        message={snackbar.message}
-        severity={snackbar.severity}
-        onClose={handleCloseSnackbar}
-      />
 
       {/* Floating action button for mobile */}
       <IconButton
