@@ -14,12 +14,13 @@ import {
   ToggleButtonGroup,
   ToggleButton,
   Box,
-  Snackbar,
   Autocomplete,
+  Paper,
 } from "@mui/material";
-import { addAppointment, fetchAppointments, getPatientProfile } from "../services/api";
+import { addAppointment, fetchAppointments, getPatientProfile, getMaxTokenNumber } from "../services/api";
 import { getCabinInfo } from "../utils/dateUtils";
 import "./AddAppointmentMobile.css";
+import { useNotification } from "../context/NotificationContext";
 
 export default function AddAppointmentMobile({ patients }) {
   const user = JSON.parse(localStorage.getItem("user"));
@@ -27,7 +28,7 @@ export default function AddAppointmentMobile({ patients }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [suggestedToken, setSuggestedToken] = useState(1);
-  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const { showSuccessSnackbar, showErrorSnackbar } = useNotification();
   const [mobileSearchResults, setMobileSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
 
@@ -48,6 +49,8 @@ export default function AddAppointmentMobile({ patients }) {
     mode: "cash",
     fees_paid: 250,
   });
+
+  const { cabinId, selectedSlot } = getCabinInfo(user);
 
   const fetchSuggestedToken = () => {
     if (patients.length > 0) {
@@ -111,7 +114,6 @@ export default function AddAppointmentMobile({ patients }) {
     }
 
     try {
-      const { cabinId, selectedSlot } = getCabinInfo(user);
       if (!cabinId || !selectedSlot) {
         setError("Unable to retrieve cabin information");
         setLoading(false);
@@ -158,7 +160,7 @@ export default function AddAppointmentMobile({ patients }) {
       // Refresh token suggestion
       fetchSuggestedToken();
       setError("");
-      setOpenSnackbar(true);
+      showSuccessSnackbar("Appointment added successfully!");
     } catch (error) {
       setError(error.response?.data?.message || "Failed to add appointment");
     } finally {
@@ -481,14 +483,6 @@ export default function AddAppointmentMobile({ patients }) {
           </Select>
         </FormControl>
       </form>
-
-      <Snackbar
-        open={openSnackbar}
-        autoHideDuration={3000}
-        onClose={() => setOpenSnackbar(false)}
-        message="Appointment added successfully!"
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-      />
 
       {/* Fixed Submit Button */}
       <Box

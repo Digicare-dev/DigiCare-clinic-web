@@ -440,9 +440,15 @@ const MobileAppointmentTable = () => {
     // Handle visibility changes
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('Tab is now visible, re-establishing SSE connection');
-        reconnectAttempt = 0; // Reset reconnection attempt counter
-        connectEventSource();
+        console.log('Tab is now visible, checking SSE connection state in MobileAppointmentTable');
+        // Only reconnect if the connection is closed or in an error state
+        if (!newEventSource || newEventSource.readyState === EventSource.CLOSED) {
+          console.log('Re-establishing SSE connection in MobileAppointmentTable');
+          reconnectAttempt = 0; // Reset reconnection attempt counter
+          connectEventSource();
+        } else {
+          console.log('SSE connection is already active in MobileAppointmentTable');
+        }
       }
     };
 

@@ -20,7 +20,7 @@ import {
 import { useAppointmentForm } from '../context/AppointmentFormContext';
 import { addAppointment, getPatientProfile, getMaxTokenNumber } from "../services/api";
 import { getCabinInfo } from "../utils/dateUtils";
-import CustomSnackbar from "./CustomSnackbar";
+import { useNotification } from "../context/NotificationContext";
 
 const modalStyle = {
   position: "absolute",
@@ -37,27 +37,13 @@ const modalStyle = {
 
 const AppointmentForm = () => {
   const { isOpen, closeAppointmentForm, initialData, updateMaxToken, getMaxToken } = useAppointmentForm();
-  const [suggestedToken, setSuggestedToken] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   const [error, setError] = useState("");
   const [mobileSearchResults, setMobileSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: "",
-    severity: "success",
-  });
+  const { showSuccessSnackbar, showErrorSnackbar } = useNotification();
 
-  const handleOpenSnackbar = (message, severity = "success") => {
-    setSnackbar({ open: true, message, severity });
-  };
-
-  const handleCloseSnackbar = () => {
-    setSnackbar((prev) => ({ ...prev, open: false }));
-  };
-  
-  // Get user and cabin information
   const user = JSON.parse(localStorage.getItem("user"));
   const { cabinId, selectedSlot } = getCabinInfo(user);
 
@@ -81,14 +67,11 @@ const AppointmentForm = () => {
     appointment_type: "New",
   });
 
-  // When the form opens, validate cabin slot and set token value
   useEffect(() => {
     if (isOpen) {
-      // Start loading
       setIsInitializing(true);
       setError("");
       
-      // Validate cabin and slot when the form opens
       if (!cabinId) {
         setError("No valid cabin found. Please contact support.");
         setIsInitializing(false);
@@ -101,7 +84,6 @@ const AppointmentForm = () => {
         return;
       }
       
-      // If initialData is provided, use it to pre-fill the form
       if (initialData) {
         setNewAppointment(prev => ({
           ...prev,
@@ -115,19 +97,15 @@ const AppointmentForm = () => {
         }));
       }
       
-      // Get the maximum token number from the API or context
       const fetchMaxToken = async () => {
         try {
-          // First check if we already have a cached maxToken for this cabin and slot
           const cachedMaxToken = getMaxToken(cabinId, selectedSlot);
           
           if (cachedMaxToken !== undefined) {
             console.log("Using cached maximum token:", cachedMaxToken);
             
-            // Set the token to max + 1
             const nextToken = cachedMaxToken + 1;
             
-            // Set the token in the form
             setNewAppointment(prev => ({
               ...prev,
               token: nextToken.toString()
@@ -135,17 +113,13 @@ const AppointmentForm = () => {
             
             setIsInitializing(false);
           } else {
-            // Get the actual maximum token from appointments API
             const maxToken = await getMaxTokenNumber(cabinId, selectedSlot);
             console.log("Fetched maximum token from API:", maxToken);
             
-            // Store the token in context for future use
             updateMaxToken(cabinId, selectedSlot, maxToken);
             
-            // Set the token to max + 1 (or 1 if no tokens exist)
             const nextToken = maxToken + 1;
             
-            // Set the token in the form
             setNewAppointment(prev => ({
               ...prev,
               token: nextToken.toString()
@@ -167,7 +141,7 @@ const AppointmentForm = () => {
   const resetForm = () => {
     setNewAppointment({
       id: "",
-      token: "", // Leave empty, will be set by useEffect
+      token: "",
       appointment_id: "",
       firstName: "",
       lastName: "",
@@ -199,12 +173,10 @@ const AppointmentForm = () => {
       return;
     }
     
-    // Special handling for token to enforce numeric values
     if (name === "token") {
-      // Only allow positive integers
       const numValue = parseInt(value, 10);
       if (value !== "" && (isNaN(numValue) || numValue <= 0)) {
-        return; // Don't update if not a positive integer
+        return;
       }
     }
 
@@ -218,17 +190,12 @@ const AppointmentForm = () => {
   };
 
   const validateToken = (token) => {
-    // Parse the token to a number
     const tokenNum = parseInt(token, 10);
     
-    // Check if it's a valid number
     if (isNaN(tokenNum) || tokenNum <= 0) {
       return false;
     }
 
-    // In a real implementation, this would check against existing appointments
-    // For now, we'll just simulate it with a 1% chance of rejection
-    // to show how it would work
     if (Math.random() < 0.01) {
       return false;
     }
@@ -277,18 +244,16 @@ const AppointmentForm = () => {
   const AddAppointmentApi = async (newEntry) => {
     setIsAdding(true);
     try {
-      // Get the latest cabin information
       const user = JSON.parse(localStorage.getItem("user"));
       const { cabinId, selectedSlot } = getCabinInfo(user);
       if (!cabinId || !selectedSlot) {
-        handleOpenSnackbar("Unable to retrieve cabin information", "error");
+        showErrorSnackbar("Unable to retrieve cabin information");
         setIsAdding(false);
         return;
       }
       
-      console.log("Adding appointment with slot:", selectedSlot); // Debug log
+      console.log("Adding appointment with slot:", selectedSlot);
       
-      // Add new appointment
       const result = await addAppointment({
         cabinId: cabinId,
         slot: selectedSlot,
@@ -307,15 +272,12 @@ const AppointmentForm = () => {
         checkin: newEntry.checkin
       });
       
-      handleOpenSnackbar("Appointment added successfully", "success");
+      showSuccessSnackbar("Appointment added successfully");
       
-      // Dispatch a custom event to refresh any tables that might be displaying appointments
       window.dispatchEvent(new CustomEvent('appointmentAdded', { 
         detail: { appointment: result?.queue?.appointment } 
       }));
       
-      // Update stored maxToken after successful appointment creation
-      // Parse the token to a number and update the stored value
       const newTokenValue = parseInt(newAppointment.token, 10);
       updateMaxToken(cabinId, selectedSlot, newTokenValue);
       
@@ -332,7 +294,6 @@ const AppointmentForm = () => {
     const trimmedFirstName = newAppointment.firstName.trim();
     const trimmedLastName = newAppointment.lastName.trim();
 
-    // Validate required fields
     if (!newAppointment.token) {
       setError("Token number is required");
       return;
@@ -353,7 +314,6 @@ const AppointmentForm = () => {
       return;
     }
     
-    // Validate that we have a valid cabin slot
     if (!selectedSlot) {
       setError("No valid appointment slot found. Please contact support.");
       return;
@@ -436,7 +396,6 @@ const AppointmentForm = () => {
                   fullWidth
                   options={mobileSearchResults}
                   getOptionLabel={(option) => {
-                    // Handle both objects from dropdown and direct string input
                     return typeof option === 'object' ? option?.phone_number || "" : option || "";
                   }}
                   loading={isSearching}
@@ -486,7 +445,6 @@ const AppointmentForm = () => {
                   renderOption={(props, option, index) => {
                     console.log(option);
                     const { key, ...otherProps } = props;
-                    // Create a unique key using phone number and index or any unique identifier from the option
                     const uniqueKey = option.patient_id;
                     return (
                       <li key={uniqueKey} {...otherProps}>
@@ -673,13 +631,6 @@ const AppointmentForm = () => {
           </Box>
         </Box>
       </Modal>
-
-      <CustomSnackbar
-        open={snackbar.open}
-        message={snackbar.message}
-        severity={snackbar.severity}
-        onClose={handleCloseSnackbar}
-      />
     </>
   );
 };

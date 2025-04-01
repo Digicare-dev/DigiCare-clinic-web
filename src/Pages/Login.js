@@ -18,8 +18,8 @@ import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import LockIcon from "@mui/icons-material/Lock";
-import { Snackbar, Alert } from "@mui/material";
 import { Navigate } from "react-router-dom";
+import { useNotification } from "../context/NotificationContext";
 
 import "./Login.css";
 
@@ -30,28 +30,23 @@ const Login = () => {
   const { setUser } = useContext(AuthContext);
   const navigate = useNavigate();
   const isMobile = window.innerWidth <= 768;
-  //
+
+  const { showErrorSnackbar, showNotification } = useNotification();
 
   const [credential, setCredential] = useState({
     username: "",
     password: "",
   });
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: "",
-    severity: "error",
-  });
-  const [error, setError] = useState("");
 
-  // Check for auto logout message on component mount
   useEffect(() => {
     const autoLogoutInfo = getAutoLogoutMessage();
     if (autoLogoutInfo) {
-      setSnackbar({
-        open: true,
-        message: autoLogoutInfo.message,
-        severity: autoLogoutInfo.severity,
-      });
+      showNotification(
+        autoLogoutInfo.message, 
+        autoLogoutInfo.severity,
+        6000,
+        { vertical: "bottom", horizontal: "right" }
+      );
     }
   }, []);
 
@@ -69,42 +64,29 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError("");
 
     try {
-      // Import dummy login service
-      const { dummyLogin } = await import('../services/dummyDataService');
       
-      // Attempt login with dummy credentials
       const response = await loginService( credential.username, credential.password );
       console.log(response);
       if (response.username) {
-        // Store user in localStorage
         localStorage.setItem("user", JSON.stringify(response));
-
         
-        // Update context
         setUser(response);
         
-        // Redirect based on device type
         const isMobileDevice = window.innerWidth <= 768;
         navigate(isMobileDevice ? "/mobile-queue" : "/");
       } else {
-        setError(response.message || "Login failed. Please try again.");
-        setSnackbar({
-          open: true,
-          message: response.message || "Login failed. Please try again.",
-          severity: "error",
-        });
+        showErrorSnackbar(response.message || "Login failed. Please try again.");
       }
     } catch (error) {
-      console.error("Login error:", error);
-      setError("An error occurred during login. Please try again.");
-      setSnackbar({
-        open: true,
-        message: "An error occurred during login. Please try again.",
-        severity: "error",
-      });
+      console.log("Login error:", error);
+      if(!error.response) {
+        showErrorSnackbar("Network error. Please check your internet connection.");
+      }
+      else{
+        showErrorSnackbar(error?.response?.data?.detail || "An error occurred during login. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -233,21 +215,6 @@ const Login = () => {
           </Button>
         </form>
       </div>
-
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={5000}
-        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-      >
-        <Alert
-          severity={snackbar.severity}
-          onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
-          sx={{ width: "100%" }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
       </div>
     </div>
   );

@@ -30,7 +30,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-// Import the real API instead of dummy data
+// Import API functions
 import { 
   fetchAppointments, 
   updateAppointmentDetails, 

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import "./AppointmentTable.css";
 import { DataGrid, GridToolbar, GridToolbarContainer, GridToolbarQuickFilter } from "@mui/x-data-grid";
 import {
@@ -33,7 +33,6 @@ import CloseIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
-// Import dummy data service instead of API
 import {
   fetchAppointments,
   addAppointment,
@@ -42,7 +41,7 @@ import {
   getPatientProfile,
   createSlot
 } from "../services/api";
-import CustomSnackbar from "../components/CustomSnackbar";
+import { useNotification } from "../context/NotificationContext";
 import { getCabinInfo } from '../utils/dateUtils';
 import { useNavigate, useLocation } from "react-router-dom";
 import { EventSource } from "eventsource";
@@ -171,10 +170,7 @@ export default function AppointmentTable() {
     [rows]
   );
 
-  const totalPatients = React.useMemo(
-    () => rows.filter((row) => !row.isPlaceholder).length,
-    [rows]
-  );
+  const [totalPatients, setTotalPatients] = useState(0);
 
   const totalCheckedIn = React.useMemo(
     () => rows.filter((row) => row.checkin && !row.isPlaceholder).length,
@@ -233,25 +229,13 @@ export default function AppointmentTable() {
     pageSize: 50,
   });
 
-  const [snackbar, setSnackbar] = React.useState({
-    open: false,
-    message: "",
-    severity: "success",
-  });
+  const { showSuccessSnackbar, showErrorSnackbar } = useNotification();
 
   const [mobileSearchResults, setMobileSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
 
   const location = useLocation();
   const { openAppointmentForm } = useAppointmentForm();
-
-  const handleOpenSnackbar = (message, severity = "success") => {
-    setSnackbar({ open: true, message, severity });
-  };
-
-  const handleCloseSnackbar = () => {
-    setSnackbar((prev) => ({ ...prev, open: false }));
-  };
 
   const [editModalOpen, setEditModalOpen] = React.useState(false);
   const [selectedAppointment, setSelectedAppointment] = React.useState(null);
@@ -367,74 +351,78 @@ export default function AppointmentTable() {
     // Function to handle when the page becomes visible again
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('Tab is now visible, re-establishing SSE connection');
+        console.log('Tab is now visible, checking SSE connection state in AppointmentTable');
         
-        // Create formatted date for the SSE URL
-        const date = new Date(selectedSlot);
-        const formattedDate = date
-          .toISOString()
-          .replace(".000", "")
-          .replace("T", " ")
-          .replace("Z", "+00:00");
-        const encodedDate = encodeURIComponent(formattedDate);
-        const sseUrl = `${API_BASE_URL}/doctorinfo/queue_updates/${cabinId}/${formattedDate}`;
-        
-        // Close existing connection if any
-        if (eventSource) {
-          eventSource.close();
-        }
-        
-        // Create new connection
-        const newEventSource = new EventSource(sseUrl, { withCredentials: true });
-        setEventSource(newEventSource);
-        
-        newEventSource.onmessage = async (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            if (data.appointment) {
-              setRows((prevRows) => {
-                // Handle null patient data safely
-                const patientData = data.appointment.patient || {};
-                const formattedAppointment = {
-                  id: data.appointment.token,
-                  token: data.appointment.token,
-                  appointment_id: data.appointment.appointment_id,
-                  firstName: data.appointment.name.split(" ")[0] || "",
-                  lastName:
-                    data.appointment.name.split(" ").slice(1).join(" ") || "",
-                  checkin: data.appointment.checkin,
-                  paid: data.appointment.paid,
-                  status: data.appointment.status,
-                  disease: data.appointment.disease || "",
-                  age: patientData.age || "",
-                  phone_number: patientData.phone_number || "",
-                  location: patientData.location || "",
-                  sex: patientData.gender || "",
-                  guardian: patientData.guardian || "",
-                  appointment_type: data.appointment.appointment_type,
-                  mode: data.appointment.mode || "",
-                  fees_paid: data.appointment.fees_paid || 0,
-                };
-
-                const existingIndex = prevRows.findIndex(
-                  (r) => r.appointment_id === data.appointment.appointment_id
-                );
-
-                if (existingIndex !== -1) {
-                  const newRows = [...prevRows];
-                  newRows[existingIndex] = formattedAppointment;
-                  return newRows;
-                }
-
-                return [...prevRows, formattedAppointment].sort(
-                  (a, b) => a.token - b.token
-                );
-              });
-            }
-          } catch (error) {
-            // console.error("Error processing appointment update:", error);
+        // Check if we already have an active connection
+        if (!eventSource || eventSource.readyState === EventSource.CLOSED) {
+          console.log('Creating new SSE connection in AppointmentTable');
+          
+          // Create formatted date for the SSE URL
+          const date = new Date(selectedSlot);
+          const formattedDate = date
+            .toISOString()
+            .replace(".000", "")
+            .replace("T", " ")
+            .replace("Z", "+00:00");
+          const encodedDate = encodeURIComponent(formattedDate);
+          const sseUrl = `${API_BASE_URL}/doctorinfo/queue_updates/${cabinId}/${formattedDate}`;
+          
+          // Close existing connection if any
+          if (eventSource) {
+            eventSource.close();
           }
-        };
+          
+          // Create new connection
+          const newEventSource = new EventSource(sseUrl, { withCredentials: true });
+          setEventSource(newEventSource);
+          
+          newEventSource.onmessage = async (event) => {
+            try {
+              const data = JSON.parse(event.data);
+              if (data.appointment) {
+                setRows((prevRows) => {
+                  // Handle null patient data safely
+                  const patientData = data.appointment.patient || {};
+                  const formattedAppointment = {
+                    id: data.appointment.token,
+                    token: data.appointment.token,
+                    appointment_id: data.appointment.appointment_id,
+                    firstName: data.appointment.name.split(" ")[0] || "",
+                    lastName: data.appointment.name.split(" ").slice(1).join(" ") || "",
+                    checkin: data.appointment.checkin,
+                    paid: data.appointment.paid,
+                    status: data.appointment.status,
+                    disease: data.appointment.disease || "",
+                    age: patientData.age || "",
+                    phone_number: patientData.phone_number || "",
+                    location: patientData.location || "",
+                    sex: patientData.gender || "",
+                    guardian: patientData.guardian || "",
+                    appointment_type: data.appointment.appointment_type,
+                    mode: data.appointment.mode || "",
+                    fees_paid: data.appointment.fees_paid || 0,
+                  };
+
+                  const existingIndex = prevRows.findIndex(
+                    (r) => r.appointment_id === data.appointment.appointment_id
+                  );
+
+                  if (existingIndex !== -1) {
+                    const newRows = [...prevRows];
+                    newRows[existingIndex] = formattedAppointment;
+                    return newRows;
+                  }
+
+                  return [...prevRows, formattedAppointment].sort(
+                    (a, b) => a.token - b.token
+                  );
+                });
+              }
+            } catch (error) {
+              // console.error("Error processing appointment update:", error);
+            }
+          };
+        }
       }
     };
 
@@ -450,14 +438,11 @@ export default function AppointmentTable() {
   const getAppointments = async () => {
     setLoading(true);
     try {
-      // Import dummy data service dynamically
-      const { fetchDummyAppointmentTable } = await import('../services/dummyDataService');
       
-      // Fetch dummy appointment data
       const data = await fetchAppointments(cabinId, selectedSlot);
       
       if (data && data.length !== 0) {
-        console.log("Received dummy data:", data); // Debug log
+        console.log("Received data:", data); // Debug log
         
         const formattedData = data.map((item) => {
           // Handle different data structures
@@ -762,9 +747,6 @@ export default function AppointmentTable() {
     setIsAdding(true);
     console.log(newEntry);
     try {
-      // Import dummy data service dynamically
-      const { dummyAddAppointment, dummyPatients } = await import('../services/dummyDataService');
-      // Add new appointment using dummy service with complete patient information
       const result = await addAppointment({
         cabinId: cabinId,
         slot: selectedSlot,
@@ -810,13 +792,12 @@ export default function AppointmentTable() {
         
         // Show appropriate success message
         if (newEntry.phone_number) {
-          handleOpenSnackbar("Appointment added successfully and patient profile created with past prescriptions. Patient added to queue with token " + newEntry.token);
+          showSuccessSnackbar("Appointment added successfully and patient profile created with past prescriptions. Patient added to queue with token " + newEntry.token);
           
-          // Update the global patients state in App.js
-          // This will refresh the queue display
-          window.dispatchEvent(new CustomEvent('refreshQueue', { detail: { patients: dummyPatients } }));
+
+          window.dispatchEvent(new CustomEvent('refreshQueue'));
         } else {
-          handleOpenSnackbar("Appointment added successfully");
+          showSuccessSnackbar("Appointment added successfully");
         }
         
         handleClose();
@@ -836,7 +817,7 @@ export default function AppointmentTable() {
     try {
       await updateAppointmentDetails(newData);      
       
-      handleOpenSnackbar("Appointment updated successfully");
+      showSuccessSnackbar("Appointment updated successfully");
       setEditModalOpen(false);
       return { success: true };
     } catch (error) {
@@ -949,7 +930,7 @@ export default function AppointmentTable() {
         appointment_id: rowToCancel.appointment_id
       });      
       
-      handleOpenSnackbar("Appointment cancelled successfully");
+      showSuccessSnackbar("Appointment cancelled successfully");
       setCancelConfirmationOpen(false);
       setEditModalOpen(false);
     } catch (error) {
@@ -1498,14 +1479,14 @@ export default function AppointmentTable() {
         localStorage.setItem("user", JSON.stringify(user));
       }
       
-      handleOpenSnackbar("Slot ended successfully and new slot created");
+      showSuccessSnackbar("Slot ended successfully and new slot created");
       handleEndSlotClose();
       
       // Refresh the page to reflect the new slot
       window.location.reload();
     } catch (error) {
       console.error("Error ending slot:", error);
-      handleOpenSnackbar("Failed to end slot: " + error.message, "error");
+      showErrorSnackbar("Failed to end slot: " + error.message, "error");
     } finally {
       setIsCreatingSlot(false);
     }
@@ -2007,13 +1988,6 @@ export default function AppointmentTable() {
           </Box>
         </Box>
       </Modal>
-
-      <CustomSnackbar
-        open={snackbar.open}
-        message={snackbar.message}
-        severity={snackbar.severity}
-        onClose={handleCloseSnackbar}
-      />
 
       {/* Floating action button for mobile */}
       <IconButton
