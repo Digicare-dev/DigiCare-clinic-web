@@ -14,14 +14,16 @@ import {
   TableCell,
   IconButton,
   Autocomplete,
+  Button,
 } from '@mui/material';
 import {
   CalendarToday,
   RemoveCircleOutline,
+  Save,
 } from '@mui/icons-material';
 
 // This component will be a reusable prescription form that can be used in multiple places
-const PrescriptionForm = ({
+const PrescriptionForm = React.forwardRef(({
   patient,
   appointment,
   vitals,
@@ -31,12 +33,26 @@ const PrescriptionForm = ({
   initialInstructions = '',
   readOnly = false,
   onFormChange = () => {},
-}) => {
+  onSaveTemplate,
+}, ref) => {
   // State for form data
   const [complaints, setComplaints] = useState(initialComplaints);
   const [diagnoses, setDiagnoses] = useState(initialDiagnoses);
   const [medications, setMedications] = useState(initialMedications);
   const [instructions, setInstructions] = useState(initialInstructions);
+
+  // Expose form data through ref
+  React.useImperativeHandle(ref, () => ({
+    getFormData: () => ({
+      complaints,
+      diagnoses,
+      medications,
+      instructions,
+      tests: [],
+      followUp: '',
+      vitals: vitals || {}
+    })
+  }));
 
   // Dummy data for suggestions
   const commonComplaints = [
@@ -179,15 +195,6 @@ const PrescriptionForm = ({
     if (value) {
       const currentRow = updatedMedications[index];
       
-      // Auto-focus next field logic
-      const fields = ['medicine', 'dose', 'timing', 'frequency', 'duration'];
-      const currentFieldIndex = fields.indexOf(field);
-      if (currentFieldIndex < fields.length - 1) {
-        const nextField = fields[currentFieldIndex + 1];
-        const nextElement = document.querySelector(`#med-${nextField}-${index}`);
-        if (nextElement) nextElement.focus();
-      }
-
       // Check if all fields are filled
       if (currentRow.medicine && currentRow.dose && currentRow.timing && 
           currentRow.frequency && currentRow.duration) {
@@ -221,10 +228,55 @@ const PrescriptionForm = ({
     updateParent();
   };
 
+  const handleSaveTemplateClick = (type) => {
+    if (onSaveTemplate) {
+      onSaveTemplate(type);
+    }
+  };
+
   return (
-    <Paper sx={{ p: 3, mb: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h6">Prescription</Typography>
+    <Paper 
+      sx={{ 
+        p: { xs: 2, md: 4 }, 
+        mb: 3, 
+        bgcolor: '#f8f9fa',
+        '& .MuiPaper-root': {
+          mb: { xs: 4, md: 6 },
+          p: { xs: 3, md: 4 },
+        },
+        '& .section-header': {
+          mb: { xs: 3, md: 4 },
+        },
+        '& .MuiTableContainer-root': {
+          mt: 3,
+        },
+        '& .MuiTableRow-root': {
+          '& .MuiTableCell-root': {
+            py: 2,
+            px: { xs: 1, md: 2 },
+          },
+        },
+        '& .MuiTableHead-root': {
+          '& .MuiTableRow-root': {
+            '& .MuiTableCell-root': {
+              fontWeight: 'bold',
+              fontSize: '0.95rem',
+              py: 2,
+              backgroundColor: '#f5f5f5',
+            },
+          },
+        },
+      }}
+    >
+      {/* Title section with increased spacing */}
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        mb: { xs: 4, md: 5 },
+        borderBottom: '1px solid #eaeaea',
+        pb: 2
+      }}>
+        <Typography variant="h5" fontWeight="medium">Prescription</Typography>
         {appointment && (
           <Box>
             <Chip 
@@ -435,6 +487,19 @@ const PrescriptionForm = ({
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Add this after the Complaints table */}
+      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+        <Button
+          variant="outlined"
+          color="primary"
+          onClick={() => handleSaveTemplateClick('complaints')}
+          startIcon={<Save />}
+          size="small"
+        >
+          Save as Template
+        </Button>
+      </Box>
 
       {/* Diagnosis Table */}
       <Typography variant="h6" className="section-header" sx={{ mt: 3, mb: 1 }}>
@@ -737,6 +802,6 @@ const PrescriptionForm = ({
       />
     </Paper>
   );
-};
+});
 
 export default PrescriptionForm; 

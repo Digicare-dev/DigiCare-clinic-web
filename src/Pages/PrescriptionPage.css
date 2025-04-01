@@ -1,15 +1,15 @@
 .prescription-container {
   height: auto;
   min-height: 90vh;
-  padding: 1rem 1.5rem 5rem 1.5rem;
+  padding: 1rem 1.5rem 2rem 1.5rem;
   background-color: #fbfbfd;
   overflow-y: auto;
   width: 100%;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   margin: 1rem auto;
   border-radius: 12px;
-  max-width: 1280px;
-  margin-bottom: 100px;
+  max-width: 1000px;
+  margin-bottom: 50px;
 }
 
 /* Medical theme color palette */
@@ -51,7 +51,7 @@
 }
 
 .section-header {
-  margin: 0.5rem 0 0.25rem !important;
+  margin: 1.5rem 0 0.75rem !important;
   font-size: 0.9rem !important;
   color: #2563eb;
   font-weight: 500 !important;
@@ -76,6 +76,7 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
   border-radius: 8px !important;
   overflow: hidden;
+  margin-bottom: 0rem !important;
 }
 
 .MuiTable-root {

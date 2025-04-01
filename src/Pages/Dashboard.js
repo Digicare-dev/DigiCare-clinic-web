@@ -28,6 +28,7 @@ import {
 } from '@mui/icons-material';
 import { SlotSelector } from '../components/SlotSelector';
 import QueueContainer from '../components/QueueContainer';
+import { getCabinInfo } from "../utils/dateUtils";
 
 const StatCard = ({ title, value, icon, color, subtitle }) => (
   <Card sx={{ height: '100%' }}>
@@ -79,10 +80,20 @@ const Dashboard = ({
     averageWaitTime: 0,
   });
   const [recentPatients, setRecentPatients] = useState([]);
-  const slots = user?.checkupcabindata?.[0]?.cabin_slots || [];
   const [currentCabinSlot, setCurrentCabinSlot] = useState(null);
+  const [slots, setSlots] = useState([]);
 
   useEffect(() => {
+    // Fetch appointments data on component mount
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (!user) return;
+
+    const { cabinId, selectedSlot } = getCabinInfo(user);
+    if (!cabinId) return;
+
+    const newSlots = selectedSlot ? [selectedSlot] : [];
+    setSlots(newSlots);
+
     if (fetchPatientsData) {
       fetchPatientsData();
     }
@@ -101,6 +112,7 @@ const Dashboard = ({
 
   return (
     <Layout>
+      {/* Commented out dashboard header and slot selector
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
         <PageHeader title="Dashboard" />
         <SlotSelector 
@@ -109,6 +121,7 @@ const Dashboard = ({
           onSlotChange={setCurrentCabinSlot}
         />
       </Box>
+      */}
 
       {loading ? (
         <LinearProgress />
@@ -154,15 +167,16 @@ const Dashboard = ({
           </Grid>
 
           <Grid container spacing={3}>
-            <Grid item xs={12} md={8}>
+            <Grid item xs={12} md={12}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" sx={{ mb: 2 }}>
                     Queue Manager
                   </Typography>
                   <div style={{ 
-                    height: 'calc(100vh - 350px)',
-                    marginTop: '20px'
+                    height: 'calc(100vh - 250px)',
+                    marginTop: '20px',
+                    paddingBottom: '30px'
                   }}>
                     <QueueContainer 
                       loading={loading}
@@ -178,6 +192,7 @@ const Dashboard = ({
               </Card>
             </Grid>
 
+            {/* Commented out Today's Schedule and Alerts section
             <Grid item xs={12} md={4}>
               <Card>
                 <CardContent>
@@ -215,6 +230,7 @@ const Dashboard = ({
                 </CardContent>
               </Card>
             </Grid>
+            */}
           </Grid>
         </>
       )}

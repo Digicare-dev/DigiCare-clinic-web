@@ -1,5 +1,4 @@
 import React from "react";
-import "./Sidebar.css";
 import {
   Drawer,
   List,
@@ -16,17 +15,18 @@ import AddIcon from "@mui/icons-material/Add";
 import HelpIcon from "@mui/icons-material/Help";
 import MedicationIcon from "@mui/icons-material/Medication";
 import DashboardIcon from "@mui/icons-material/Dashboard";
+import HistoryIcon from "@mui/icons-material/History";
 
 const drawerWidth = 240;
 
 export default function Sidebar() {
   const location = useLocation();
   const menuItems = [
-    { text: 'Dashboard', path: '/', icon: DashboardIcon },
+    // { text: 'Dashboard', path: '/', icon: DashboardIcon },
     { text: 'Queue Manager', path: '/queue', icon: HomeIcon },
     { text: "Appointments Table", path: "/appointments", icon: AddIcon },
     { text: "Prescription Pad", path: "/prescription", icon: MedicationIcon },
-    { text: "Past Appointments", path: "/past-appointments", icon: AddIcon },
+    { text: "Past Appointments", path: "/past-appointments", icon: HistoryIcon },
     { text: "Help", path: "/help", icon: HelpIcon },
   ];
 
