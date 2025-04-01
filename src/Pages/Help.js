@@ -6,102 +6,249 @@ import {
   ListItem,
   ListItemText,
   Divider,
+  Card,
+  CardContent,
+  CardHeader,
+  Button,
+  Link,
+  Grid,
+  Paper
 } from "@mui/material";
+import { 
+  HelpOutline, 
+  DescriptionOutlined, 
+  EventNote, 
+  PeopleOutline,
+  SettingsOutlined,
+  SupportOutlined,
+  BookOutlined,
+  KeyboardOutlined
+} from "@mui/icons-material";
+import { Layout } from "../components/Layout";
 
 const Help = () => {
   return (
-    <Box sx={{ padding: "20px", maxWidth: "800px", margin: "auto" }}>
-      <Typography variant="body1" paragraph>
-        Welcome to the help page. Here you can find answers to frequently asked
-        questions and best practices for using the DigiCare Reception Dashboard.
-      </Typography>
+    <Layout>
+      <Box sx={{ maxWidth: "100%", margin: "auto" }}>
+        <Typography variant="h4" gutterBottom>
+          Help Center
+        </Typography>
+        <Typography variant="body1" paragraph>
+          Welcome to the DigiCare Reception Dashboard help center. Here you can find guides, answers to frequently asked questions, and best practices.
+        </Typography>
 
-      <Divider sx={{ margin: "20px 0" }} />
+        <Box sx={{ my: 4 }}>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            startIcon={<BookOutlined />}
+            component={Link}
+            href="/docs/user-guide.md"
+            target="_blank"
+            sx={{ mr: 2, mb: 2 }}
+          >
+            Full User Guide
+          </Button>
+          <Button 
+            variant="outlined" 
+            color="primary"
+            startIcon={<SupportOutlined />}
+            component={Link}
+            href="mailto:support@digicare.com"
+            sx={{ mb: 2 }}
+          >
+            Contact Support
+          </Button>
+        </Box>
 
-      <Typography variant="h5" gutterBottom>
-        How to Use the Website
-      </Typography>
-      <List>
-        <ListItem>
-          <ListItemText
-            primary="1. Logging In"
-            secondary="To access the dashboard, you need to log in with your credentials. Enter your username and password on the login page and click 'Submit'."
-          />
-        </ListItem>
-        <ListItem>
-          <ListItemText
-            primary="2. Navigating the Dashboard"
-            secondary="Use the sidebar or bottom navigation to switch between different sections of the dashboard, such as Home, Add Appointment, and Patient Details."
-          />
-        </ListItem>
-        <ListItem>
-          <ListItemText
-            primary="3. Adding an Appointment"
-            secondary="Go to the 'Add Appointment' section, fill in the patient's details, and click 'Submit' to add a new appointment."
-          />
-        </ListItem>
-        <ListItem>
-          <ListItemText
-            primary="4. Viewing Patient Details"
-            secondary="In the 'Patient Details' section, you can view detailed information about the current patient, add remarks, and mark the patient as done or late."
-          />
-        </ListItem>
-        <ListItem>
-          <ListItemText
-            primary="5. Managing the Queue"
-            secondary="In the 'Queue' section, you can view the list of patients, reorder them by dragging and dropping, and mark patients as done or late."
-          />
-        </ListItem>
-      </List>
+        <Grid container spacing={3}>
+          {/* Quick Start Guide */}
+          <Grid item xs={12} md={6}>
+            <Card elevation={2}>
+              <CardHeader 
+                title="Getting Started" 
+                avatar={<HelpOutline color="primary" />}
+              />
+              <CardContent>
+                <List>
+                  <ListItem>
+                    <ListItemText
+                      primary="1. Logging In"
+                      secondary="Enter your username and password on the login page and click 'Submit'. If you have been logged out automatically, you'll see a message explaining why."
+                    />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemText
+                      primary="2. Navigation"
+                      secondary="Use the sidebar (desktop) or bottom navigation (mobile) to access different sections of the application."
+                    />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemText
+                      primary="3. Dashboard"
+                      secondary="The dashboard provides an overview of all current patients, appointments, and queue status."
+                    />
+                  </ListItem>
+                </List>
+              </CardContent>
+            </Card>
+          </Grid>
 
-      <Divider sx={{ margin: "20px 0" }} />
+          {/* Core Features */}
+          <Grid item xs={12} md={6}>
+            <Card elevation={2}>
+              <CardHeader 
+                title="Core Features" 
+                avatar={<DescriptionOutlined color="primary" />}
+              />
+              <CardContent>
+                <List>
+                  <ListItem>
+                    <ListItemText
+                      primary="Queue Management"
+                      secondary="View, reorder, and manage the patient queue. Mark patients as seen, late, or reschedule them as needed."
+                    />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemText
+                      primary="Appointment Management"
+                      secondary="Create, view, and update patient appointments. Filter appointments by date, doctor, or status."
+                    />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemText
+                      primary="Patient Information"
+                      secondary="Access comprehensive patient details, including medical history and upcoming appointments."
+                    />
+                  </ListItem>
+                </List>
+              </CardContent>
+            </Card>
+          </Grid>
+          
+          {/* Common Tasks */}
+          <Grid item xs={12} md={6}>
+            <Card elevation={2}>
+              <CardHeader 
+                title="Common Tasks" 
+                avatar={<EventNote color="primary" />}
+              />
+              <CardContent>
+                <List>
+                  <ListItem>
+                    <ListItemText
+                      primary="Adding an Appointment"
+                      secondary="Click 'Add Appointment' in the navigation, fill in the required patient information, and submit the form."
+                    />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemText
+                      primary="Managing the Queue"
+                      secondary="Use the queue manager to view the list of patients, drag and drop to reorder, and mark patients as done or late."
+                    />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemText
+                      primary="Viewing Reports"
+                      secondary="Access patient reports through the patient information page. Click on a report to view it in the PDF viewer."
+                    />
+                  </ListItem>
+                </List>
+              </CardContent>
+            </Card>
+          </Grid>
 
-      <Typography variant="h5" gutterBottom>
-        Best Practices
-      </Typography>
-      <List>
-        <ListItem>
-          <ListItemText
-            primary="1. Keep Patient Information Up-to-Date"
-            secondary="Ensure that all patient information is accurate and up-to-date to provide the best care possible."
-          />
-        </ListItem>
-        <ListItem>
-          <ListItemText
-            primary="2. Use Secure Passwords"
-            secondary="Use strong, unique passwords for your account to protect patient data and maintain security."
-          />
-        </ListItem>
-        <ListItem>
-          <ListItemText
-            primary="3. Log Out When Not in Use"
-            secondary="Always log out of the dashboard when you are not using it to prevent unauthorized access."
-          />
-        </ListItem>
-        <ListItem>
-          <ListItemText
-            primary="4. Regularly Review the Queue"
-            secondary="Regularly review the patient queue to ensure that patients are seen in a timely manner and that the queue is managed efficiently."
-          />
-        </ListItem>
-        <ListItem>
-          <ListItemText
-            primary="5. Provide Clear Remarks"
-            secondary="When adding remarks to a patient's record, be clear and concise to ensure that all staff members understand the patient's status and needs."
-          />
-        </ListItem>
-      </List>
+          {/* Best Practices */}
+          <Grid item xs={12} md={6}>
+            <Card elevation={2}>
+              <CardHeader 
+                title="Best Practices" 
+                avatar={<SettingsOutlined color="primary" />}
+              />
+              <CardContent>
+                <List>
+                  <ListItem>
+                    <ListItemText
+                      primary="1. Keep Patient Information Up-to-Date"
+                      secondary="Ensure all patient information is accurate and complete for optimal care."
+                    />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemText
+                      primary="2. Regular Queue Management"
+                      secondary="Review the queue regularly to ensure efficient patient flow and timely service."
+                    />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemText
+                      primary="3. Secure Your Account"
+                      secondary="Use strong passwords and always log out when not using the system."
+                    />
+                  </ListItem>
+                </List>
+              </CardContent>
+            </Card>
+          </Grid>
 
-      <Divider sx={{ margin: "20px 0" }} />
+          {/* Keyboard Shortcuts */}
+          {/* <Grid item xs={12}>
+            <Card elevation={2}>
+              <CardHeader 
+                title="Keyboard Shortcuts" 
+                avatar={<KeyboardOutlined color="primary" />}
+              />
+              <CardContent>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Paper elevation={0} sx={{ p: 2, bgcolor: 'background.default' }}>
+                      <Typography variant="subtitle2">N</Typography>
+                      <Typography variant="body2">Move to next patient</Typography>
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Paper elevation={0} sx={{ p: 2, bgcolor: 'background.default' }}>
+                      <Typography variant="subtitle2">F</Typography>
+                      <Typography variant="body2">Search for a patient</Typography>
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Paper elevation={0} sx={{ p: 2, bgcolor: 'background.default' }}>
+                      <Typography variant="subtitle2">A</Typography>
+                      <Typography variant="body2">Open appointment form</Typography>
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Paper elevation={0} sx={{ p: 2, bgcolor: 'background.default' }}>
+                      <Typography variant="subtitle2">Esc</Typography>
+                      <Typography variant="body2">Close modal/dialog</Typography>
+                    </Paper>
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
+          </Grid> */}
+        </Grid>
 
-      <Typography variant="h5" gutterBottom>
-        Contact Support
-      </Typography>
-      <Typography variant="body1" paragraph>
-        If you have any questions or need further assistance, please contact our
-        support team at support@digicare.com.
-      </Typography>
-    </Box>
+        <Box sx={{ mt: 4, p: 3, bgcolor: 'background.paper', borderRadius: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            Need More Help?
+          </Typography>
+          <Typography variant="body1" paragraph>
+            For additional assistance, please contact our support team at{" "}
+            <Link href="mailto:digicare.india2024@gmail.com">digicare.india2024@gmail.com</Link>
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            When reporting an issue, please include:
+            <ul>
+              <li>Your username</li>
+              <li>A detailed description of the problem</li>
+              <li>Steps to reproduce the issue</li>
+              <li>Any error messages you received</li>
+            </ul>
+          </Typography>
+        </Box>
+      </Box>
+    </Layout>
   );
 };
 

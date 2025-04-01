@@ -3,8 +3,41 @@
   border-radius: 8px;
   margin-bottom: 1rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
   padding: 1rem;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.patient-item:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  background-color: #f8fafc;
+}
+
+.patient-item:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Add a subtle highlight effect */
+.patient-item::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.6s;
+  pointer-events: none;
+}
+
+.patient-item:hover::after {
+  transform: translateX(100%);
 }
 
 .patient-content {
@@ -12,6 +45,8 @@
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+  width: 100%;
+  flex-wrap: nowrap;
 }
 
 .patient-info {
@@ -19,6 +54,7 @@
   align-items: center;
   gap: 1rem;
   flex-grow: 1;
+  min-width: 0;
 }
 
 .token-badge {
@@ -26,10 +62,12 @@
   color: white;
   padding: 8px 12px;
   border-radius: 20px;
+  font-weight: bold;
+  min-width: 40px;
+  text-align: center;
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-width: 100px;
+  justify-content: center;
 }
 
 .token-badge svg {
@@ -39,50 +77,88 @@
 .patient-details {
   flex-grow: 1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .patient-header {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem;
   margin-bottom: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .patient-header h3 {
   margin: 0;
   font-size: 1.1rem;
   color: #2d3748;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .status-tags {
   display: flex;
-  gap: 0.5rem;
   flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
 }
 
 .appointment-meta {
   display: flex;
-  gap: 1rem;
   flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
 }
 
 .meta-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  color: #4a5568;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
+  color: #718096;
 }
 
 .meta-item svg {
   color: #718096;
   font-size: 16px;
+  margin-right: 4px;
+}
+
+/* Add a separator between meta items */
+.meta-item:not(:last-child)::after {
+  content: "";
+  display: inline-block;
+  width: 1px;
+  height: 12px;
+  background-color: #e2e8f0;
+  margin-left: 0.75rem;
+}
+
+/* Make meta items more visible on hover */
+.meta-item:hover {
+  color: #4a5568;
+}
+
+.meta-item:hover svg {
+  color: #4a5568;
 }
 
 .action-buttons {
   display: flex;
-  gap: 1rem;
+  gap: 0.5rem;
   flex-shrink: 0;
+  margin-left: auto;
+  margin-right: 0.5rem;
+}
+
+.patient-item:hover .action-buttons {
+  opacity: 1;
+}
+
+.action-buttons .MuiButton-root {
+  min-width: 80px;
+  padding: 4px 8px;
 }
 
 .drag-handle {
@@ -103,25 +179,12 @@
   background: #ebf8ff;
 }
 
-.late {
-  border-left: 4px solid #dd6b20;
+/* Add pending style with darker background */
+.patient-item.pending {
+  background-color: #f0f0f0;
+  border-left: 4px solid #9e9e9e;
 }
 
-.done {
-  opacity: 0.6;
-  background: #f7fafc;
-}
-
-.MuiChip-root {
-  height: 24px;
-}
-
-.MuiChip-icon {
-  margin-left: 4px;
-  margin-right: -4px;
-}
-
-/* PatientItem.css updates */
 .token-details {
   display: flex;
   flex-direction: column;
@@ -133,31 +196,300 @@
   opacity: 0.8;
 }
 
-.patient-header {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
+/* Fix for mobile */
+@media (max-width: 768px) {
+  .patient-item {
+    padding: 8px 8px 0 8px; /* Remove bottom padding */
+    margin-bottom: 8px;
+    width: 100%;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .patient-content {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .token-and-details {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    margin-bottom: 8px;
+    gap: 6px;
+  }
+
+  .patient-details {
+    flex: 1;
+    min-width: 0;
+    /* Allow space for drag handle */
+    padding-right: 20px;
+  }
+  
+  /* Position action buttons at the bottom with full width */
+  .action-buttons {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-evenly; /* Evenly space buttons */
+    margin: 0;
+    padding: 4px 8px;
+    gap: 8px;
+    background-color: #f9f9f9;
+    border-top: 1px solid #eee;
+    border-radius: 0 0 8px 8px;
+  }
+  
+  .action-buttons .MuiButton-root {
+    flex: 1; /* Make buttons expand to fill space */
+    font-size: 0.7rem;
+    padding: 4px 8px;
+    min-width: 50px;
+    height: 30px;
+    line-height: 1;
+  }
+  
+  .action-buttons .MuiButton-startIcon {
+    margin-right: 4px;
+  }
+  
+  .action-buttons .MuiButton-startIcon > *:nth-of-type(1) {
+    font-size: 0.85rem;
+  }
+
+  .token-badge {
+    margin-bottom: 0;
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    min-width: 32px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .patient-header {
+    margin-bottom: 4px;
+  }
+
+  .patient-header h3 {
+    font-size: 0.9rem;
+    line-height: 1.2;
+    margin: 0;
+  }
+
+  .status-tags {
+    gap: 4px;
+    margin-top: 4px;
+  }
+
+  .status-tags .MuiChip-root {
+    height: 20px;
+    font-size: 0.65rem;
+  }
+  
+  .status-tags .MuiChip-icon {
+    font-size: 0.7rem;
+  }
+  
+  .status-tags .MuiChip-label {
+    padding-left: 4px;
+    padding-right: 6px;
+  }
+
+  .meta-item {
+    font-size: 0.7rem;
+    margin-top: 4px;
+  }
+
+  .meta-item svg {
+    font-size: 0.8rem;
+  }
+
+  .drag-handle {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 4px;
+    transform: scale(0.9);
+    opacity: 0.9;
+    z-index: 20; /* Ensure it's above other elements */
+    background-color: rgba(255, 255, 255, 0.8); /* Add a semi-transparent background */
+    border-radius: 50%; /* Make it a circle */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* Add subtle shadow for visibility */
+  }
+  
+  /* Make drag handle more noticeable on touch/hover */
+  .drag-handle:active, .drag-handle:hover {
+    opacity: 1;
+    transform: scale(1);
+    background-color: rgba(255, 255, 255, 1);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  }
+  
+  /* Guardian and appointment type info */
+  .appointment-type,
+  .guardian-info {
+    font-size: 0.7rem;
+    margin-top: 2px;
+  }
+  
+  /* Reduce margins for more compact layout */
+  .MuiBox-root {
+    margin-top: 2px !important;
+  }
+  
+  /* Smaller icons for better mobile view */
+  .MuiSvgIcon-fontSizeSmall {
+    font-size: 0.85rem;
+  }
 }
 
-.status-tags {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+/* Token badge styling for current and late patients */
+.token-badge.current-token {
+  background: #1976d2;
+  color: white;
+  font-weight: bold;
+  box-shadow: 0 0 0 2px #e3f2fd;
+  animation: pulse 2s infinite;
 }
 
-.appointment-meta {
-  display: flex;
-  gap: 1rem;
-  margin-top: 0.5rem;
-  flex-wrap: wrap;
+.token-badge.cancelled-token {
+  background: #d32f2f;
+  color: white;
+  font-weight: bold;
+  text-decoration: line-through;
 }
 
-.meta-item {
-  background: #f8f9fa;
-  padding: 4px 8px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(25, 118, 210, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(25, 118, 210, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(25, 118, 210, 0);
+  }
 }
+
+/* Make current patients more prominent */
+.patient-item.current {
+  border-left: 6px solid #1976d2;
+  background-color: #e3f2fd;
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.2);
+  position: relative;
+  z-index: 10;
+  transform: scale(1.02);
+}
+
+.patient-item.current::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 2px solid #1976d2;
+  border-radius: 8px;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+/* Remove styling for late patients completely */
+.patient-item.late {
+  /* All styling removed */
+}
+
+/* Styling for done patients */
+.patient-item.done {
+  border-left: 4px solid #2e7d32;
+  background: #f1f8e9;
+  opacity: 0.8;
+}
+
+/* Styling for cancelled patients */
+.patient-item.cancelled {
+  border-left: 4px solid #d32f2f;
+  background: #ffebee;
+  opacity: 0.7;
+  text-decoration: line-through;
+}
+
+/* New styling for paid and present patients */
+.patient-item[data-paid="true"][data-present="true"] {
+  border-left: 4px solid #00897b; /* Teal color */
+  background-color: #e0f2f1; /* Light teal background */
+}
+
+/* New styling for paid but absent patients */
+.patient-item[data-paid="true"][data-present="false"] {
+  border-left: 4px solid #00897b; /* Teal color */
+  background-color: #f5f5f5; /* Light gray background */
+}
+
+/* New styling for unpaid but present patients */
+.patient-item[data-paid="false"][data-present="true"] {
+  border-left: 4px solid #ffa000; /* Amber color */
+  background-color: #fff8e1; /* Light amber background */
+}
+
+/* New styling for unpaid and absent patients */
+.patient-item[data-paid="false"][data-present="false"] {
+  border-left: 4px solid #9e9e9e; /* Gray color */
+  background-color: #f5f5f5; /* Light gray background */
+}
+
+/* Priority order: current > status colors > payment/presence */
+
+/* Add space for guardian name */
+.patient-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* Make current patients styling have highest priority - override all other statuses */
+.patient-item.current {
+  border-left: 6px solid #1976d2 !important;
+  background-color: #e3f2fd !important;
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.2) !important;
+  position: relative;
+  z-index: 10;
+  transform: scale(1.02);
+}
+
+.patient-item.current::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 2px solid #1976d2;
+  border-radius: 8px;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+/* Ensure current patient token badge styling is prioritized */
+.token-badge.current-token {
+  background: #1976d2 !important;
+  color: white !important;
+  font-weight: bold !important;
+  box-shadow: 0 0 0 2px #e3f2fd !important;
+  animation: pulse 2s infinite !important;
+}
+
+/* Comment clarifying priority hierarchy */
+/* Priority order (from highest to lowest):
+   1. Current patient (overrides all other statuses)
+   2. Done/cancelled patients
+   3. Payment/presence status combinations
+   4. Late patients (only indicated by chip, no background/border colors)
+*/
