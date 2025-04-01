@@ -1,0 +1,218 @@
+/* MobileQueuePage specific styles */
+.mobile-queue-page {
+  background-color: #f8f9fa;
+  min-height: 100vh;
+  overflow: hidden;
+  position: relative;
+  max-width: 100vw;
+  width: 100%;
+}
+
+.mobile-queue-page .queue-container {
+  height: calc(100vh - 160px);
+  margin-bottom: 0;
+  padding: 8px;
+  border-radius: 0;
+  box-shadow: none;
+  width: 100%;
+  max-width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.mobile-container {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Queue summary section styles */
+.queue-summary {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+/* Make patient items more compact and full-width for mobile */
+.mobile-queue-page .patient-item {
+  margin-bottom: 8px;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+  width: 100%;
+  padding: 8px 8px 0 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-queue-page .patient-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-queue-page .token-and-details {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  margin-bottom: 4px;
+  gap: 6px;
+}
+
+.mobile-queue-page .patient-item:active {
+  transform: scale(0.98);
+}
+
+/* Reduce the size of token badge */
+.mobile-queue-page .token-badge {
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  min-width: 50px;
+}
+
+.mobile-queue-page .current-token {
+  background-color: #1976d2;
+  color: white;
+  font-weight: bold;
+}
+
+/* Make patient details more compact */
+.mobile-queue-page .patient-details {
+  flex: 1;
+  min-width: 0;
+  padding-right: 20px;
+}
+
+.mobile-queue-page .patient-header h3,
+.mobile-queue-page .patient-header .MuiTypography-h6 {
+  font-size: 0.95rem !important;
+  line-height: 1.2 !important;
+  margin-bottom: 4px !important;
+}
+
+/* Improved status tags display */
+.mobile-queue-page .status-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.mobile-queue-page .status-tags .MuiChip-root {
+  height: 20px !important;
+  font-size: 0.65rem !important;
+}
+
+.mobile-queue-page .status-tags .MuiChip-icon {
+  font-size: 0.75rem !important;
+  margin-left: 4px !important;
+}
+
+.mobile-queue-page .status-tags .MuiChip-label {
+  padding-left: 4px !important;
+  padding-right: 6px !important;
+}
+
+/* Action buttons at bottom */
+.mobile-queue-page .action-buttons {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-evenly;
+  margin: 0;
+  padding: 4px 8px;
+  gap: 8px;
+  background-color: #f9f9f9;
+  border-top: 1px solid #eee;
+  border-radius: 0 0 8px 8px;
+  margin-top: 2px;
+}
+
+.mobile-queue-page .action-buttons .MuiButton-root {
+  flex: 1;
+  font-size: 0.7rem !important;
+  padding: 4px 8px !important;
+  min-width: 50px !important;
+  height: 30px !important;
+  line-height: 1 !important;
+}
+
+.mobile-queue-page .action-buttons .MuiButton-startIcon {
+  margin-right: 2px !important;
+}
+
+.mobile-queue-page .action-buttons .MuiButton-startIcon > *:nth-of-type(1) {
+  font-size: 0.85rem !important;
+}
+
+/* Mobile-specific loading state */
+.mobile-queue-page .skeleton-container {
+  padding: 5px;
+}
+
+.mobile-queue-page .skeleton-item {
+  margin-bottom: 8px;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 80px; /* Reduced height for skeleton items */
+}
+
+/* Empty queue state */
+.mobile-queue-page .empty-queue-message {
+  padding: 24px;
+  text-align: center;
+}
+
+/* Make the drag handle smaller */
+.mobile-queue-page .drag-handle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  transform: scale(0.8);
+}
+
+/* Helper typography for guardian info, etc. */
+.mobile-queue-page .MuiTypography-body2 {
+  font-size: 0.75rem !important;
+}
+
+.mobile-queue-page .MuiSvgIcon-root.MuiSvgIcon-fontSizeSmall {
+  font-size: 0.85rem !important;
+}
+
+/* Mobile-specific loading state */
+.mobile-queue-page .loader-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: calc(100vh - 180px);
+  width: 100%;
+  text-align: center;
+  padding: 20px;
+}
+
+.mobile-queue-page .loader-container .MuiCircularProgress-root {
+  color: #1976d2;
+  margin-bottom: 16px;
+}
+
+.mobile-queue-page .loader-container .loader-text {
+  font-size: 0.9rem;
+  color: #666;
+  margin-top: 16px;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
+} 

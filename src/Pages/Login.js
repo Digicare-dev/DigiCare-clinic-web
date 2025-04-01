@@ -1,7 +1,8 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { login as loginService } from "../services/authService";
+import { getAutoLogoutMessage } from "../utils/authUtils";
 import {
   TextField,
   Button,
@@ -17,30 +18,40 @@ import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import LockIcon from "@mui/icons-material/Lock";
-import { Snackbar, Alert } from "@mui/material";
 import { Navigate } from "react-router-dom";
+import { useNotification } from "../context/NotificationContext";
 
 import "./Login.css";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { user, setUser } = useContext(AuthContext);
+  const user = JSON.parse(localStorage.getItem("user"));
+  const { setUser } = useContext(AuthContext);
   const navigate = useNavigate();
-  //
+  const isMobile = window.innerWidth <= 768;
+
+  const { showErrorSnackbar, showNotification } = useNotification();
 
   const [credential, setCredential] = useState({
     username: "",
     password: "",
   });
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: "",
-    severity: "error",
-  });
+
+  useEffect(() => {
+    const autoLogoutInfo = getAutoLogoutMessage();
+    if (autoLogoutInfo) {
+      showNotification(
+        autoLogoutInfo.message, 
+        autoLogoutInfo.severity,
+        6000,
+        { vertical: "bottom", horizontal: "right" }
+      );
+    }
+  }, []);
 
   if (user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={isMobile ? "/mobile-queue" : "/"} replace />;
   }
 
   const handleClickShowPassword = () => setShowPassword((show) => !show);
@@ -53,38 +64,29 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
+
     try {
-      const data = await loginService(credential.username, credential.password);
-      localStorage.setItem("user", JSON.stringify(data));
-      setUser(data);
-
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      navigate("/", { state: { freshLogin: true } }, { replace: true });
-    } catch (error) {
-      let errorMessage = "Login failed. Please try again.";
-
-      if (error.response) {
-        switch (error.response.status) {
-          case 401:
-            errorMessage = "Invalid credentials";
-            break;
-          case 403:
-            errorMessage = "Account locked";
-            break;
-          case 500:
-            errorMessage = "Server error";
-            break;
-        }
-      } else if (error.message.includes("Network Error")) {
-        errorMessage = "Network error";
+      
+      const response = await loginService( credential.username, credential.password );
+      console.log(response);
+      if (response.username) {
+        localStorage.setItem("user", JSON.stringify(response));
+        
+        setUser(response);
+        
+        const isMobileDevice = window.innerWidth <= 768;
+        navigate(isMobileDevice ? "/mobile-queue" : "/");
+      } else {
+        showErrorSnackbar(response.message || "Login failed. Please try again.");
       }
-
-      setSnackbar({
-        open: true,
-        message: errorMessage,
-        severity: "error",
-      });
+    } catch (error) {
+      console.log("Login error:", error);
+      if(!error.response) {
+        showErrorSnackbar("Network error. Please check your internet connection.");
+      }
+      else{
+        showErrorSnackbar(error?.response?.data?.detail || "An error occurred during login. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -92,6 +94,8 @@ const Login = () => {
 
   return (
     <div className="login-page-background">
+      <div style={{marginTop: "-150px", display:"flex", justifyContent:"center", alignItems:"center", flexDirection:"column"}}>
+
       <div className="desktop-content">
         <Typography
           variant="h3"
@@ -149,7 +153,7 @@ const Login = () => {
             }}
           />
 
-          <FormControl fullWidth sx={{ mb: 4 }}>
+          <FormControl fullWidth sx={{ mb: 4 , mt: 2 }}>
             <InputLabel style={{ color: "#666" }}>Password</InputLabel>
             <OutlinedInput
               required
@@ -191,6 +195,7 @@ const Login = () => {
             disabled={loading}
             className="custom-button"
             sx={{
+              mt: 4,
               py: 1.5,
               borderRadius: "8px",
               fontSize: "1rem",
@@ -210,21 +215,7 @@ const Login = () => {
           </Button>
         </form>
       </div>
-
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={5000}
-        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-      >
-        <Alert
-          severity={snackbar.severity}
-          onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
-          sx={{ width: "100%" }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+      </div>
     </div>
   );
 };

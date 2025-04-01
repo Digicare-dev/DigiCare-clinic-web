@@ -1,8 +1,9 @@
 import axios from "axios";
+import { handleAutoLogout } from "./authUtils";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 const REFRESH_TOKEN_URL = process.env.REACT_APP_REFRESH_TOKEN_URL;
-const REQUEST_TIMEOUT = 15000; // 15 seconds
+const REQUEST_TIMEOUT = 60000; // 60 seconds
 
 // Track active requests
 const activeRequests = new Set();
@@ -49,13 +50,19 @@ axiosInstance.interceptors.response.use(
       (originalRequest?.metadata &&
         Date.now() - originalRequest.metadata.startTime > REQUEST_TIMEOUT)
     ) {
-      handleAutoLogout("Request timed out");
+      handleAutoLogout("Request timed out. Please try again later.", "error");
       return Promise.reject(error);
     }
 
     // Handle network errors
     if (!error.response) {
-      handleAutoLogout("Network error");
+      handleAutoLogout("Network error. Please check your internet connection.", "error");
+      return Promise.reject(error);
+    }
+
+    // Handle 429 Too Many Requests
+    if (error.response?.status === 429) {
+      handleAutoLogout("Too many requests. Please try again later.", "warning");
       return Promise.reject(error);
     }
 
@@ -79,7 +86,7 @@ axiosInstance.interceptors.response.use(
         return response;
       } catch (refreshError) {
         failedRequestsQueue.forEach(({ reject }) => reject(refreshError));
-        handleAutoLogout("Session expired");
+        handleAutoLogout("Your session has expired. Please log in again.", "info");
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -104,7 +111,7 @@ const refreshAccessToken = async () => {
     );
     return response.data;
   } catch (error) {
-    handleAutoLogout("Session expired");
+    handleAutoLogout("Your session has expired. Please log in again.", "info");
     throw error;
   }
 };
@@ -113,15 +120,6 @@ const refreshAccessToken = async () => {
 export const cancelAllRequests = () => {
   activeRequests.forEach((source) => source.cancel("Request canceled"));
   activeRequests.clear();
-};
-
-// Auto logout handler
-const handleAutoLogout = (message) => {
-  if (!window.location.pathname.includes("/login")) {
-    localStorage.removeItem("user");
-    cancelAllRequests();
-    window.location.replace("/login");
-  }
 };
 
 export default axiosInstance;
