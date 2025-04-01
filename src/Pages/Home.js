@@ -136,8 +136,14 @@ export default function Home({
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('Tab is now visible, re-establishing SSE connection in Home component');
-        establishSSEConnection();
+        console.log('Tab is now visible, checking SSE connection state in Home component');
+        // Only establish a new connection if we don't have an active one
+        if (!eventSource || eventSource.readyState === EventSource.CLOSED) {
+          console.log('Establishing new SSE connection in Home component');
+          establishSSEConnection();
+        } else {
+          console.log('SSE connection is already active in Home component');
+        }
       }
     };
     

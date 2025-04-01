@@ -351,74 +351,78 @@ export default function AppointmentTable() {
     // Function to handle when the page becomes visible again
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('Tab is now visible, re-establishing SSE connection');
+        console.log('Tab is now visible, checking SSE connection state in AppointmentTable');
         
-        // Create formatted date for the SSE URL
-        const date = new Date(selectedSlot);
-        const formattedDate = date
-          .toISOString()
-          .replace(".000", "")
-          .replace("T", " ")
-          .replace("Z", "+00:00");
-        const encodedDate = encodeURIComponent(formattedDate);
-        const sseUrl = `${API_BASE_URL}/doctorinfo/queue_updates/${cabinId}/${formattedDate}`;
-        
-        // Close existing connection if any
-        if (eventSource) {
-          eventSource.close();
-        }
-        
-        // Create new connection
-        const newEventSource = new EventSource(sseUrl, { withCredentials: true });
-        setEventSource(newEventSource);
-        
-        newEventSource.onmessage = async (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            if (data.appointment) {
-              setRows((prevRows) => {
-                // Handle null patient data safely
-                const patientData = data.appointment.patient || {};
-                const formattedAppointment = {
-                  id: data.appointment.token,
-                  token: data.appointment.token,
-                  appointment_id: data.appointment.appointment_id,
-                  firstName: data.appointment.name.split(" ")[0] || "",
-                  lastName:
-                    data.appointment.name.split(" ").slice(1).join(" ") || "",
-                  checkin: data.appointment.checkin,
-                  paid: data.appointment.paid,
-                  status: data.appointment.status,
-                  disease: data.appointment.disease || "",
-                  age: patientData.age || "",
-                  phone_number: patientData.phone_number || "",
-                  location: patientData.location || "",
-                  sex: patientData.gender || "",
-                  guardian: patientData.guardian || "",
-                  appointment_type: data.appointment.appointment_type,
-                  mode: data.appointment.mode || "",
-                  fees_paid: data.appointment.fees_paid || 0,
-                };
-
-                const existingIndex = prevRows.findIndex(
-                  (r) => r.appointment_id === data.appointment.appointment_id
-                );
-
-                if (existingIndex !== -1) {
-                  const newRows = [...prevRows];
-                  newRows[existingIndex] = formattedAppointment;
-                  return newRows;
-                }
-
-                return [...prevRows, formattedAppointment].sort(
-                  (a, b) => a.token - b.token
-                );
-              });
-            }
-          } catch (error) {
-            // console.error("Error processing appointment update:", error);
+        // Check if we already have an active connection
+        if (!eventSource || eventSource.readyState === EventSource.CLOSED) {
+          console.log('Creating new SSE connection in AppointmentTable');
+          
+          // Create formatted date for the SSE URL
+          const date = new Date(selectedSlot);
+          const formattedDate = date
+            .toISOString()
+            .replace(".000", "")
+            .replace("T", " ")
+            .replace("Z", "+00:00");
+          const encodedDate = encodeURIComponent(formattedDate);
+          const sseUrl = `${API_BASE_URL}/doctorinfo/queue_updates/${cabinId}/${formattedDate}`;
+          
+          // Close existing connection if any
+          if (eventSource) {
+            eventSource.close();
           }
-        };
+          
+          // Create new connection
+          const newEventSource = new EventSource(sseUrl, { withCredentials: true });
+          setEventSource(newEventSource);
+          
+          newEventSource.onmessage = async (event) => {
+            try {
+              const data = JSON.parse(event.data);
+              if (data.appointment) {
+                setRows((prevRows) => {
+                  // Handle null patient data safely
+                  const patientData = data.appointment.patient || {};
+                  const formattedAppointment = {
+                    id: data.appointment.token,
+                    token: data.appointment.token,
+                    appointment_id: data.appointment.appointment_id,
+                    firstName: data.appointment.name.split(" ")[0] || "",
+                    lastName: data.appointment.name.split(" ").slice(1).join(" ") || "",
+                    checkin: data.appointment.checkin,
+                    paid: data.appointment.paid,
+                    status: data.appointment.status,
+                    disease: data.appointment.disease || "",
+                    age: patientData.age || "",
+                    phone_number: patientData.phone_number || "",
+                    location: patientData.location || "",
+                    sex: patientData.gender || "",
+                    guardian: patientData.guardian || "",
+                    appointment_type: data.appointment.appointment_type,
+                    mode: data.appointment.mode || "",
+                    fees_paid: data.appointment.fees_paid || 0,
+                  };
+
+                  const existingIndex = prevRows.findIndex(
+                    (r) => r.appointment_id === data.appointment.appointment_id
+                  );
+
+                  if (existingIndex !== -1) {
+                    const newRows = [...prevRows];
+                    newRows[existingIndex] = formattedAppointment;
+                    return newRows;
+                  }
+
+                  return [...prevRows, formattedAppointment].sort(
+                    (a, b) => a.token - b.token
+                  );
+                });
+              }
+            } catch (error) {
+              // console.error("Error processing appointment update:", error);
+            }
+          };
+        }
       }
     };
 

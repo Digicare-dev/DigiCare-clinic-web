@@ -184,9 +184,15 @@ const App = () => {
     // Handle visibility changes
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('Tab is now visible, re-establishing SSE connection');
-        reconnectAttempt = 0; // Reset reconnection attempt counter
-        eventSource = connectEventSource();
+        console.log('Tab is now visible, checking SSE connection state');
+        // Only reconnect if the connection is closed or in an error state
+        if (!eventSource || eventSource.readyState === EventSource.CLOSED) {
+          console.log('SSE connection needs to be re-established');
+          reconnectAttempt = 0; // Reset reconnection attempt counter
+          eventSource = connectEventSource();
+        } else {
+          console.log('SSE connection is already active, no need to reconnect');
+        }
       }
     };
 
